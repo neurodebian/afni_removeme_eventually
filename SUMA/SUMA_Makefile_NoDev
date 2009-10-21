@@ -3,14 +3,14 @@
 MAKE = make
 SUMALIB = libSUMA.a
 SUMAGTSLIB = libSUMAGTS.a
-AFNILIB = -lmrix -lcoxplot -lmri -lf2c -l3DEdge
+AFNILIB = -lmrix -lcoxplot -lmri -lf2c
 MAINCODE = SUMA
 SUMALIBLIST = libSUMA.a libglut.a libply.a 
 GLWLIB = libGLws.a
 
 ## 07 Dec 2005 -- Modify include path (RWCox)
 
-SUMA_INPATH = ${SUMA_INCLUDE_PATH} -I../nifti/niftilib -I../nifti/nifticdf -I../nifti/znzlib -I../3DEdge/src -I../rickr
+SUMA_INPATH = ${SUMA_INCLUDE_PATH} -I../nifti/niftilib -I../nifti/nifticdf -I../nifti/znzlib -I../rickr
 
 SUMA_SRCS = SUMA_trackball.c SUMA_SVmanip.c SUMA_input.c \
 		 SUMA_MiscFunc.c SUMA_IV_XYZextract.c	\
@@ -311,7 +311,7 @@ ConvexHull: SUMA_ConvexHull.c
 	$(RM) $@
 	${CC} -DSUMA_COMPILED -DSUMA_BrainWrap_STANDALONE ${CCOPT} ${WARNOPT} -o $@ $(AFWARPOBJS) \
 		${AFNI_OBJS} SUMA_3dSkullStrip.c ${SUMA_INPATH} ${SUMA_LINK_PATH} 	\
-		${AFNI_3dOBJS} MarchingCubes/debug/MarchingCubes.o	-I../3DEdge/src -l3DEdge\
+		${AFNI_3dOBJS} MarchingCubes/debug/MarchingCubes.o	\
 		${SUMALIBLIST} ${AFNILIB} ${ZLIB} ${SUMA_LINK_LIB}
 
 3dCRUISEtoAFNI: SUMA_3dCRUISEtoAFNI.c

@@ -11,8 +11,8 @@ F2C = f2c -A
 
 ## 07 Dec 2005: modify the include flags here
 
-INFLAGS  = $(IFLAGS) -Inifti/niftilib -Inifti/nifticdf -Inifti/znzlib -I3DEdge/src -Irickr $(USE_ZLIB) $(USE_GIFTI)
-ISFLAGS  = $(IFLAGS) -I../nifti/niftilib -I../nifti/nifticdf -I../nifti/znzlib -I../3DEdge/src -I../rickr $(USE_ZLIB)
+INFLAGS  = $(IFLAGS) -Inifti/niftilib -Inifti/nifticdf -Inifti/znzlib -Irickr $(USE_ZLIB) $(USE_GIFTI)
+ISFLAGS  = $(IFLAGS) -I../nifti/niftilib -I../nifti/nifticdf -I../nifti/znzlib -I../rickr $(USE_ZLIB)
 
 DOCS     = ../doc/ps/*.ps ../doc/README/README*                    \
            rickr/AFNI.changes.rickr rhammett/AFNI.changes.rhammett \
@@ -77,7 +77,7 @@ PROGRAMS = afni to3d from3d abut 3dclust nsize 3dinfo 3dproject 3dmerge count   
            3dDeconvolve_f 3dAnhist 3dAFNIto3D 3dUniformize 3dWarp nicat         \
            3dSpatNorm Imon fftest serial_helper 3dDTeig 3dDWItoDT 3dWarpDrive   \
            nifti_tool 3dAllineate nifti1_test whereami plugout_drive            \
-           3dMedianFilter 3dretroicor 3dAFNItoNIML 3dAFNItoRaw im2niml 3dedge3  \
+           3dMedianFilter 3dretroicor 3dAFNItoNIML 3dAFNItoRaw im2niml          \
            DTIStudioFibertoSegments Dimon 3dLocalstat 3danisosmooth 3dmaxima    \
            3dTwotoComplex 3dInvFMRI 3dmatcalc 3dAcost 3dLocalBistat 3dFWHMx     \
            3dBlurToFWHM 1dSEM 3dDFT 3dSynthesize 1dMarry 3dEmpty 3dsvm          \
@@ -598,9 +598,10 @@ dsetdup:dsetdup.o
 	$(RM) $@
 	$(CC) -o 3dvolreg 3dvolreg.o $(LFLAGS) -lmri -lf2c $(LLIBS)
 
-3dedge:3dedge.o
-	$(RM) $@
-	$(CC) -o 3dedge 3dedge.o $(LFLAGS) -lmri -lf2c $(LLIBS)
+# Debian cannot have this due to licensing issues with edges3
+# 3dedge:3dedge.o
+# 	$(RM) $@
+# 	$(CC) -o 3dedge 3dedge.o $(LFLAGS) -lmri -lf2c $(LLIBS)
 
 from3d:from3d.o
 	$(RM) $@
@@ -692,10 +693,11 @@ d3dmerge:3dmerge.c
 	$(CC) -o 3dttest 3dttest.o parser.o parser_int.o \
               $(LFLAGS) -lmri -lf2c $(LLIBS)
 
-3dedge3:lib3DEdge.a 3dedge3.o
-	$(RM) $@
-	$(CC) -o 3dedge3 3dedge3.o -I3DEdge/src            \
-              $(LFLAGS) -l3DEdge -lmri -lf2c $(LLIBS)
+# Debian cannot have this due to licensing issues with edges3
+# 3dedge3:lib3DEdge.a 3dedge3.o
+# 	$(RM) $@
+# 	$(CC) -o 3dedge3 3dedge3.o -I3DEdge/src            \
+#               $(LFLAGS) -l3DEdge -lmri -lf2c $(LLIBS)
 
 ### From Stephen Laconte
 3dsvm:svm/svm_common.c svm/svm_learn.c svm/3dsvm_common.c svm/svm_hideo.c svm/3dsvm.c
@@ -1421,7 +1423,7 @@ afni_src.tgz:
 	$(CP) -pr coxplot volpack moveup moveAFNI* eispack                       ./afni_src
 	$(CP) -pr $(SCRIPTS) $(PY_DIR) $(R_DIR)                                  ./afni_src
 	$(CP) -pr gifsicledir qhulldir f2cdir mpeg_encodedir                     ./afni_src
-	$(CP) -pr 3DEdge netcdf-3.5.0 jpeg-6b niml Makefile_* nifti dlcompat     ./afni_src
+	$(CP) -pr        netcdf-3.5.0 jpeg-6b niml Makefile_* nifti dlcompat     ./afni_src
 	$(CP) -pr SUMA svm matlab rickr faces poems gifti ni_test_? README.*     ./afni_src
 	chmod -R ugo+rw                                                          ./afni_src
 	$(TAR) cf - afni_src | $(GZIP) -9v > afni_src.tgz
@@ -2141,8 +2143,9 @@ qhull.exe:
 #######
 # 3DEdge library files - make them and move them up here
 
-lib3DEdge.a:
-	( cd 3DEdge/src ; $(MAKE) clean lib3DEdge.a 'RM=$(RM)' 'AR=$(AR)' 'RANLIB=$(RANLIB)' 'CC=$(CCFAST)' 'IFLAGS=$(ISFLAGS)' 'LFLAGS=$(LFLAGS)' ; $(MV) *.a ../.. ; )
+# Debian cannot have this due to licensing issues with edges3
+# lib3DEdge.a:
+#	( cd 3DEdge/src ; $(MAKE) clean lib3DEdge.a 'RM=$(RM)' 'AR=$(AR)' 'RANLIB=$(RANLIB)' 'CC=$(CCFAST)' 'IFLAGS=$(ISFLAGS)' 'LFLAGS=$(LFLAGS)' ; $(MV) *.a ../.. ; )
 
 #######
 # Eispack and CDF library files - make them and move them up here
