@@ -1,0 +1,6 @@
+debian/tmp/bin/* usr/lib/afni/bin/
+debian/tmp/suma/* usr/lib/afni/bin/
+debian/tmp/plugins/plug* usr/lib/afni/plugins/
+debian/tmp/plugins/model* usr/lib/afni/models/
+lib*.so usr/lib/afni/lib
+debian/lintian/afni usr/share/lintian/overrides

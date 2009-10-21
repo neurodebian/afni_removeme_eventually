@@ -1,0 +1,49 @@
+#!/usr/bin/make -f
+
+include /usr/share/cdbs/1/rules/debhelper.mk
+include /usr/share/cdbs/1/class/makefile.mk
+
+# use our own little monster
+DEB_MAKE_MAKEFILE = Makefile.Debian
+
+# build everything except for SUMA, but do not do unconditional
+# cleanups to allow for quick dirty rebuilds
+DEB_MAKE_BUILD_TARGET = all plugins RM="echo Debian build: Not removing:"
+DEB_MAKE_INSTALL_TARGET = install install_plugins suma_install
+DEB_MAKE_CLEAN_TARGET = cleanest suma_clean RM="rm -f"
+DEB_SHLIBDEPS_INCLUDE_afni = $(CURDIR) debian/afni/usr/lib/afni/lib
+
+
+install/afni-common::
+	# move examples out of the binaries
+	mkdir -p debian/tmp/examples
+	find debian/tmp/scripts/ -name 'demo*.do' | xargs mv -t debian/tmp/examples
+
+	# fix permissions
+	chmod -x debian/tmp/config/*
+	chmod -x debian/tmp/pics/*
+	chmod -x debian/tmp/plugins/*
+	chmod -x debian/tmp/poems/*
+	chmod +x debian/tmp/python/*
+	chmod -x debian/tmp/R/1dGC.R
+
+	# fix tcsh interpreter location
+	for f in $$(egrep -lR '^#![ ]*/bin/tcsh' debian/tmp); do \
+		echo "Fixing tcsh interpreter location in '$$f'" ; \
+		sed -i -e 's|^#![ ]*/bin/tcsh|#!/usr/bin/tcsh|' $$f ; \
+	done
+
+	# remove duplicates
+	for i in debian/tmp/suma/@SUMA* ; do \
+		tfile=debian/tmp/scripts/$$(basename $$i) ; \
+		if [ -f $$tfile ]; then rm -f $$tfile ; fi ; \
+	done
+
+	# wipe static lib
+	-rm -f debian/tmp/suma/libSUMA.a
+
+
+clean::
+	-rm niml.h
+	-rm pcorsh.c
+	-rm SUMA/MarchingCubes/mc

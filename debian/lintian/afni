@@ -1,0 +1,5 @@
+afni: csh-considered-harmful ./usr/lib/afni/bin/@SUMA_AlignToExperiment
+afni: csh-considered-harmful ./usr/lib/afni/bin/@SUMA_FSvolToBRIK
+afni: csh-considered-harmful ./usr/lib/afni/bin/@SUMA_Make_Spec_Caret
+afni: csh-considered-harmful ./usr/lib/afni/bin/@SUMA_Make_Spec_FS
+afni: csh-considered-harmful ./usr/lib/afni/bin/@SUMA_Make_Spec_SF

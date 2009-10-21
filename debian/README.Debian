@@ -1,0 +1,18 @@
+afni for Debian
+---------------
+
+In comparision to the binaries distributed by the AFNI developers the Debian
+version of AFNI is lacking some features, due to the restrictive licensing
+of some of its dependencies. This concerns the following tools:
+
+* 3dsvm and the associated plugin -- the required litesvm source code is
+    covered by a non-free (non-commercial) license and has been removed from
+    the Debian package.
+
+* 3dedge, 3dedge3, SUMA_BrainWarp, 3dSkullStrip, 3dSurfMask -- all depend on
+    lib3dedge, and the corresponding license even forbids distribution of its
+    source code. Hence, the library sources have been removed and all tools
+    depending on it are not available.
+
+
+ -- Michael Hanke <michael.hanke@gmail.com>  Tue, 17 Mar 2009 08:39:06 +0100

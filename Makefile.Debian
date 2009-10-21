@@ -1,0 +1,77 @@
+#
+# The Makefile is the build-config for AFNI on Debian systems.
+#
+
+# we have zlib
+USE_ZLIB = -DHAVE_ZLIB
+LZLIB    = -lz
+
+# no motif but lesstif
+LESSTIF_DEFS = -DUSING_LESSTIF
+
+# not sure when these kick in (copied from upstream)
+CCDEBS = -DAFNI_DEBUG -DIMSEQ_DEBUG -DDISPLAY_DEBUG -DTHD_DEBUG -DUSE_TRACING
+# description for all flags in machdep.h or README.environment
+CEXTRA = -DDONT_USE_MCW_MALLOC -DHAVE_XDBE $(CPROF) -DDONT_USE_XTDESTROY -D_FILE_OFFSET_BITS=64 $(LESSTIF_DEFS)
+
+# Use the standard 'gcc' for all compiler variants
+# have to use -Wno-unused as otherwise the buildlog
+# exceeds the diskspace ;-)
+CC = gcc -DLINUX2 $(CFLAGS) $(CEXTRA) -Wno-unused
+CCVOL = $(CC)
+CCFAST = $(CC)
+CCMIN = $(CC)
+CCSVD = $(CC)
+CCD = $(CC)
+
+# include and linker search path setup
+# abuse to compile with -fPIC
+IFLAGS = -I. -I/usr/include/nifti -fPIC
+# set rpath to make AFNI with internal shared libs functional
+LFLAGS = -L. $(LDFLAGS) -Wl,-rpath=/usr/lib/afni/lib
+
+# plugin settings
+PLUGIN_SUFFIX = so
+PLUGIN_LFLAGS = -shared
+PLUGIN_CC     = $(CC)
+PLFLAGS       = -rdynamic -L.
+
+# identify the Debian build as such
+SHOWOFF = -DSHOWOFF=Debian-$(DEB_BUILD_GNU_TYPE)
+
+# all tools on standard
+AR     = ar
+RANLIB = ranlib
+TAR    = tar
+MKDIR  = mkdir
+GZIP   = gzip
+LD     = gcc
+RM     = rm -f
+MV     = mv -f
+CP     = cp -f
+
+# install everything into a temp dir
+INSTALLDIR = $(CURDIR)/debian/tmp
+INSTALLDIR_SUMA = $(INSTALLDIR)/suma
+LIBDIR = $(INSTALLDIR)
+
+INSTALL_PREREQ = suma_exec suma_gts_progs
+
+# we also have the GSL lib and hence can build additional stuff
+EXPROGS = gifti_tool balloon
+
+# for dynamic linking
+LLIBS  = -lmri -lXm -lXp -lXpm -lXext -lXmu -lXt -lX11 $(LZLIB) $(LGIFTI) -lm  -ldl -lc -lniftiio -lnifticdf -lnetcdf
+
+# using the mesa GLw lib
+GLw_LIB = -lGLw
+
+# SUMA build setup
+SUMA_INCLUDE_PATH = -I/usr/include/nifti -I..
+SUMA_LINK_PATH = $(LFLAGS) -L..
+SUMA_LINK_LIB =  $(GLw_LIB) -lGLU -lGL $(LLIBS)
+SUMA_MAKEFILE_NAME = SUMA_Makefile_NoDev
+
+
+# pull the main Makefile
+include Makefile.INCLUDE

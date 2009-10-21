@@ -1,0 +1,75 @@
+This package was debianized by:
+
+    Michael Hanke <michael.hanke@gmail.com> on Tue, 17 Mar 2009 08:39:06 +0100
+
+It was downloaded from:
+
+    http://afni.nimh.nih.gov
+
+Upstream Author(s):
+
+    <put author's name and email here>
+    <likewise for another author>
+
+Copyright:
+
+    Copyright (C) 1994-2000 Medical College of Wisconsin
+
+    Later developments come from the National Instituts of Health (NIH) and are
+    not copyrighted.
+
+
+License:
+
+   This package is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License version 2 as
+   published by the Free Software Foundation.
+
+    This package is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this package; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+
+On Debian systems, the complete text of the GNU General
+Public License can be found in `/usr/share/common-licenses/GPL-2'.
+
+The Debian packaging is:
+
+    Copyright (C) 2009, Michael Hanke <michael.hanke@gmail.com>
+
+and is licensed under the GPL, see above.
+
+
+COMPLETE ME
+-----------
+
+    The CDF library routines were developed at the University of Texas
+    M.D. Anderson Cancer Center, and have been placed into the public domain.
+    See the file "cdflib.txt" for more details.
+
+    The eis_*.c functions are C translations of the EISPACK library,
+    distributed by Netlib: http://www.netlib.org
+
+    Some of the routines in "mri_stats.c" are from the StatLib repository at
+    Carnegie Mellon: http://lib.stat.cmu.edu
+
+    Some of the routines in "mcw_glob.c" are derived from the Berkeley Unix
+    distribution.  See that file for their copyright declaration.
+
+    The popup hint functions in "LiteClue.c" are from Computer Generation, Inc.
+    See that file for their copyright declaration.
+
+    The volume rendering library "volpack" is by Phil Lacroute, and is copy-
+    righted by The Board of Trustees of The Leland Stanford Junior University.
+    See file "volpack.h" for their copyright declaration.
+
+    The MD5 routines in thd_md5.c are adapted from the functions in RFC1321
+    by R Rivest, and so are derived from the RSA Data Security, Inc MD5
+    Message-Digest Algorithm.  See file "thd_md5.c" for the RSA Copyright
+    notice.
+
+

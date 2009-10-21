@@ -1,0 +1,5 @@
+afni (0.20091009~dfsg.1-1) unstable; urgency=low
+
+  * Initial release (Closes: #409849).
+
+ -- Michael Hanke <michael.hanke@gmail.com>  Sun, 18 Oct 2009 20:43:08 -0400

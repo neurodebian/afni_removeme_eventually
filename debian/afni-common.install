@@ -1,0 +1,7 @@
+debian/tmp/pics/* usr/share/afni/pics/
+debian/tmp/poems/* usr/share/afni/poems/
+debian/tmp/R/* usr/lib/afni/bin/
+debian/tmp/python/* usr/lib/afni/bin/
+debian/tmp/scripts/* usr/lib/afni/bin/
+debian/lintian/afni-common usr/share/lintian/overrides
+debian/etc/* etc/afni/
