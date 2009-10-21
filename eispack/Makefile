@@ -1,10 +1,12 @@
 # Unix Makefile for eispack
 
 .c.o:
-	$(CC) -c $<
+	# on Debian all with -fPIC
+	$(CC) -c -fPIC $<
 
 eis_svd_slow.o:
-	$(CCSVD) -DFUNCNAME=svd_slow_ -c eis_svd.c
+	# on Debian all with -fPIC
+	$(CCSVD) -fPIC -DFUNCNAME=svd_slow_ -c eis_svd.c
 	mv -f eis_svd.o eis_svd_slow.o
 
 EIS_OBJS = eis_bakvec.o eis_balanc.o eis_balbak.o eis_bandr.o              \
