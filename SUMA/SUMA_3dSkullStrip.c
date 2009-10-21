@@ -34,6 +34,21 @@ void usage_SUMA_BrainWrap (SUMA_GENERIC_ARGV_PARSE *ps)
       sts = SUMA_help_talk(ps);
       printf ( 
 "\n"
+"WARNING !! WARNING !! WARNING !! WARNING\n"
+"\n"
+"    THIS VERSION OF 3dSkullStrip HAS BEEN MODIFIED!\n"
+"\n"
+"    YOU MUST USE:   -no_use_edge\n"
+"    YOU CANNOT USE: -push_to_edge\n"
+"\n"
+"    A licensing issue required the -push_to_edge and -use_edge\n"
+"    options and the 3dedge3 program to be removed from the Debian\n"
+"    AFNI packages.\n"
+"\n"
+"    Unmodified binaries for your platform may be available from\n"
+"\n"
+"    http://afni.nimh.nih.gov/afni/download/afni/releases/latest \n"
+"\n"
 "Usage: A program to extract the brain from surrounding.\n"
 "  tissue from MRI T1-weighted images. The fully automated\n"
 "  process consists of three steps:\n"
@@ -1029,6 +1044,16 @@ SUMA_GENERIC_PROG_OPTIONS_STRUCT *SUMA_BrainWrap_ParseInput (
       fprintf(SUMA_STDERR,"Error %s:\nCannot use -push_to_edge without -use_edge\n", FuncName);
       exit (1);      
    }
+
+   /* Can neither -use_edge nor -push_to_edge in debian package */
+   if (Opt->Use_emask) {
+      fprintf(SUMA_STDERR,"Error %s:\nCannot -use_edge with debian 3dSkullStrip\n", FuncName);
+      exit (1);
+   }
+   if (Opt->PushToEdge) {
+      fprintf(SUMA_STDERR,"Error %s:\nCannot -push_to_edge with debian 3dSkullStrip\n", FuncName);
+      exit (1);
+   }
    
    if (Opt->bot_lztclip < 0) {
       if (!Opt->Use_emask) Opt->bot_lztclip = 0.65;
@@ -1514,6 +1539,13 @@ int main (int argc,char *argv[])
       exit(1);
    }
 
+#if 1 /* Edges disabled for Debian package -- license problem with 3DEdge */
+   if (Opt->Use_emask) {
+      /* This should not be reached */
+      fprintf(SUMA_STDERR,"Error %s:\nCannot -use_edge with debian 3dSkullStrip\n", FuncName);
+      exit (1);
+   }
+#else
    /* calculate an edge mask ? */
    if (Opt->Use_emask) {
       float *emask_sort = NULL, PercRange[2]= { 10, 90 }, PercRangeVal[2] = { 0.0, 0.0 }, PercTh=-1.0;
@@ -1621,7 +1653,8 @@ int main (int argc,char *argv[])
          }
       }
    } 
-  
+#endif /* Disabled for Debian package -- license problem with 3DEdge */
+
    if (Opt->blur_fwhm) {
      if (Opt->debug) fprintf (SUMA_STDERR,"%s: Blurring...\n", FuncName);
      EDIT_blur_volume(  DSET_NX(Opt->in_vol), DSET_NY(Opt->in_vol), DSET_NZ(Opt->in_vol),
@@ -2026,6 +2059,13 @@ int main (int argc,char *argv[])
       }
 
       PUSH_TO_EDGE:
+#if 1 /* Edges disabled for Debian package -- license problem with 3DEdge */
+      if (Opt->PushToEdge) {
+	/* This should not be reached */
+	fprintf(SUMA_STDERR,"Error %s:\nCannot -push_to_edge with debian 3dSkullStrip\n", FuncName);
+	exit (1);
+      }
+#else
       if (Opt->PushToEdge) {
          fprintf (SUMA_STDERR,"%s: Pushing to Edge ...\n", FuncName);
          ps->cs->kth = 1; /*make sure all gets sent at this stage */
@@ -2078,7 +2118,7 @@ int main (int argc,char *argv[])
          if (LocalHead) fprintf (SUMA_STDERR,"%s: Edge push correction  Done.\n", FuncName);
          ps->cs->kth = kth_buf; 
       }
-
+#endif /* Disabled for Debian package -- license problem with 3DEdge */
 
       BEAUTY:
       /* smooth the surface a bit */

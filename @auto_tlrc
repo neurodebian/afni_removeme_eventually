@@ -263,6 +263,12 @@ PARSE:
          set ss_opt = "$ss_opt -no_avoid_eyes";      
          set donext = 0      
       endif
+      # add option, since Debian package has no edges3, due to licensing
+      # problems with it
+      if ($donext && "$argv[$cnt]" == "-no_use_edge") then
+         set ss_opt = "$ss_opt -no_use_edge";
+         set donext = 0
+      endif
       if ($donext == 1) then
          echo "Error: Option or parameter '$argv[$cnt]' not understood"
          goto END
@@ -983,6 +989,9 @@ echo "                       if the alignment does not converge."
 echo "      -no_avoid_eyes : An option that gets passed to 3dSkullStrip."
 echo "                       Use it when parts of the frontal lobes get clipped"
 echo "                       See 3dSkullStrip -help for more details."
+echo "      -no_use_edge   : An option that gets passed to 3dSkullStrip. Do not"
+echo "                       use edge detection to reduce leakage into meninges"
+echo "                       and eyes. See 3dSkullStrip -help for more details."
 echo "      -ncr           : 3dWarpDrive option -coarserot is now a default."
 echo "                       It will cause no harm, only good shall come of it."
 echo "                       -ncr is there however, should you choose NOT TO"

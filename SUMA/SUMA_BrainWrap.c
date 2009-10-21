@@ -1,6 +1,8 @@
 #include "SUMA_suma.h"
 #include "../thd_brainormalize.h"
+#if 0 /* Disabled for Debian package -- license problem with 3DEdge */
 #include "extrema.h"
+#endif  /* Disabled for Debian package -- license problem with 3DEdge */
 
 #undef STAND_ALONE
 
@@ -3986,6 +3988,7 @@ EDIT_options *SUMA_BlankAfniEditOptions(void)
    \param poutsetp (THD_3dim_dataset **)If not null, it will point to a dataset that contains
                                         the edges.
 */
+#if 0 /* Disabled for Debian package -- license problem with 3DEdge */
 SUMA_Boolean SUMA_3dedge3(THD_3dim_dataset *inset, float *emask, THD_3dim_dataset **poutsetp)
 {
    static char FuncName[]={"SUMA_3dedge3"};
@@ -4206,3 +4209,4 @@ SUMA_Boolean SUMA_3dedge3(THD_3dim_dataset *inset, float *emask, THD_3dim_datase
       
    SUMA_RETURN(YUP);
 }
+#endif /* Disabled for Debian package -- license problem with 3DEdge */

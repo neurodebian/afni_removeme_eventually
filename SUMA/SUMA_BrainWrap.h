@@ -35,7 +35,9 @@ SUMA_Boolean SUMA_LimitCoordToVolume(float *NewCoord,
 int SUMA_DidUserQuit(void);
 EDIT_options *SUMA_BlankAfniEditOptions(void);
 void *SUMA_Push_Nodes_To_Hull(SUMA_SurfaceObject *SO, SUMA_GENERIC_PROG_OPTIONS_STRUCT *Opt, SUMA_COMM_STRUCT *cs, int N_itermax);
+#if 0 /* Disabled for Debian package -- license problem with 3DEdge */
 SUMA_Boolean SUMA_3dedge3(THD_3dim_dataset *inset, float *emask, THD_3dim_dataset **poutsetp);
+#endif /* Disabled for Debian package -- license problem with 3DEdge */
 
 /*!
    SUMA_WRAP_BRAIN_SMOOTH(niter, bufp1, bufp2);
