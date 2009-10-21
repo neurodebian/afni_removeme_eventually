@@ -103,7 +103,8 @@
    #include <GL/gl.h>
    #include <GL/glu.h>
    #include <GL/glx.h>
-   #include <GLUT/GL/glut.h>
+   /* Use standard include path on Debian */
+   #include <GL/glut.h>
    
 
    

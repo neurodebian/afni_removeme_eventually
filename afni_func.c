@@ -6053,6 +6053,8 @@ ENTRY("AFNI_find_poem_files") ;
    /*----- get path to search -----*/
 
                        epath = getenv("AFNI_PLUGINPATH") ;
+   /* Debian puts them into a separate dir */
+   epath = "/usr/share/afni/poems";
    if( epath == NULL ) epath = getenv("AFNI_PLUGIN_PATH") ;
    if( epath == NULL ) epath = getenv("PATH") ;
    if( epath == NULL ){ num_poem=-1; EXRETURN ; }

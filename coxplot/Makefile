@@ -25,6 +25,11 @@ ALLO = color.o curve.o frame.o frstpt.o labmod.o memplt.o    \
 # LFLAGS = -s -L. -L.. -L/usr/X11R6/lib -lcoxplot -lf2c \
 #          -lXm -lXp -lXpm -lXext -lXmu -lXt -lX11 -lm
 
+libcoxplot.so:$(ALLO) coxplot.h
+	# On Debian we want to have the core libs as private shared libraries
+	# to be more efficient and terms of disk space and memory consumption
+	$(CC) -shared -Wl,--no-undefined -fPIC -o libcoxplot.so $(ALLO) -lf2c -lXext -lXt -lXm -lm -lX11 -L.. -lmri
+
 libcoxplot.a:$(ALLO) coxplot.h
 	$(RM) $@
 	$(AR) q libcoxplot.a $(ALLO)
