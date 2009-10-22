@@ -15,9 +15,10 @@ ELSE(ITK_FOUND)
 # Otherwise, get it from elsewhere.
   FIND_PACKAGE(EXPAT)
   FIND_PACKAGE(ZLIB)
-  FIND_LIBRARY(NIFTI_LIBRARY NAMES niftiio PATH /usr/local/nifti/lib )
+  FIND_LIBRARY(NIFTI_LIBRARY NAMES niftiio PATHS /usr/lib /usr/local/nifti/lib)
   SET(NIFTI_LIBRARIES ${NIFTI_LIBRARY} znz m)
-  FIND_PATH(NIFTI_INCLUDE_DIR nifti1.h /usr/local/nifti/include/nifti )
+  FIND_PATH(NIFTI_INCLUDE_DIR nifti1.h
+            /usr/include/nifti /usr/local/nifti/include/nifti)
   GET_FILENAME_COMPONENT(GIFTI_LINK_DIRECTORIES ${NIFTI_LIBRARY} PATH)
   LINK_DIRECTORIES(${GIFTI_LINK_DIRECTORIES})
   INCLUDE_DIRECTORIES(${NIFTI_INCLUDE_DIR})
@@ -29,7 +30,7 @@ ${gifticlib_SOURCE_DIR}
 ${gifticlib_BINARY_DIR}
 )
 
-ADD_LIBRARY(giftiio STATIC gifti_io.c gifti_xml.c )
+ADD_LIBRARY(giftiio gifti_io.c gifti_xml.c )
 LINK_DIRECTORIES(${gifticlib_BINARY_DIR})
 
 ADD_EXECUTABLE(gifti_tool gifti_tool.c)
