@@ -31,13 +31,14 @@ ${gifticlib_BINARY_DIR}
 )
 
 ADD_LIBRARY(giftiio gifti_io.c gifti_xml.c )
+TARGET_LINK_LIBRARIES(giftiio ${EXPAT_LIBRARIES} ${ZLIB_LIBRARIES})
 LINK_DIRECTORIES(${gifticlib_BINARY_DIR})
 
 ADD_EXECUTABLE(gifti_tool gifti_tool.c)
-TARGET_LINK_LIBRARIES(gifti_tool giftiio ${EXPAT_LIBRARIES} ${ZLIB_LIBRARIES} ${NIFTI_LIBRARIES})
+TARGET_LINK_LIBRARIES(gifti_tool giftiio ${NIFTI_LIBRARIES})
 
 ADD_EXECUTABLE(gifti_test gifti_test.c)
-TARGET_LINK_LIBRARIES(gifti_test giftiio ${EXPAT_LIBRARIES} ${ZLIB_LIBRARIES} ${NIFTI_LIBRARIES})
+TARGET_LINK_LIBRARIES(gifti_test giftiio ${NIFTI_LIBRARIES})
 
 INSTALL(TARGETS giftiio gifti_tool gifti_test DESTINATION bin )
 
