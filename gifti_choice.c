@@ -10,15 +10,18 @@
 
 #ifdef HAVE_GIFTI
 
-    /* pretend the gifti source is here, along with thd_gifti functions */
-    
-    #include "mcw_malloc.h"     /* Need this to use same allocation functions */
-    
-    #include "gifti_io.c"       /* library */
-    #include "gifti_xml.c"
-
-    #include "thd_gifti.c"      /* afni interface */
-    #include "suma_gifti.c"     /* suma interface */
+/* On Debian we have a proper library for gifti -- no need for this:
+ * -----------------------------------------------------------------
+ *   pretend the gifti source is here, along with thd_gifti functions
+ *
+ *  #include "mcw_malloc.h"      Need this to use same allocation functions
+ *
+ *  #include "gifti_io.c"        library
+ *  #include "gifti_xml.c"
+ *
+ *  #include "thd_gifti.c"       afni interface
+ *  #include "suma_gifti.c"      suma interface
+ */
 #else
 
     /* if we do not love or even want GIFTI, include failure functions here */
