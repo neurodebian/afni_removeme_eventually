@@ -1,19 +1,19 @@
 PROJECT(SUMA)
 
-# Define options to customize the build-process
+##
+## Define options to customize the build-process
+##
+
 OPTION(AFNI_BUILD_LOCAL_GLW
        "Build and use AFNI's local copy of libGLw"
        OFF)
 
-# Check general prerequisites - OpenGL, SUMA
-INCLUDE(FindOpenGL)
-if (NOT OPENGL_FOUND)
- MESSAGE("OpenGL library not found - compiling without SUMA")
-else (NOT OPENGL_FOUND)
-INCLUDE(FindGLUT)
-if (NOT GLUT_FOUND)
- MESSAGE("GLUT library not found - compiling without SUMA")
-else (NOT GLUT_FOUND)
+##
+## Check for and configure for external dependencies
+##
+
+FIND_PACKAGE(OpenGL REQUIRED)
+FIND_PACKAGE(GLUT REQUIRED)
 INCLUDE_DIRECTORIES(${OPENGL_INCLUDE_DIR} ${GLUT_INCLUDE_DIR})
 
 SET(SUMA_SRCS 
@@ -44,6 +44,8 @@ IF(CMAKE_BUILD_TYPE STREQUAL Debug)
 ENDIF(CMAKE_BUILD_TYPE STREQUAL Debug)
 
 ADD_LIBRARY(SUMA ${SUMA_SRCS})
+TARGET_LINK_LIBRARIES(SUMA ${OPENGL_LIBRARIES} ${GLUT_LIBRARIES}
+   ${MOTIF_LIBRARIES} mrix mri rickr)
 # need to link against GLw if not included in the library
 IF(NOT AFNI_BUILD_LOCAL_GLW)
   TARGET_LINK_LIBRARIES(SUMA ${GLW_LIBRARY})
@@ -315,5 +317,3 @@ INSTALL(
  DESTINATION ${INSTALLDIR}
  PERMISSIONS ${EXECUTABLE_PERMISSIONS}
 )
-endif (NOT GLUT_FOUND)
-endif(NOT OPENGL_FOUND)

@@ -1,6 +1,9 @@
 PROJECT(AFNI)
 
-# Define options to customize the build-process
+##
+## Define options to customize the build-process
+##
+
 OPTION(AFNI_BUILD_DEBUG "Build afni in debug mode" OFF)
 OPTION(AFNI_BUILD_LOCAL_NIFTICLIBS
        "Build and use AFNI's local copy of the NIfTI libs"
