@@ -4,6 +4,11 @@
 PROJECT(gifticlib)
 cmake_minimum_required(VERSION 2.6)
 
+SET(GIFTI_INSTALL_BIN_DIR "bin" CACHE PATH
+    "Directory to install compiled programs into")
+SET(GIFTI_INSTALL_LIB_DIR "lib" CACHE PATH
+    "Directory to install libraries into")
+
 FIND_PACKAGE(ITK)
 IF(ITK_FOUND)
 # ITK provides expat and zlib.
@@ -13,8 +18,8 @@ IF(ITK_FOUND)
    SET(NIFTI_LIBRARIES ITKniftiio)
 ELSE(ITK_FOUND)
 # Otherwise, get it from elsewhere.
-  FIND_PACKAGE(EXPAT)
-  FIND_PACKAGE(ZLIB)
+  FIND_PACKAGE(EXPAT REQUIRED)
+  FIND_PACKAGE(ZLIB REQUIRED)
   FIND_LIBRARY(NIFTI_LIBRARY NAMES niftiio PATHS /usr/lib /usr/local/nifti/lib)
   SET(NIFTI_LIBRARIES ${NIFTI_LIBRARY} znz m)
   FIND_PATH(NIFTI_INCLUDE_DIR nifti1.h
@@ -40,5 +45,7 @@ TARGET_LINK_LIBRARIES(gifti_tool giftiio ${NIFTI_LIBRARIES})
 ADD_EXECUTABLE(gifti_test gifti_test.c)
 TARGET_LINK_LIBRARIES(gifti_test giftiio ${NIFTI_LIBRARIES})
 
-INSTALL(TARGETS giftiio gifti_tool gifti_test DESTINATION bin )
-
+INSTALL(TARGETS giftiio gifti_tool gifti_test
+  RUNTIME DESTINATION ${GIFTI_INSTALL_BIN_DIR} COMPONENT Runtime
+  LIBRARY DESTINATION ${GIFTI_INSTALL_LIB_DIR} COMPONENT Runtime
+  ARCHIVE DESTINATION ${GIFTI_INSTALL_LIB_DIR} COMPONENT Development)

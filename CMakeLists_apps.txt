@@ -58,8 +58,8 @@ SET(SCRIPTS
 ## Targets
 ##
 FOREACH(program ${PROGRAMS})
- ADD_EXECUTABLE(${program} ${program}.c)
- TARGET_LINK_LIBRARIES(${program} ${AFNI_LIBS})
+  ADD_EXECUTABLE(${program} ${program}.c)
+  TARGET_LINK_LIBRARIES(${program} ${AFNI_LIBS})
 ENDFOREACH(program)
 
 ADD_EXECUTABLE(1dSEM 1dSEM.c sqrmat.c)
@@ -116,25 +116,23 @@ TARGET_LINK_LIBRARIES(3dDeconvolve_f ${AFNI_LIBS})
 
 ADD_EXECUTABLE(help_format help_format.c)
 
-ADD_EXECUTABLE(afni_history afni_history.c 
- afni_history_bpittman.c afni_history_christip.c afni_history_dglen.c
- afni_history_gangc.c afni_history_rickr.c afni_history_rwcox.c
- afni_history_ziad.c)
+ADD_EXECUTABLE(afni_history
+  afni_history.c afni_history_bpittman.c afni_history_christip.c
+  afni_history_dglen.c afni_history_gangc.c afni_history_rickr.c
+  afni_history_rwcox.c afni_history_ziad.c)
 TARGET_LINK_LIBRARIES(afni_history ${AFNI_LIBS})
 
 #
 # AFNI
 #
-SET(AFSRC afni.c afni_func.c afni_widg.c afni_fimmer.c 
- afni_pcor.c afni_pcor_update.c afni_transforms.c 
- pbar.c afni_graph.c afni_plugin.c afni_cluster.c
- parser.c parser_int.c afni_plugout.c afni_fimfunc.c 
- afni_setup.c afni_receive.c mcw_graf.c afni_splash.c 
- afni_pplug_env.c afni_pplug_2dfunc.c afni_friends.c 
- afni_ttren.c afni_pplug_1dfunc.c afni_driver.c 
- afni_niml.c afni_sumafunc.c 
- afni_version.c afni_lock.c afni_vol2surf.c
- afni_pplug_instacorr.c afni_pplug_instacalc.c)
+SET(AFSRC
+  afni.c afni_func.c afni_widg.c afni_fimmer.c afni_pcor.c
+  afni_pcor_update.c afni_transforms.c pbar.c afni_graph.c afni_plugin.c
+  afni_cluster.c parser.c parser_int.c afni_plugout.c afni_fimfunc.c
+  afni_setup.c afni_receive.c mcw_graf.c afni_splash.c afni_pplug_env.c
+  afni_pplug_2dfunc.c afni_friends.c afni_ttren.c afni_pplug_1dfunc.c
+  afni_driver.c afni_niml.c afni_sumafunc.c afni_version.c afni_lock.c
+  afni_vol2surf.c afni_pplug_instacorr.c afni_pplug_instacalc.c)
 # This is for compiling to an object that was called afni_pcor_float.o
 SET_SOURCE_FILES_PROPERTIES(afni_pcor_update.c
                             PROPERTIES COMPILE_FLAGS "-DDTYPE=float")
@@ -179,4 +177,4 @@ INSTALL(TARGETS ${PROGRAMS} ${ADDPROGRAMS}
   ARCHIVE DESTINATION ${AFNI_INSTALL_LIB_DIR} COMPONENT Development)
 
 INSTALL(PROGRAMS ${SCRIPTS}
-  RUNTIME DESTINATION ${AFNI_INSTALL_SCRIPT_DIR} COMPONENT Runtime)
+  DESTINATION ${AFNI_INSTALL_SCRIPT_DIR} COMPONENT Runtime)

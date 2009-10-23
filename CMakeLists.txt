@@ -10,7 +10,6 @@ endif(COMMAND cmake_policy)
 ## Define options to customize the build-process
 ##
 
-OPTION(AFNI_BUILD_DEBUG "Build afni in debug mode" OFF)
 OPTION(AFNI_BUILD_LOCAL_NIFTICLIBS
        "Build and use AFNI's local copy of the NIfTI libs"
        OFF)
@@ -20,29 +19,26 @@ OPTION(AFNI_BUILD_LOCAL_3DEGDE3
 OPTION(AFNI_BUILD_LOCAL_GIFTI
        "Build and use AFNI's local copy of GIFTI"
        ON)
+OPTION(AFNI_BUILD_CORELIBS_ONLY
+       "Only build core libraries, no SUMA, plugins or programs"
+       OFF)
 #
 # Install destinations
 #
 # Use different logical targets, but by default put all of them into
 # on directory -- like the old makefiles were doing it
-OPTION(AFNI_INSTALL_BIN_DIR
-       "Directory to install compiled programs into"
-       ${CMAKE_INSTALL_PREFIX}/bin)
-OPTION(AFNI_INSTALL_LIB_DIR
-       "Directory to install libraries into"
-       ${CMAKE_INSTALL_PREFIX}/bin)
-OPTION(AFNI_INSTALL_PLUGIN_DIR
-       "Directory to install plugins into"
-       ${CMAKE_INSTALL_PREFIX}/bin)
-OPTION(AFNI_INSTALL_SCRIPT_DIR
-       "Directory to install interpreted scripts into"
-       ${CMAKE_INSTALL_PREFIX}/bin)
-OPTION(AFNI_INSTALL_PICS_DIR
-       "Directory to install images into"
-       ${CMAKE_INSTALL_PREFIX}/bin)
-OPTION(AFNI_INSTALL_POEMS_DIR
-       "Directory to install poems into"
-       ${CMAKE_INSTALL_PREFIX}/bin)
+SET(AFNI_INSTALL_BIN_DIR "bin" CACHE PATH
+    "Directory to install compiled programs into")
+SET(AFNI_INSTALL_LIB_DIR "bin" CACHE PATH
+    "Directory to install libraries into")
+SET(AFNI_INSTALL_PLUGIN_DIR "bin" CACHE PATH
+    "Directory to install plugins into")
+SET(AFNI_INSTALL_SCRIPT_DIR "bin" CACHE PATH
+    "Directory to install interpreted scripts into")
+SET(AFNI_INSTALL_PICS_DIR "bin" CACHE PATH
+    "Directory to install images into")
+SET(AFNI_INSTALL_POEMS_DIR "bin" CACHE PATH
+    "Directory to install poems into")
 
 ##
 ## Check for and configure for external dependencies
@@ -50,17 +46,22 @@ OPTION(AFNI_INSTALL_POEMS_DIR
 
 FIND_PACKAGE(X11 REQUIRED)
 FIND_PACKAGE(Motif REQUIRED)
+INCLUDE_DIRECTORIES(${MOTIF_INCLUDE_DIR})
 
 #
 # NIfTI
 #
-FIND_PATH(NIFTI_INCLUDES nifti1.h
-          PATHS /usr/include /usr/local/include ${CMAKE_SOURCE_DIR}/nifti
-          PATH_SUFFIXES nifti niftilib
-          DOC "NIfTI headers location")
-INCLUDE_DIRECTORIES(${NIFTI_INCLUDES})
 IF(AFNI_BUILD_LOCAL_NIFTICLIBS)
-  INCLUDE_DIRECTORIES(${NIFTI_INCLUDES}/../znzlib ${NIFTI_INCLUDES}/../nifticdf)
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/nifti/niftilib
+                      ${CMAKE_SOURCE_DIR}/nifti/nifticdf
+                      ${CMAKE_SOURCE_DIR}/nifti/znzlib)
+  MESSAGE(STATUS "Using local NIfTI libs sources")
+ELSE(AFNI_BUILD_LOCAL_NIFTICLIBS)
+  FIND_PATH(NIFTI_INCLUDE_DIR nifti1.h
+            PATHS /usr/include /usr/local/include
+            PATH_SUFFIXES nifti niftilib
+            DOC "NIfTI headers location")
+  INCLUDE_DIRECTORIES(${NIFTI_INCLUDE_DIR})
 ENDIF(AFNI_BUILD_LOCAL_NIFTICLIBS)
 
 #
@@ -89,6 +90,8 @@ FIND_LIBRARY(NETCDF_LIBRARY netcdf)
 #
 IF(AFNI_BUILD_LOCAL_3DEGDE3)
   SET(THREEDEDGE_LIBS 3DEdge)
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/3DEdge/src)
+  MESSAGE(STATUS "Using local 3DEdge3 sources")
 ELSE(AFNI_BUILD_LOCAL_3DEGDE3)
   SET(THREEDEDGE_LIBS )
 ENDIF(AFNI_BUILD_LOCAL_3DEGDE3)
@@ -98,8 +101,18 @@ ENDIF(AFNI_BUILD_LOCAL_3DEGDE3)
 #
 FIND_PACKAGE(OpenMP)
 IF(OPENMP_FOUND)
+  MESSAGE(STATUS "Using OpenMP")
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS} -DUSE_OMP")
 ENDIF(OPENMP_FOUND)
+
+#
+# Zlib
+#
+FIND_PACKAGE(ZLIB)
+IF(ZLIB_FOUND)
+  ADD_DEFINITIONS(-DHAVE_ZLIB)
+  INCLUDE_DIRECTORIES(${ZLIB_INCLUDE_DIR})
+ENDIF(ZLIB_FOUND)
 
 
 ##
@@ -124,51 +137,58 @@ ENDIF(UNIX)
 # TODO check if that is necessary at all
 SET(FILE_PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
 
-SET(AFNI_INCLUDES ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/rickr
- ${CMAKE_SOURCE_DIR}/niml ${CMAKE_SOURCE_DIR}/nifti/niftilib
- ${CMAKE_SOURCE_DIR}/nifti/nifticdf ${CMAKE_SOURCE_DIR}/nifti/znzlib
- ${CMAKE_SOURCE_DIR}/3DEdge/src)
-
-SET(AFNI_LIBPATH /usr/lib)
-
-SET(NETCDFLIBS netcdf)
-
-SET(AFNI_LIBS mri mrix coxplot ${VOLPACK_LIBRARY} ${NETCDFLIBS} ${MOTIF_LIBRARIES} ${F2C_LIBRARY} m)
-
-FIND_PACKAGE(ZLIB)
-if (ZLIB_FOUND)
- LIST(APPEND CEXTRA -DHAVE_ZLIB)
- LIST(APPEND AFNI_LIBS ${ZLIB_LIBRARIES})
- FIND_PACKAGE(EXPAT)
- if (EXPAT_FOUND)
-  LIST(APPEND CEXTRA -DHAVE_GIFTI)
-  LIST(APPEND AFNI_LIBS ${EXPAT_LIBRARIES})
-  LIST(APPEND AFNI_INCLUDES ${CMAKE_SOURCE_DIR}/gifti)
-  SET(HAVE_GIFTI TRUE)
- endif (EXPAT_FOUND)
-endif (ZLIB_FOUND)
-
+# core libs pretty much everythings has to be linked against
+SET(AFNI_LIBS
+   mri mrix coxplot
+   ${VOLPACK_LIBRARY} ${NETCDF_LIBRARY} ${MOTIF_LIBRARIES} ${F2C_LIBRARY} m)
 SET(WARP_LIBS afni_warp ${AFNI_LIBS})
-
 SET(RICKR_LIBS rickr ${WARP_LIBS} ${AFNI_LIBS})
-
-INCLUDE_DIRECTORIES(${MOTIF_INCLUDE_DIR} ${ZLIB_INCLUDE_DIR} ${AFNI_INCLUDES})
-LINK_DIRECTORIES(${AFNI_LIBPATH})
 
 
 ##
 ## Sub-projects
 ##
-ADD_SUBDIRECTORY(gifti)
-ADD_SUBDIRECTORY(coxplot)
-ADD_SUBDIRECTORY(rickr)
-ADD_SUBDIRECTORY(faces)
-ADD_SUBDIRECTORY(poems)
-ADD_SUBDIRECTORY(python_scripts)
-ADD_SUBDIRECTORY(R_scripts)
-ADD_SUBDIRECTORY(SUMA)
-
-
+# always there
 INCLUDE(CMakeLists_libs.txt)
-INCLUDE(CMakeLists_apps.txt)
-INCLUDE(CMakeLists_plugins.txt)
+ADD_SUBDIRECTORY(coxplot)
+
+# GIFTI upon request
+IF(AFNI_BUILD_LOCAL_GIFTI)
+  # precharge GIFTI's installation target to sync it with other AFNI libs
+  SET(GIFTI_INSTALL_BIN_DIR ${AFNI_INSTALL_BIN_DIR} CACHE PATH
+     "Install GIFTI programs into this directory")
+  SET(GIFTI_INSTALL_LIB_DIR ${AFNI_INSTALL_LIB_DIR} CACHE PATH
+     "Install GIFTI library into this directory")
+  MESSAGE(STATUS "Using local GIFTI sources")
+  ADD_SUBDIRECTORY(gifti)
+
+  # tell everybody that we have GIFTI
+  ADD_DEFINITIONS(-DHAVE_GIFTI)
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/gifti)
+  SET(AFNI_HAVE_GIFTI TRUE)
+# or if there is a system lib
+ELSE(AFNI_BUILD_LOCAL_GIFTI)
+  FIND_LIBRARY(GIFTI_LIBRARY giftiio)
+  IF(GIFTI_LIBRARY)
+    MESSAGE(STATUS "Found libgiftiio, compiling with GIFTI support")
+    SET(AFNI_HAVE_GIFTI TRUE)
+  ELSE(GIFTI_LIBRARY)
+    MESSAGE(STATUS "No libgiftiio found, compiling without GIFTI support")
+    SET(AFNI_HAVE_GIFTI FALSE)
+  ENDIF(GIFTI_LIBRARY)
+ENDIF(AFNI_BUILD_LOCAL_GIFTI)
+
+# everything that is not necessary for corelibs
+IF(NOT AFNI_BUILD_CORELIBS_ONLY)
+  ADD_SUBDIRECTORY(rickr)
+
+  INCLUDE(CMakeLists_apps.txt)
+  INCLUDE(CMakeLists_plugins.txt)
+
+  ADD_SUBDIRECTORY(python_scripts)
+  ADD_SUBDIRECTORY(R_scripts)
+  ADD_SUBDIRECTORY(SUMA)
+
+  ADD_SUBDIRECTORY(faces)
+  ADD_SUBDIRECTORY(poems)
+ENDIF(NOT AFNI_BUILD_CORELIBS_ONLY)
