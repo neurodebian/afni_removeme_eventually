@@ -1,5 +1,11 @@
 PROJECT(AFNI)
 
+cmake_minimum_required(VERSION 2.6)
+if(COMMAND cmake_policy)
+  cmake_policy(SET CMP0002 NEW)
+  cmake_policy(SET CMP0003 NEW)
+endif(COMMAND cmake_policy)
+
 ##
 ## Define options to customize the build-process
 ##
@@ -11,12 +17,36 @@ OPTION(AFNI_BUILD_LOCAL_NIFTICLIBS
 OPTION(AFNI_BUILD_LOCAL_3DEGDE3
        "Build and use AFNI's local copy of lib3dedge3"
        OFF)
+#
+# Install destinations
+#
+# Use different logical targets, but by default put all of them into
+# on directory -- like the old makefiles were doing it
+OPTION(AFNI_INSTALL_BIN_DIR
+       "Directory to install compiled programs into"
+       ${CMAKE_INSTALL_PREFIX}/bin)
+OPTION(AFNI_INSTALL_LIB_DIR
+       "Directory to install libraries into"
+       ${CMAKE_INSTALL_PREFIX}/bin)
+OPTION(AFNI_INSTALL_PLUGIN_DIR
+       "Directory to install plugins into"
+       ${CMAKE_INSTALL_PREFIX}/bin)
+OPTION(AFNI_INSTALL_SCRIPT_DIR
+       "Directory to install interpreted scripts into"
+       ${CMAKE_INSTALL_PREFIX}/bin)
+OPTION(AFNI_INSTALL_PICS_DIR
+       "Directory to install images into"
+       ${CMAKE_INSTALL_PREFIX}/bin)
+OPTION(AFNI_INSTALL_POEMS_DIR
+       "Directory to install poems into"
+       ${CMAKE_INSTALL_PREFIX}/bin)
 
 ##
 ## Check for and configure for external dependencies
 ##
 
 FIND_PACKAGE(X11 REQUIRED)
+FIND_PACKAGE(Motif REQUIRED)
 
 #
 # NIfTI
@@ -60,49 +90,48 @@ ELSE(AFNI_BUILD_LOCAL_3DEGDE3)
   SET(THREEDEDGE_LIBS )
 ENDIF(AFNI_BUILD_LOCAL_3DEGDE3)
 
-IF(AFNI_BUILD_DEBUG)
- SET(CMAKE_BUILD_TYPE Debug)
-ELSE(AFNI_BUILD_DEBUG)
- SET(CMAKE_BUILD_TYPE Release)
-ENDIF(AFNI_BUILD_DEBUG)
+#
+# OpenMP
+#
+FIND_PACKAGE(OpenMP)
+IF(OPENMP_FOUND)
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS} -DUSE_OMP")
+ENDIF(OPENMP_FOUND)
 
-cmake_minimum_required(VERSION 2.6)
-if(COMMAND cmake_policy)
-  cmake_policy(SET CMP0002 NEW)
-  cmake_policy(SET CMP0003 NEW)
-endif(COMMAND cmake_policy)
 
-IF(CMAKE_BUILD_TYPE STREQUAL Debug)
- SET(BUILD_SHARED_LIBS OFF)
-ELSE(CMAKE_BUILD_TYPE STREQUAL Debug)
- SET(BUILD_SHARED_LIBS ON)
-ENDIF(CMAKE_BUILD_TYPE STREQUAL Debug)
+##
+## Platform checks and config
+##
+IF(UNIX)
+  # 32bit or 64bit?
+  IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    MESSAGE(STATUS "Building for a 64bit target system")
+    ADD_DEFINITIONS(-DREAD_WRITE_64)
+  ENDIF(CMAKE_SIZEOF_VOID_P EQUAL 8)
 
-SET(CMAKE_INSTALL_PREFIX /usr/local/)
-EXECUTE_PROCESS(COMMAND ${CMAKE_UNAME} -m
- OUTPUT_VARIABLE UNAME
-)
-IF(UNAME MATCHES "x86_64")
- SET(INSTALLDIR distrib/afni64)
- SET(OPTIMIZEFLAGS -march=athlon64 -O2)
- SET(CEXTRA -DLINUX2 -DREAD_WRITE_64 -DUSE_TRACING -DHAVE_XDBE)
-ELSE(UNAME MATCHES "x86_64")
- SET(INSTALLDIR distrib/afni32)
- SET(OPTIMIZEFLAGS -march=i686 -O2)
- SET(CEXTRA -DLINUX2 -DUSE_TRACING -DHAVE_XDBE)
-ENDIF(UNAME MATCHES "x86_64")
-SET(WARNFLAGS -Wcomment -Wformat)
+  IF(APPLE)
+    # TODO determine best config
+  ELSE(APPLE)
+    ADD_DEFINITIONS(-DLINUX2 -DUSE_TRACING -DHAVE_XDBE)
+  ENDIF(APPLE)
+ELSE(UNIX)
+  MESSAGE(FATAL_ERROR "Only UNIX-like platforms are supported.")
+ENDIF(UNIX)
+
+# TODO check if that is necessary at all
+SET(FILE_PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
+
 SET(AFNI_INCLUDES ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/rickr
  ${CMAKE_SOURCE_DIR}/niml ${CMAKE_SOURCE_DIR}/nifti/niftilib
  ${CMAKE_SOURCE_DIR}/nifti/nifticdf ${CMAKE_SOURCE_DIR}/nifti/znzlib
  ${CMAKE_SOURCE_DIR}/3DEdge/src)
+
 SET(AFNI_LIBPATH /usr/lib)
-INCLUDE(FindMotif)
-if (NOT MOTIF_FOUND)
- MESSAGE(FATAL_ERROR "Motif library was not found - cannot continue")
-endif (NOT MOTIF_FOUND)
+
 SET(NETCDFLIBS netcdf)
+
 SET(AFNI_LIBS mri mrix coxplot ${VOLPACK_LIBRARY} ${NETCDFLIBS} ${MOTIF_LIBRARIES} ${F2C_LIBRARY} m)
+
 FIND_PACKAGE(ZLIB)
 if (ZLIB_FOUND)
  LIST(APPEND CEXTRA -DHAVE_ZLIB)
@@ -115,14 +144,14 @@ if (ZLIB_FOUND)
   SET(HAVE_GIFTI TRUE)
  endif (EXPAT_FOUND)
 endif (ZLIB_FOUND)
+
 SET(WARP_LIBS afni_warp ${AFNI_LIBS})
+
 SET(RICKR_LIBS rickr ${WARP_LIBS} ${AFNI_LIBS})
 
-# Permissons to be set on installed files
-SET(EXECUTABLE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
-SET(FILE_PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
-
+# TODO I believe there are some missing
 SET(EXTRAS myget Xphace rmz aiv ${EXPROGS})
+
 # Programs using only AFNI_LIBS:
 SET(PROGRAMS to3d from3d abut 3dclust nsize 3dinfo 3dproject 3dmerge count 
  sfim tfim ftosh 3dttest 3ddup imrotate imreg imstat 3dnvals 
@@ -180,11 +209,6 @@ SET(CMAKE_C_FLAGS_DEBUG "-g -Wall")
 SET(CMAKE_LINK_FLAGS_DEBUG "-g")
 SET(CMAKE_LINK_FLAGS_RELEASE "-s")
 
-INCLUDE(FindOpenMP)
-IF(OPENMP_FOUND)
- SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${OpenMP_C_FLAGS} -DUSE_OMP")
-ENDIF(OPENMP_FOUND)
-
 IF(CMAKE_BUILD_TYPE STREQUAL Debug)
  ADD_DEFINITIONS(${OPTIMIZEFLAGS})
  # Include files multiple times for backwards dependencies
@@ -200,7 +224,6 @@ INCLUDE_DIRECTORIES(${MOTIF_INCLUDE_DIR} ${ZLIB_INCLUDE_DIR} ${AFNI_INCLUDES})
 LINK_DIRECTORIES(${AFNI_LIBPATH})
 
 # Sub-projects
-INCLUDE(CMakeLists_libmri.txt)
 ADD_SUBDIRECTORY(gifti)
 ADD_SUBDIRECTORY(coxplot)
 ADD_SUBDIRECTORY(rickr)
@@ -209,6 +232,12 @@ ADD_SUBDIRECTORY(poems)
 ADD_SUBDIRECTORY(python_scripts)
 ADD_SUBDIRECTORY(R_scripts)
 ADD_SUBDIRECTORY(SUMA)
+
+
+##
+## Targets
+##
+INCLUDE(CMakeLists_libmri.txt)
 INCLUDE(CMakeLists_Plugins.txt)
 
 FOREACH(program ${PROGRAMS})
@@ -240,11 +269,6 @@ TARGET_LINK_LIBRARIES(3danisosmooth ${AFNI_LIBS})
 ADD_EXECUTABLE(3daxialize 3daxialize.c)
 TARGET_LINK_LIBRARIES(3daxialize ${AFNI_LIBS} ${WARP_LIBS})
 
-IF(AFNI_BUILD_LOCAL_3DEGDE3)
-  ADD_EXECUTABLE(3dedge3 3dedge3.c)
-  TARGET_LINK_LIBRARIES(3dedge3 ${AFNI_LIBS} ${THREEDEDGE_LIBS})
-ENDIF(AFNI_BUILD_LOCAL_3DEGDE3)
-
 ADD_EXECUTABLE(3dfim 3dfim.c afni_pcor_update.c ts.c)
 # This is for compiling to an object that was called afni_pcor_float.o
 SET_SOURCE_FILES_PROPERTIES(afni_pcor_update.c PROPERTIES COMPILE_FLAGS "-DDTYPE=float")
@@ -272,17 +296,6 @@ ADD_EXECUTABLE(3dDeconvolve_f 3dDeconvolve.c matrix_f.c)
 SET_TARGET_PROPERTIES(3dDeconvolve_f PROPERTIES COMPILE_FLAGS "-DFLOATIZE")
 TARGET_LINK_LIBRARIES(3dDeconvolve_f ${AFNI_LIBS})
 
-IF(AFNI_BUILD_LOCAL_NIFTICLIBS)
-  ADD_EXECUTABLE(nifti1_test nifti/utils/nifti1_test.c)
-  TARGET_LINK_LIBRARIES(nifti1_test ${AFNI_LIBS})
-
-  ADD_EXECUTABLE(nifti_tool nifti/utils/nifti_tool.c)
-  TARGET_LINK_LIBRARIES(nifti_tool ${AFNI_LIBS})
-
-  ADD_EXECUTABLE(nifti_stats nifti/utils/nifti_stats.c)
-  TARGET_LINK_LIBRARIES(nifti_stats ${AFNI_LIBS})
-ENDIF(AFNI_BUILD_LOCAL_NIFTICLIBS)
-
 ADD_EXECUTABLE(help_format help_format.c)
 
 ADD_EXECUTABLE(afni_history afni_history.c 
@@ -291,6 +304,9 @@ ADD_EXECUTABLE(afni_history afni_history.c
  afni_history_ziad.c)
 TARGET_LINK_LIBRARIES(afni_history ${AFNI_LIBS})
 
+#
+# AFNI
+#
 SET(AFSRC afni.c afni_func.c afni_widg.c afni_fimmer.c 
  afni_pcor.c afni_pcor_update.c afni_transforms.c 
  pbar.c afni_graph.c afni_plugin.c afni_cluster.c
@@ -301,35 +317,48 @@ SET(AFSRC afni.c afni_func.c afni_widg.c afni_fimmer.c
  afni_niml.c afni_sumafunc.c 
  afni_version.c afni_lock.c afni_vol2surf.c
  afni_pplug_instacorr.c afni_pplug_instacalc.c)
-ADD_EXECUTABLE(afni ${AFSRC})
 # This is for compiling to an object that was called afni_pcor_float.o
-SET_SOURCE_FILES_PROPERTIES(afni_pcor_update.c PROPERTIES COMPILE_FLAGS "-DDTYPE=float")
+SET_SOURCE_FILES_PROPERTIES(afni_pcor_update.c
+                            PROPERTIES COMPILE_FLAGS "-DDTYPE=float")
+ADD_EXECUTABLE(afni ${AFSRC})
 TARGET_LINK_LIBRARIES(afni ${AFNI_LIBS} ${WARP_LIBS} ${RICKR_LIBS})
 
-SET(ADDPROGRAMS afni 
- 1dSEM 3dAllineate 3dSpatNorm whereami 3dSegment 3dABoverlap 3danisosmooth 3daxialize
- 3dfim 3dmaxima 3dretroicor FD2 fim2 adwarp 3dDeconvolve_f
- ${GIFTI_PROGRAMS}
- help_format
- afni_history)
 
-# add local nifti apps if built
+SET(ADDPROGRAMS
+  afni 1dSEM 3dAllineate 3dSpatNorm whereami 3dSegment 3dABoverlap
+  3danisosmooth 3daxialize 3dfim 3dmaxima 3dretroicor FD2 fim2 adwarp
+  3dDeconvolve_f help_format afni_history)
+
+# add local nifti apps if desired
 IF(AFNI_BUILD_LOCAL_NIFTICLIBS)
+  ADD_EXECUTABLE(nifti1_test nifti/utils/nifti1_test.c)
+  TARGET_LINK_LIBRARIES(nifti1_test ${AFNI_LIBS})
+
+  ADD_EXECUTABLE(nifti_tool nifti/utils/nifti_tool.c)
+  TARGET_LINK_LIBRARIES(nifti_tool ${AFNI_LIBS})
+
+  ADD_EXECUTABLE(nifti_stats nifti/utils/nifti_stats.c)
+  TARGET_LINK_LIBRARIES(nifti_stats ${AFNI_LIBS})
+
   LIST(APPEND ADDPROGRAMS nifti1_test nifti_tool nifti_stats)
 ENDIF(AFNI_BUILD_LOCAL_NIFTICLIBS)
-# add local 3dedge3 if built
-IF(AFNI_BUILD_LOCAL_3DEGDE3 )
+
+# add local 3dedge3 if desired
+IF(AFNI_BUILD_LOCAL_3DEGDE3)
+  ADD_EXECUTABLE(3dedge3 3dedge3.c)
+  TARGET_LINK_LIBRARIES(3dedge3 ${AFNI_LIBS} ${THREEDEDGE_LIBS})
   LIST(APPEND ADDPROGRAMS 3dedge3)
-ENDIF(AFNI_BUILD_LOCAL_3DEGDE3 )
+ENDIF(AFNI_BUILD_LOCAL_3DEGDE3)
 
 
-INSTALL(
- TARGETS ${PROGRAMS} ${ADDPROGRAMS}
- DESTINATION ${INSTALLDIR}
- PERMISSIONS ${EXECUTABLE_PERMISSIONS}
-)
-INSTALL(
- PROGRAMS ${SCRIPTS}
- DESTINATION ${INSTALLDIR}
- PERMISSIONS ${EXECUTABLE_PERMISSIONS}
-)
+##
+## Install targets
+##
+
+INSTALL(TARGETS ${PROGRAMS} ${ADDPROGRAMS}
+  RUNTIME DESTINATION ${AFNI_INSTALL_BIN_DIR} COMPONENT Runtime
+  LIBRARY DESTINATION ${AFNI_INSTALL_LIB_DIR} COMPONENT Runtime
+  ARCHIVE DESTINATION ${AFNI_INSTALL_LIB_DIR} COMPONENT Development)
+
+INSTALL(PROGRAMS ${SCRIPTS}
+  RUNTIME DESTINATION ${AFNI_INSTALL_SCRIPT_DIR} COMPONENT Runtime)
