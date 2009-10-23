@@ -6,6 +6,46 @@ OPTION(AFNI_BUILD_LOCAL_NIFTICLIBS
        "Build and use AFNI's local copy of the NIfTI libs"
        OFF)
 
+##
+## Check for and configure for external dependencies
+##
+
+FIND_PACKAGE(X11 REQUIRED)
+
+#
+# NIfTI
+#
+FIND_PATH(NIFTI_INCLUDES nifti1.h
+          PATHS /usr/include /usr/local/include ${CMAKE_SOURCE_DIR}/nifti
+          PATH_SUFFIXES nifti niftilib
+          DOC "NIfTI headers location")
+INCLUDE_DIRECTORIES(${NIFTI_INCLUDES})
+IF(AFNI_BUILD_LOCAL_NIFTICLIBS)
+  INCLUDE_DIRECTORIES(${NIFTI_INCLUDES}/../znzlib ${NIFTI_INCLUDES}/../nifticdf)
+ENDIF(AFNI_BUILD_LOCAL_NIFTICLIBS)
+
+#
+# F2C
+#
+# need to force linking against a static f2c when static libs are built
+# to prevent unresolved symbols
+IF(BUILD_SHARED_LIBS)
+  SET(F2C_LIBRARY f2c)
+ELSE(BUILD_SHARED_LIBS)
+  SET(F2C_LIBRARY libf2c.a)
+ENDIF(BUILD_SHARED_LIBS)
+
+#
+# Volpack
+#
+FIND_LIBRARY(VOLPACK_LIBRARY volpack)
+
+#
+# netcdf
+#
+FIND_LIBRARY(NETCDF_LIBRARY netcdf)
+
+
 IF(AFNI_BUILD_DEBUG)
  SET(CMAKE_BUILD_TYPE Debug)
 ELSE(AFNI_BUILD_DEBUG)

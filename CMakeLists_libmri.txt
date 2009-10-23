@@ -134,6 +134,8 @@ ENDIF(AFNI_BUILD_LOCAL_NIFTICLIBS)
 #ENDFOREACH(src)
 
 ADD_LIBRARY(mri ${MRILIB_SOURCES})
+TARGET_LINK_LIBRARIES(mri ${X11_Xt_LIB} ${VOLPACK_LIBRARY} ${NETCDF_LIBRARY} ${F2C_LIBRARY} giftiio nifticdf niftiio m)
+
 # if libmri doesn't have niftilib built-in, we need to link against it
 IF(NOT AFNI_BUILD_LOCAL_NIFTICLIBS)
   TARGET_LINK_LIBRARIES(mri nifticdf niftiio)
