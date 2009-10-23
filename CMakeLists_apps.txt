@@ -30,7 +30,7 @@ SET(PROGRAMS
   im2niml DTIStudioFibertoSegments 3dLocalstat 3dTwotoComplex 3dInvFMRI
   3dmatcalc 3dAcost 3dLocalBistat 3dFWHMx 3dBlurToFWHM 3dDFT 3dSynthesize
   1dMarry 3dEmpty 1dFlagMotion 3dTsort 1dTsort 3dTfitter 1dUpsample
-  1dREMLfit 3dLocalSVD niml_feedme 3dErrtsCormat 3dUndump 3dREMLfit
+  3dLocalSVD niml_feedme 3dErrtsCormat 3dUndump 3dREMLfit
   3dUpsample 3dTcorrMap 3dmatmult 3dmaskSVD 1dBandpass 3dBlurInMask 3dRank
   3dDeconvolve 1dGentimes 2dImReg 3dStatClust 3dDWItoDT 3dRegAna 3dTSgen
   3dUniformize 3ddelay 3dfim+ 3dNLfim 3dNeocon 3dConvolve RSFgen
