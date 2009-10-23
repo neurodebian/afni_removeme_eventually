@@ -297,7 +297,7 @@ SET(AFSRC afni.c afni_func.c afni_widg.c afni_fimmer.c
  afni_ttren.c afni_pplug_1dfunc.c afni_driver.c 
  afni_niml.c afni_sumafunc.c 
  afni_version.c afni_lock.c afni_vol2surf.c
- afni_pplug_instacorr.c)
+ afni_pplug_instacorr.c afni_pplug_instacalc.c)
 ADD_EXECUTABLE(afni ${AFSRC})
 # This is for compiling to an object that was called afni_pcor_float.o
 SET_SOURCE_FILES_PROPERTIES(afni_pcor_update.c PROPERTIES COMPILE_FLAGS "-DDTYPE=float")
