@@ -46,9 +46,7 @@ MISC    = AFNI.Xdefaults AFNI.afnirc AFNI.sumarc 3d*.lib gmovie*
 ## AFNI package, but included because they are useful.  Some of
 ## them are Open Source programs, not from the AFNI group at all.
 
-# use Debian deps as much as possible. Also remove non-free stuff
-#EXTRAS   = cjpeg djpeg whirlgif mpeg_encode myget Xphace rmz aiv $(EXPROGS)
-EXTRAS   = whirlgif myget Xphace rmz aiv $(EXPROGS)
+EXTRAS   = cjpeg djpeg whirlgif mpeg_encode myget Xphace rmz aiv $(EXPROGS)
 
 # mpegtoppm in above list
 
@@ -82,7 +80,7 @@ PROGRAMS = afni to3d from3d abut 3dclust nsize 3dinfo 3dproject 3dmerge count   
            3dMedianFilter 3dretroicor 3dAFNItoNIML 3dAFNItoRaw im2niml 3dedge3  \
            DTIStudioFibertoSegments Dimon 3dLocalstat 3danisosmooth 3dmaxima    \
            3dTwotoComplex 3dInvFMRI 3dmatcalc 3dAcost 3dLocalBistat 3dFWHMx     \
-           3dBlurToFWHM 1dSEM 3dDFT 3dSynthesize 1dMarry 3dEmpty                \
+           3dBlurToFWHM 1dSEM 3dDFT 3dSynthesize 1dMarry 3dEmpty 3dsvm          \
            1dFlagMotion 3dTsort 1dTsort 3dTfitter afni_history 1dUpsample       \
            3dLocalSVD  niml_feedme  3dErrtsCormat 3dUndump 3dREMLfit            \
            3dUpsample 3dTcorrMap 3dmatmult 3dABoverlap 3dmaskSVD 1dBandpass     \
@@ -203,9 +201,7 @@ afobjs: afobj
 itall:all plugins install install_plugins
 
 $(INSTALLDIR):
-	#if [ ! -d $(INSTALLDIR) ]; then $(MKDIR) -p $(INSTALLDIR); echo Made directory $(INSTALLDIR); fi
-	# Debian needs more
-	if [ ! -d $(INSTALLDIR) ]; then for d in bin config doc pics plugins poems python R scripts; do $(MKDIR) -p $(INSTALLDIR)/$${d}; done; echo Made directory $(INSTALLDIR); fi
+	if [ ! -d $(INSTALLDIR) ]; then $(MKDIR) -p $(INSTALLDIR); echo Made directory $(INSTALLDIR); fi
 
 ### for those on crippled systems
 
@@ -1455,22 +1451,12 @@ afni_doc.tgz:
 ### Put things in their places
 
 install: $(INSTALLDIR) $(INSTALL_PREREQ)
-#	$(MV) $(PROGRAMS) $(INSTALLDIR)
-# filter some tools that come from other Debian packages
-# use CP to allow for multiple runs
-	for prg in $(PROGRAMS); do \
-		if [ -f $$prg ]; then \
-			echo "Installing $$prg"; \
-			$(CP) $$prg $(INSTALLDIR)/bin; \
-		fi; \
-	done
-	$(CP) $(SCRIPTS)  $(INSTALLDIR)/scripts
-	# separate R and Python
-	$(CP) $(PY_DIR)/*.py  $(INSTALLDIR)/python
-	$(CP) $(R_DIR)/*.R $(INSTALLDIR)/R
-	if [ -f README.environment ]; then $(CP) README.*    $(INSTALLDIR)/doc; fi;
-	if [ -f AFNI.afnirc        ]; then $(CP) AFNI.afnirc $(INSTALLDIR)/config; fi;
-	if [ -f AFNI.sumarc        ]; then $(CP) AFNI.sumarc $(INSTALLDIR)/config; fi;
+	$(MV) $(PROGRAMS) $(INSTALLDIR)
+	$(CP) $(SCRIPTS)  $(INSTALLDIR)
+	$(CP) $(PY_DIR)/*.py  $(R_DIR)/*.R $(INSTALLDIR)
+	if [ -f README.environment ]; then $(CP) README.*    $(INSTALLDIR); fi;
+	if [ -f AFNI.afnirc        ]; then $(CP) AFNI.afnirc $(INSTALLDIR); fi;
+	if [ -f AFNI.sumarc        ]; then $(CP) AFNI.sumarc $(INSTALLDIR); fi;
 
 install_noplug: $(INSTALLDIR)
 	$(MV) $(PROGRAMS_NOPLUG) $(INSTALLDIR)
@@ -1780,35 +1766,29 @@ EIS_OBJS = eis_bakvec.o eis_balanc.o eis_balbak.o eis_bandr.o              \
            eis_trbak3.o eis_tred1.o eis_tred2.o eis_tred3.o                \
            eis_tridib.o eis_tsturm.o
 
-#NETCDF_OBJS =  netcdf_attr.o   netcdf_dim.o   netcdf_error.o netcdf_libvers.o \
-#               netcdf_nc.o     netcdf_ncio.o  netcdf_ncx.o   netcdf_putget.o  \
-#               netcdf_string.o netcdf_v1hpg.o netcdf_v2i.o   netcdf_var.o     \
-#
-# Debian takes netcdf from a proper package
-NETCDF_OBJS = thd_mincread.o
+NETCDF_OBJS =  netcdf_attr.o   netcdf_dim.o   netcdf_error.o netcdf_libvers.o \
+               netcdf_nc.o     netcdf_ncio.o  netcdf_ncx.o   netcdf_putget.o  \
+               netcdf_string.o netcdf_v1hpg.o netcdf_v2i.o   netcdf_var.o     \
+               thd_mincread.o
 
 SUMA_OBJS = suma_afni_surface.o suma_datasets.o suma_algorithms.o
 
-# Debian uses niftilib from its own package
-MISC_OBJS  = afni_suma.o vol2surf.o list_struct.o  \
-	     r_new_resam_dset.o r_idisp.o    \
+MISC_OBJS  = afni_suma.o vol2surf.o nifti1_io.o znzlib.o list_struct.o  \
+	     nifti_statlib.o nifticdf.o r_new_resam_dset.o r_idisp.o    \
 	     r_misc.o matrix.o gifti_choice.o
 
 libmri.a:$(NIML_OBJS) $(MRI_OBJS) $(THD_OBJS)                \
          $(EDT_OBJS)  $(CS_OBJS)  $(EIS_OBJS) $(NETCDF_OBJS) \
-         $(SUMA_OBJS) $(MISC_OBJS) niml.h mrilib.h 3ddata.h $(SOMEAFOBJS) \
-         libmri.so
-	# On Debian we want to have the core libs as private shared libraries
-	# to be more efficient and terms of disk space and memory consumption
-#	$(RM) $@
-#	$(AR) q libmri.a $(MRI_OBJS) $(THD_OBJS) $(EDT_OBJS)        \
-#		$(NIML_OBJS) $(CS_OBJS) $(EIS_OBJS) $(NETCDF_OBJS)  \
-#		$(SUMA_OBJS) $(MISC_OBJS) $(SOMEAFOBJS)
-#	$(RANLIB) libmri.a
+         $(SUMA_OBJS) $(MISC_OBJS) niml.h mrilib.h 3ddata.h $(SOMEAFOBJS)
+	$(RM) $@
+	$(AR) q libmri.a $(MRI_OBJS) $(THD_OBJS) $(EDT_OBJS)        \
+		$(NIML_OBJS) $(CS_OBJS) $(EIS_OBJS) $(NETCDF_OBJS)  \
+		$(SUMA_OBJS) $(MISC_OBJS) $(SOMEAFOBJS)
+	$(RANLIB) libmri.a
 
-# On Debian build a completely self-contained SO
-libmrix.so:$(IMOBJS) libcoxplot.a imseq.h display.h xim.h bbox.h xutil.h
-	$(CC) -Wl,--no-undefined -shared -fPIC -o libmrix.so $(IMOBJS) -lXt -lXm -lX11 -lm -L. -lmri -lcoxplot
+libmrix.so:$(IMOBJS) imseq.h display.h xim.h bbox.h xutil.h
+	$(RM) $@
+	$(CC) -shared -fPIC -o libmrix.so $(IMOBJS)
 
 ### Dependencies for above
 
@@ -1825,15 +1805,13 @@ vol2surf.o:vol2surf.h
 # same as .a, but build as a shared object
 libmri.so:$(NIML_OBJS) $(MRI_OBJS) $(THD_OBJS)                               \
           $(EDT_OBJS)  $(CS_OBJS)  $(EIS_OBJS) $(NETCDF_OBJS)                \
-          $(SUMA_OBJS) $(MISC_OBJS) $(SOMEAFOBJS) niml.h mrilib.h 3ddata.h
-	# Make sure Debian lib has no undefined symbols and link against all deps.
-	# there is no need to fiddle with netcdf
-	#$(RM) $@
-	$(CC) -Wl,--no-undefined -shared -fPIC -o libmri.so $(MRI_OBJS) $(THD_OBJS) $(EDT_OBJS) \
+          $(SUMA_OBJS) $(MISC_OBJS) $(SOMEAFOBJS) niml.h mrilib.h 3ddata.h   \
+          shared_netcdf_attr
+	$(RM) $@
+	$(CC) -shared -fPIC -o libmri.so $(MRI_OBJS) $(THD_OBJS) $(EDT_OBJS) \
 		$(NIML_OBJS) $(CS_OBJS) $(EIS_OBJS) $(NETCDF_OBJS)           \
-		$(SUMA_OBJS) $(MISC_OBJS) $(SOMEAFOBJS) \
-		-lm -lniftiio -lnifticdf -lz -lvolpack -lXt -lnetcdf -lf2c
-	#$(RM) netcdf_attr.o
+		$(SUMA_OBJS) $(MISC_OBJS) $(SOMEAFOBJS)
+	$(RM) netcdf_attr.o
 
 # remake netcdf objects with PIC
 shared_netcdf_attr:
@@ -1841,8 +1819,7 @@ shared_netcdf_attr:
 	$(MAKE) netcdf_attr.o CCMIN="${CCMIN} -fPIC"
 
 # same as .a, but build as a shared object
-# on Debian also build to SO
-libmrix.a:$(IMOBJS) imseq.h display.h xim.h bbox.h xutil.h libmrix.so
+libmrix.a:$(IMOBJS) imseq.h display.h xim.h bbox.h xutil.h
 	$(RM) libmrix.a
 	$(AR) q libmrix.a $(IMOBJS)
 	$(RANLIB) libmrix.a
@@ -1906,17 +1883,11 @@ tross_plugins: plug_fourier.$(SO)
 
 belmonte_plugins: plug_threshold.$(SO) plug_permtest.$(SO)
 
-# SVM code is non-free, so no 3dsvm on Debian
-#laconte_plugins: plug_3dsvm.$(SO)
-laconte_plugins:
+laconte_plugins: plug_3dsvm.$(SO)
 
 install_plugins: $(INSTALLDIR)
-	# Debian will put them separate from the binaries, use CP to allow for
-	# multiple runs
-	$(CP) *.$(PLUGIN_SUFFIX) $(INSTALLDIR)/plugins
-	#$(CP) faces/face_*.jpg faces/splash_*.jpg poems/poem_*.txt $(INSTALLDIR)
-	$(CP) faces/face_*.jpg faces/splash_*.jpg $(INSTALLDIR)/pics
-	$(CP) poems/poem_*.txt $(INSTALLDIR)/poems
+	$(MV) *.$(PLUGIN_SUFFIX) $(INSTALLDIR)
+	$(CP) faces/face_*.jpg faces/splash_*.jpg poems/poem_*.txt $(INSTALLDIR)
 	echo Plugins put in directory $(INSTALLDIR):
 	echo Do not forget to setenv AFNI_PLUGINPATH appropriately
 
@@ -2027,22 +1998,19 @@ plugout_graph:plugout_graph.o
 # Stuff that was originally in Fortran
 
 f2c:
-	# Debian uses a proper package
-	#( cd f2cdir ;                                                         \
-	#  $(MAKE) f2c clean 'RM=$(RM)' 'CC=$(CC)' 'AR=$(AR)' 'CCMIN=$(CCMIN)' \
-	#        'RANLIB=$(RANLIB)' 'LDFLAGS=$(LDFLAGS)' 'IFLAGS=$(ISFLAGS)' ;  \
-	#  $(MV) f2c .. ; )
+	( cd f2cdir ;                                                         \
+	  $(MAKE) f2c clean 'RM=$(RM)' 'CC=$(CC)' 'AR=$(AR)' 'CCMIN=$(CCMIN)' \
+	        'RANLIB=$(RANLIB)' 'LDFLAGS=$(LDFLAGS)' 'IFLAGS=$(ISFLAGS)' ;  \
+	  $(MV) f2c .. ; )
 
 libf2c.a:
-	# Debian uses a proper package
-	#( cd f2cdir ;                                                        \
-	#  $(MAKE) libf2c.a clean 'RM=$(RM)' 'CC=$(CC)' 'AR=$(AR)'            \
-	#        'RANLIB=$(RANLIB)' 'LDFLAGS=$(LDFLAGS)' 'IFLAGS=$(ISFLAGS)' ; \
-	#  $(MV) libf2c.a .. ; )
+	( cd f2cdir ;                                                        \
+	  $(MAKE) libf2c.a clean 'RM=$(RM)' 'CC=$(CC)' 'AR=$(AR)'            \
+	        'RANLIB=$(RANLIB)' 'LDFLAGS=$(LDFLAGS)' 'IFLAGS=$(ISFLAGS)' ; \
+	  $(MV) libf2c.a .. ; )
 
 f2c.h:
-	# Debian uses a proper package
-	#$(CP) f2cdir/f2c.h ./
+	$(CP) f2cdir/f2c.h ./
 
 f2c.tgz:
 	$(TAR) cf - ./f2cdir | $(GZIP) -9v > f2c.tgz
@@ -2060,14 +2028,11 @@ libdl.a:dlcompat/dlfcn.h dlcompat/dlopen.c
 #######
 # plotting library
 
-# On Debian just pretend build the static lib, but really build the SO
 libcoxplot.a:coxplot.h
 	( cd coxplot ;                                                       \
-	  $(MAKE) libcoxplot.so 'RM=$(RM)' 'CC=$(CC)' 'AR=$(AR)'        \
+	  $(MAKE) libcoxplot.a clean 'RM=$(RM)' 'CC=$(CC)' 'AR=$(AR)'        \
 	        'RANLIB=$(RANLIB)' 'LDFLAGS=$(LDFLAGS)' 'IFLAGS=$(ISFLAGS)' ; \
-	  $(MV) libcoxplot.so .. ; )
-	# make fake one to satisfy the target and keep the diff minimal
-	touch $@
+	  $(MV) libcoxplot.a .. ; )
 
 coxplot.h:coxplot/coxplot.h
 	$(CP) coxplot/coxplot.h ./
@@ -2147,28 +2112,24 @@ gtest:
 # rendering library
 
 libvolpack.a:
-# used from Debian package
-#	( cd volpack ;                                                       \
-#	  $(MAKE) libvolpack.a clean 'RM=$(RM)' 'CC=$(CCVOL)' 'AR=$(AR)'     \
-#	        'RANLIB=$(RANLIB)' 'LDFLAGS=$(LDFLAGS)' 'IFLAGS=$(ISFLAGS)' ; \
-#	  $(MV) libvolpack.a .. ; )
+	( cd volpack ;                                                       \
+	  $(MAKE) libvolpack.a clean 'RM=$(RM)' 'CC=$(CCVOL)' 'AR=$(AR)'     \
+	        'RANLIB=$(RANLIB)' 'LDFLAGS=$(LDFLAGS)' 'IFLAGS=$(ISFLAGS)' ; \
+	  $(MV) libvolpack.a .. ; )
 
 volpack.h:
-# used from Debian package
-#	$(CP) volpack/volpack.h ./
+	$(CP) volpack/volpack.h ./
 
 volpack.tgz:
-# used from Debian package
-#	$(TAR) cf - ./volpack | $(GZIP) -9v > volpack.tgz
+	$(TAR) cf - ./volpack | $(GZIP) -9v > volpack.tgz
 
 #######
 # for Larry Frank
 
 qhull:
-# Debian has its own package
-#	( cd qhulldir ;                                                  \
-#	  $(MAKE) qhull clean 'RM=$(RM)' 'CC=$(CC)' 'LFLAGS=$(LFLAGS)' ; \
-#	  $(MV) qhull .. ; )
+	( cd qhulldir ;                                                  \
+	  $(MAKE) qhull clean 'RM=$(RM)' 'CC=$(CC)' 'LFLAGS=$(LFLAGS)' ; \
+	  $(MV) qhull .. ; )
 
 # CYGWIN: we "mv" the result, so must name it correctly as qhull.exe
 
@@ -2500,10 +2461,9 @@ galler:galler.o
 	$(RM) $@
 	$(CC) -c 3dAFNItoNIFTI.c $(INFLAGS)
 
-# libnifti comes from a Debian package
-3dAFNItoNIFTI:3dAFNItoNIFTI.o
+3dAFNItoNIFTI:3dAFNItoNIFTI.o nifti1_io.o znzlib.o
 	$(RM) $@
-	$(CC) -o 3dAFNItoNIFTI 3dAFNItoNIFTI.o $(LFLAGS) $(LLIBS)
+	$(CC) -o 3dAFNItoNIFTI 3dAFNItoNIFTI.o nifti1_io.o znzlib.o $(LFLAGS) $(LLIBS)
 
 nifti1_io.o:nifti/niftilib/nifti1_io.c nifti/niftilib/nifti1_io.h
 	$(RM) $@
@@ -2533,36 +2493,28 @@ nifti1_test.o:nifti/utils/nifti1_test.c
 	$(RM) $@
 	$(CC) -c nifti/utils/nifti1_test.c $(INFLAGS)
 
-# nifti_test comes from a Debian package
-nifti1_test:
-	echo "Using nifti_test from Debian package"
-#nifti1_test:nifti1_test.o nifti1_io.o znzlib.o
-#	$(RM) $@
-#	$(CC) -o nifti1_test nifti1_test.o nifti1_io.o znzlib.o $(LZLIB) -lm
+nifti1_test:nifti1_test.o nifti1_io.o znzlib.o
+	$(RM) $@
+	$(CC) -o nifti1_test nifti1_test.o nifti1_io.o znzlib.o $(LZLIB) -lm
 
 nifti_tool.o:nifti/utils/nifti_tool.c
 	$(RM) $@
 	$(CC) -c nifti/utils/nifti_tool.c $(INFLAGS)
 
-# nifti_tool comes from a Debian package
-nifti_tool:
-	echo "Using nifti_tool from Debian package"
-#nifti_tool:nifti_tool.o nifti1_io.o znzlib.o
-#	$(RM) $@
-#	$(CC) -o nifti_tool nifti_tool.o nifti1_io.o znzlib.o $(LZLIB) -lm
+nifti_tool:nifti_tool.o nifti1_io.o znzlib.o
+	$(RM) $@
+	$(CC) -o nifti_tool nifti_tool.o nifti1_io.o znzlib.o $(LZLIB) -lm
 
 nifti_tool.exe:nifti_tool.o nifti1_io.o znzlib.o
 	$(RM) $@
 	$(CC) -o nifti_tool.exe nifti_tool.o nifti1_io.o znzlib.o $(LZLIB) -lm
 
 # just compile completely, removing issue of libraries
-# using Debian niftilib
-#gifti_tool:nifti1_io.o znzlib.o
-gifti_tool:
+gifti_tool:nifti1_io.o znzlib.o
 	$(RM) $@
 	$(CC) -o gifti_tool $(INFLAGS) $(LFLAGS) 			\
 		gifti/gifti_tool.c gifti/gifti_io.c gifti/gifti_xml.c 	\
-		$(LGIFTI) $(LZLIB) -lm -lniftiio -lexpat
+		nifti1_io.o znzlib.o $(LGIFTI) $(LZLIB) -lm
 
 gifti_choice.o:gifti_choice.c thd_gifti.c suma_gifti.c
 	$(RM) $@
@@ -2587,7 +2539,7 @@ tsdsolve:tsdsolve.c
 libSUMA.a: libmri.a libmrix.a libcoxplot.a libf2c.a
 	( cd SUMA ;	\
 	rm -f libSUMA.a	;\
-	$(MAKE) -f $(SUMA_MAKEFILE_NAME) clean MarchingCubes.o libSUMA.a 'INSTALLDIR=$(INSTALLDIR_SUMA)' \
+	$(MAKE) -f $(SUMA_MAKEFILE_NAME) clean MarchingCubes.o libSUMA.a 'INSTALLDIR=$(INSTALLDIR)' \
 	'SUMA_INCLUDE_PATH=$(SUMA_INCLUDE_PATH)' \
 	'SUMA_BIN_ARCHIVE=$(SUMA_BIN_ARCHIVE)' \
 	'RANLIB=$(RANLIB)' \
@@ -2595,8 +2547,8 @@ libSUMA.a: libmri.a libmrix.a libcoxplot.a libf2c.a
 	'CC=$(CC)' 'RM=$(RM)' 'CEXTRA=$(CEXTRA)' 'MV=$(MV)' 'CP=$(CP)'	\
 	'TAR=$(TAR)' 'MKDIR=$(MKDIR)';	\
 	cd ../	;	\
-	if [ ! -d $(INSTALLDIR_SUMA) ]; then $(MKDIR) -p $(INSTALLDIR_SUMA); echo WARNING: directory $(INSTALLDIR_SUMA) has been created. ; fi	;\
-	$(CP) SUMA/libSUMA.a ${INSTALLDIR_SUMA}; \
+	if [ ! -d $(INSTALLDIR) ]; then $(MKDIR) -p $(INSTALLDIR); echo WARNING: directory $(INSTALLDIR) has been created. ; fi	;\
+	$(CP) SUMA/libSUMA.a ${INSTALLDIR}; \
 	$(CP) SUMA/libSUMA.a ./;	)
 
 libgts.a:
@@ -2624,8 +2576,7 @@ libGLws.a:
 	$(CP) SUMA/libGLws.a ./;	)
 ###
 #link executables but check for libraries first and create them if needed	
-# Debian has proper libgts
-suma_exec: libSUMA.a libmri.a xutil.o LiteClue.o parser.o parser_int.o libmrix.a libcoxplot.a libf2c.a
+suma_exec:libGLws.a libSUMA.a libmri.a xutil.o LiteClue.o parser.o parser_int.o libmrix.a libcoxplot.a libf2c.a
 	( cd SUMA ;	\
 	$(MAKE) -f $(SUMA_MAKEFILE_NAME) testGL suma ScaleToMap CompareSurfaces \
 	MakeColorMap ROI2dataset 3dVol2Surf \
@@ -2635,7 +2586,7 @@ suma_exec: libSUMA.a libmri.a xutil.o LiteClue.o parser.o parser_int.o libmrix.a
    3dSkullStrip 3dCRUISEtoAFNI 3dBRAIN_VOYAGERtoAFNI 3dSurfMask\
    SurfToSurf Surf2VolCoord ROIgrow SurfDsetInfo SurfInfo AnalyzeTrace \
    DriveSuma SurfDist SpharmReco SpharmDeco prompt_user \
-   'INSTALLDIR=$(INSTALLDIR_SUMA)' \
+   'INSTALLDIR=$(INSTALLDIR)' \
 	'SUMA_INCLUDE_PATH=$(SUMA_INCLUDE_PATH)' \
 	'SUMA_LINK_PATH=$(SUMA_LINK_PATH)' \
 	'SUMA_LINK_LIB=$(SUMA_LINK_LIB)' \
@@ -2649,10 +2600,9 @@ suma_exec: libSUMA.a libmri.a xutil.o LiteClue.o parser.o parser_int.o libmrix.a
 
 ###
 #Do the GTS related stuff 	
-# Debian already provides libgts
-suma_gts_progs:
+suma_gts_progs: libgts.a
 	( cd SUMA ;	\
-	$(MAKE) -f $(SUMA_MAKEFILE_NAME) SurfMesh 'INSTALLDIR=$(INSTALLDIR_SUMA)' \
+	$(MAKE) -f $(SUMA_MAKEFILE_NAME) SurfMesh 'INSTALLDIR=$(INSTALLDIR)' \
 	'SUMA_INCLUDE_PATH=$(SUMA_INCLUDE_PATH)' \
 	'SUMA_LINK_PATH=$(SUMA_LINK_PATH)' \
 	'SUMA_LINK_LIB=$(SUMA_LINK_LIB)' \
@@ -2821,7 +2771,7 @@ suma_link:
 ###
 #install suma
 suma_install:
-	( if [ ! -d $(INSTALLDIR_SUMA) ]; then $(MKDIR) -p $(INSTALLDIR_SUMA); echo WARNING: directory $(INSTALLDIR_SUMA) has been created. ; fi	;\
+	( if [ ! -d $(INSTALLDIR) ]; then $(MKDIR) -p $(INSTALLDIR); echo WARNING: directory $(INSTALLDIR) has been created. ; fi	;\
 	$(CP) SUMA/suma SUMA/MakeColorMap SUMA/ROI2dataset SUMA/3dVol2Surf \
 	SUMA/3dSurf2Vol SUMA/SurfMeasures \
 	SUMA/ScaleToMap SUMA/MapIcosahedron SUMA/CreateIcosahedron \
@@ -2835,9 +2785,9 @@ suma_install:
    SUMA/SurfToSurf  SUMA/Surf2VolCoord  SUMA/ROIgrow SUMA/SurfDsetInfo \
    SUMA/SurfInfo SUMA/AnalyzeTrace SUMA/DriveSuma SUMA/SurfDist \
    SUMA/SpharmReco SUMA/SpharmDeco SUMA/prompt_user \
-   ${INSTALLDIR_SUMA} ; \
-	if [ -f SUMA/SurfMesh ]; then $(CP) SUMA/SurfMesh ${INSTALLDIR_SUMA} ; fi; \
-	$(CP) @SUMA_* ${INSTALLDIR_SUMA} ;)
+   ${INSTALLDIR} ; \
+	if [ -f SUMA/SurfMesh ]; then $(CP) SUMA/SurfMesh ${INSTALLDIR} ; fi; \
+	$(CP) @SUMA_* ${INSTALLDIR} ;)
 	
 suma: suma_clean suma_exec suma_install
 suma_gts: suma_clean suma_exec suma_gts_progs suma_install

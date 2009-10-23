@@ -1,8 +1,7 @@
 # Unix Makefile for niml functions
 
 .c.o:
-	# on Debian all with -fPIC
-	$(CC) -c -fPIC $<
+	$(CC) -c $<
 
 NIML_OBJS = niml_b64.o       niml_element.o niml_elemio.o niml_registry.o niml_util.o \
             niml_byteorder.o niml_header.o  niml_malloc.o niml_rowtype.o  niml_uuid.o  \
