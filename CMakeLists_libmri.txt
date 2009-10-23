@@ -69,10 +69,12 @@ SET(CS_SRC cs_sort_fi.c cs_sort_di.c cs_symeig.c cs_sort_ii.c cs_sort_ff.c
  cl1.c cs_misc.c powell_int.c powell_newuoa.c 
  afni_suma.c suma_afni_surface.c vol2surf.c cs_sort_dv.c
  rhdd.c
- nifti/niftilib/nifti1_io.c nifti/znzlib/znzlib.c 
- list_struct.c nifti_statlib.c 
- nifti/utils/nifti_stats.c nifti/nifticdf/nifticdf.c
  )
+IF(AFNI_BUILD_LOCAL_NIFTICLIBS)
+ LIST(APPEND CS_SRC nifti/niftilib/nifti1_io.c nifti/znzlib/znzlib.c
+   nifti/utils/nifti_stats.c nifti/nifticdf/nifticdf.c nifti_statlib.c)
+ENDIF(AFNI_BUILD_LOCAL_NIFTICLIBS)
+
 if (HAVE_GIFTI)
  LIST(APPEND CS_SRC gifti/gifti_io.c gifti/gifti_xml.c)
 ENDIF (HAVE_GIFTI)
@@ -122,12 +124,21 @@ FOREACH(src ${EIS_SRC})
 ENDFOREACH(src)
 # This is copied from eis_svd above
 SET_SOURCE_FILES_PROPERTIES(eispack/eis_svd_slow.c PROPERTIES COMPILE_FLAGS "-DFUNCNAME=svd_slow_")
-SET_SOURCE_FILES_PROPERTIES(nifti/nifticdf/nifticdf.c PROPERTIES COMPILE_FLAGS "-D__COMPILE_UNUSED_FUNCTIONS__")
+IF(AFNI_BUILD_LOCAL_NIFTICLIBS)
+  SET_SOURCE_FILES_PROPERTIES(nifti/nifticdf/nifticdf.c
+                PROPERTIES COMPILE_FLAGS "-D__COMPILE_UNUSED_FUNCTIONS__")
+ENDIF(AFNI_BUILD_LOCAL_NIFTICLIBS)
+
 #FOREACH(src ${NETCDF_OBJS})
 # LIST(APPEND MRILIB_SOURCES "netcdf-3.5.0/src/libsrc/${src}")
 #ENDFOREACH(src)
 
 ADD_LIBRARY(mri ${MRILIB_SOURCES})
+# if libmri doesn't have niftilib built-in, we need to link against it
+IF(NOT AFNI_BUILD_LOCAL_NIFTICLIBS)
+  TARGET_LINK_LIBRARIES(mri nifticdf niftiio)
+ENDIF(NOT AFNI_BUILD_LOCAL_NIFTICLIBS)
+
 
 SET(IMSRC display.c imseq.c bbox.c xim.c xutil.c LiteClue.c)
 ADD_LIBRARY(mrix ${IMSRC})

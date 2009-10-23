@@ -1,6 +1,10 @@
 PROJECT(AFNI)
 
+# Define options to customize the build-process
 OPTION(AFNI_BUILD_DEBUG "Build afni in debug mode" OFF)
+OPTION(AFNI_BUILD_LOCAL_NIFTICLIBS
+       "Build and use AFNI's local copy of the NIfTI libs"
+       OFF)
 
 IF(AFNI_BUILD_DEBUG)
  SET(CMAKE_BUILD_TYPE Debug)
@@ -212,14 +216,16 @@ ADD_EXECUTABLE(3dDeconvolve_f 3dDeconvolve.c matrix_f.c)
 SET_TARGET_PROPERTIES(3dDeconvolve_f PROPERTIES COMPILE_FLAGS "-DFLOATIZE")
 TARGET_LINK_LIBRARIES(3dDeconvolve_f ${AFNI_LIBS})
 
-ADD_EXECUTABLE(nifti1_test nifti/utils/nifti1_test.c)
-TARGET_LINK_LIBRARIES(nifti1_test ${AFNI_LIBS})
+IF(AFNI_BUILD_LOCAL_NIFTICLIBS)
+  ADD_EXECUTABLE(nifti1_test nifti/utils/nifti1_test.c)
+  TARGET_LINK_LIBRARIES(nifti1_test ${AFNI_LIBS})
 
-ADD_EXECUTABLE(nifti_tool nifti/utils/nifti_tool.c)
-TARGET_LINK_LIBRARIES(nifti_tool ${AFNI_LIBS})
+  ADD_EXECUTABLE(nifti_tool nifti/utils/nifti_tool.c)
+  TARGET_LINK_LIBRARIES(nifti_tool ${AFNI_LIBS})
 
-ADD_EXECUTABLE(nifti_stats nifti/utils/nifti_stats.c)
-TARGET_LINK_LIBRARIES(nifti_stats ${AFNI_LIBS})
+  ADD_EXECUTABLE(nifti_stats nifti/utils/nifti_stats.c)
+  TARGET_LINK_LIBRARIES(nifti_stats ${AFNI_LIBS})
+ENDIF(AFNI_BUILD_LOCAL_NIFTICLIBS)
 
 if (HAVE_GIFTI)
  ADD_EXECUTABLE(gifti_tool gifti/gifti_tool.c)
@@ -253,10 +259,13 @@ TARGET_LINK_LIBRARIES(afni ${AFNI_LIBS} ${WARP_LIBS} ${RICKR_LIBS})
 SET(ADDPROGRAMS afni 
  1dSEM 3dAllineate 3dSpatNorm whereami 3dSegment 3dABoverlap 3danisosmooth 3daxialize 3dedge3
  3dfim 3dmaxima 3dretroicor FD2 fim2 adwarp 3dDeconvolve_f
- nifti1_test nifti_tool nifti_stats
  ${GIFTI_PROGRAMS}
  help_format
  afni_history)
+
+IF(AFNI_BUILD_LOCAL_NIFTICLIBS)
+  LIST(APPEND ADDPROGRAMS nifti1_test nifti_tool nifti_stats)
+ENDIF(AFNI_BUILD_LOCAL_NIFTICLIBS)
 
 INSTALL(
  TARGETS ${PROGRAMS} ${ADDPROGRAMS}
