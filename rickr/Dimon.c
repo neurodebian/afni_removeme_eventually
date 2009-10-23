@@ -97,11 +97,12 @@ static char * g_history[] =
 #define IFM_PROG_NAME   "Dimon"
 
 #include "Imon.h"
+#include "mcw_malloc.h"
 #include "l_mcw_glob.h"
 #include "thd_iochan.h"
 #include "realtime.h"
 #include "mri_image.h"
-#include "dbtrace.h"
+#include "debugtrace.h"
 
 extern char  DI_MRL_orients[8];
 extern float DI_MRL_tr;
