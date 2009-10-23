@@ -90,7 +90,8 @@ SET(NIML_SRC niml_b64.c niml_element.c niml_elemio.c niml_registry.c
 SET(SUMA_SRC suma_datasets.c suma_algorithms.c)
 
 # These reside in eispack/
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/eispack/eis_svd.c ${CMAKE_CURRENT_SOURCE_DIR}/eispack/eis_svd_slow.c COPYONLY)
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/eispack/eis_svd.c
+               ${CMAKE_CURRENT_BINARY_DIR}/eis_svd_slow.c COPYONLY)
 SET(EIS_SRC eis_bakvec.c eis_balanc.c eis_balbak.c eis_bandr.c 
  eis_bandv.c eis_bisect.c eis_bqr.c eis_cbabk2.c eis_cbal.c 
  eis_cdiv.c eis_cg.c eis_ch.c eis_cinvit.c eis_combak.c 
@@ -103,7 +104,7 @@ SET(EIS_SRC eis_bakvec.c eis_balanc.c eis_balbak.c eis_bandr.c
  eis_qzit.c eis_qzval.c eis_qzvec.c eis_ratqr.c eis_rebak.c 
  eis_rebakb.c eis_reduc.c eis_reduc2.c eis_rg.c eis_rgg.c 
  eis_rs.c eis_rsb.c eis_rsg.c eis_rsgab.c eis_rsgba.c 
- eis_rsm.c eis_rsp.c eis_rst.c eis_rt.c eis_svd.c eis_svd_slow.c 
+ eis_rsm.c eis_rsp.c eis_rst.c eis_rt.c eis_svd.c
  eis_tinvit.c eis_tql1.c eis_tql2.c eis_tqlrat.c eis_trbak1.c 
  eis_trbak3.c eis_tred1.c eis_tred2.c eis_tred3.c 
  eis_tridib.c eis_tsturm.c)
@@ -122,8 +123,12 @@ ENDFOREACH(src)
 FOREACH(src ${EIS_SRC})
  LIST(APPEND MRILIB_SOURCES "eispack/${src}")
 ENDFOREACH(src)
+# add generate eispack file
 # This is copied from eis_svd above
-SET_SOURCE_FILES_PROPERTIES(eispack/eis_svd_slow.c PROPERTIES COMPILE_FLAGS "-DFUNCNAME=svd_slow_")
+LIST(APPEND MRILIB_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/eis_svd_slow.c)
+SET_SOURCE_FILES_PROPERTIES(${CMAKE_CURRENT_BINARY_DIR}/eis_svd_slow.c
+                            PROPERTIES COMPILE_FLAGS "-DFUNCNAME=svd_slow_")
+
 IF(AFNI_BUILD_LOCAL_NIFTICLIBS)
   SET_SOURCE_FILES_PROPERTIES(nifti/nifticdf/nifticdf.c
                 PROPERTIES COMPILE_FLAGS "-D__COMPILE_UNUSED_FUNCTIONS__")
