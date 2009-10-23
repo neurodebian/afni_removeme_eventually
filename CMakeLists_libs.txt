@@ -1,3 +1,7 @@
+##
+## This file is to be included in the toplevel CMakeLists.txt
+##
+
 # These reside in main dir
 SET(MRI_SRC mri_cfft.c mri_complex_arith.c mri_fft_complex.c mri_free.c 
  mri_max.c mri_new.c mri_read.c mri_swapbytes.c mri_dup.c 
