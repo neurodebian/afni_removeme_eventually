@@ -5,6 +5,9 @@ OPTION(AFNI_BUILD_DEBUG "Build afni in debug mode" OFF)
 OPTION(AFNI_BUILD_LOCAL_NIFTICLIBS
        "Build and use AFNI's local copy of the NIfTI libs"
        OFF)
+OPTION(AFNI_BUILD_LOCAL_3DEGDE3
+       "Build and use AFNI's local copy of lib3dedge3"
+       OFF)
 
 ##
 ## Check for and configure for external dependencies
@@ -45,6 +48,14 @@ FIND_LIBRARY(VOLPACK_LIBRARY volpack)
 #
 FIND_LIBRARY(NETCDF_LIBRARY netcdf)
 
+#
+# 3dedge3
+#
+IF(AFNI_BUILD_LOCAL_3DEGDE3)
+  SET(THREEDEDGE_LIBS 3DEdge)
+ELSE(AFNI_BUILD_LOCAL_3DEGDE3)
+  SET(THREEDEDGE_LIBS )
+ENDIF(AFNI_BUILD_LOCAL_3DEGDE3)
 
 IF(AFNI_BUILD_DEBUG)
  SET(CMAKE_BUILD_TYPE Debug)
@@ -88,7 +99,7 @@ if (NOT MOTIF_FOUND)
  MESSAGE(FATAL_ERROR "Motif library was not found - cannot continue")
 endif (NOT MOTIF_FOUND)
 SET(NETCDFLIBS netcdf)
-SET(AFNI_LIBS mri mrix coxplot volpack ${NETCDFLIBS} ${MOTIF_LIBRARIES} coxf2c mri m)
+SET(AFNI_LIBS mri mrix coxplot ${VOLPACK_LIBRARY} ${NETCDFLIBS} ${MOTIF_LIBRARIES} ${F2C_LIBRARY} m)
 FIND_PACKAGE(ZLIB)
 if (ZLIB_FOUND)
  LIST(APPEND CEXTRA -DHAVE_ZLIB)
@@ -103,7 +114,6 @@ if (ZLIB_FOUND)
 endif (ZLIB_FOUND)
 SET(WARP_LIBS afni_warp ${AFNI_LIBS})
 SET(RICKR_LIBS rickr ${WARP_LIBS} ${AFNI_LIBS})
-SET(THREEDEDGE_LIBS 3DEdge)
 
 # Permissons to be set on installed files
 SET(EXECUTABLE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
@@ -227,8 +237,10 @@ TARGET_LINK_LIBRARIES(3danisosmooth ${AFNI_LIBS})
 ADD_EXECUTABLE(3daxialize 3daxialize.c)
 TARGET_LINK_LIBRARIES(3daxialize ${AFNI_LIBS} ${WARP_LIBS})
 
-ADD_EXECUTABLE(3dedge3 3dedge3.c)
-TARGET_LINK_LIBRARIES(3dedge3 ${AFNI_LIBS} ${THREEDEDGE_LIBS})
+IF(AFNI_BUILD_LOCAL_3DEGDE3)
+  ADD_EXECUTABLE(3dedge3 3dedge3.c)
+  TARGET_LINK_LIBRARIES(3dedge3 ${AFNI_LIBS} ${THREEDEDGE_LIBS})
+ENDIF(AFNI_BUILD_LOCAL_3DEGDE3)
 
 ADD_EXECUTABLE(3dfim 3dfim.c afni_pcor_update.c ts.c)
 # This is for compiling to an object that was called afni_pcor_float.o
@@ -292,15 +304,21 @@ SET_SOURCE_FILES_PROPERTIES(afni_pcor_update.c PROPERTIES COMPILE_FLAGS "-DDTYPE
 TARGET_LINK_LIBRARIES(afni ${AFNI_LIBS} ${WARP_LIBS} ${RICKR_LIBS})
 
 SET(ADDPROGRAMS afni 
- 1dSEM 3dAllineate 3dSpatNorm whereami 3dSegment 3dABoverlap 3danisosmooth 3daxialize 3dedge3
+ 1dSEM 3dAllineate 3dSpatNorm whereami 3dSegment 3dABoverlap 3danisosmooth 3daxialize
  3dfim 3dmaxima 3dretroicor FD2 fim2 adwarp 3dDeconvolve_f
  ${GIFTI_PROGRAMS}
  help_format
  afni_history)
 
+# add local nifti apps if built
 IF(AFNI_BUILD_LOCAL_NIFTICLIBS)
   LIST(APPEND ADDPROGRAMS nifti1_test nifti_tool nifti_stats)
 ENDIF(AFNI_BUILD_LOCAL_NIFTICLIBS)
+# add local 3dedge3 if built
+IF(AFNI_BUILD_LOCAL_3DEGDE3 )
+  LIST(APPEND ADDPROGRAMS 3dedge3)
+ENDIF(AFNI_BUILD_LOCAL_3DEGDE3 )
+
 
 INSTALL(
  TARGETS ${PROGRAMS} ${ADDPROGRAMS}

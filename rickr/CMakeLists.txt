@@ -5,6 +5,7 @@ SET(SOURCES r_idisp.c r_misc.c r_new_resam_dset.c)
 SET(PROGRAMS 3dresample file_tool Imon Dimon serial_helper)
 
 ADD_LIBRARY(rickr ${SOURCES})
+TARGET_LINK_LIBRARIES(rickr mri afni_warp)
 
 ADD_EXECUTABLE(3dresample 3dresample.c)
 TARGET_LINK_LIBRARIES(3dresample ${AFNI_LIBS} ${WARP_LIBS} ${RICKR_LIBS})

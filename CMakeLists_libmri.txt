@@ -144,6 +144,7 @@ ENDIF(NOT AFNI_BUILD_LOCAL_NIFTICLIBS)
 
 SET(IMSRC display.c imseq.c bbox.c xim.c xutil.c LiteClue.c)
 ADD_LIBRARY(mrix ${IMSRC})
+TARGET_LINK_LIBRARIES(mrix ${X11_LIBRARIES} ${MOTIF_LIBRARIES} mri coxplot)
 
 SET(WARPSRC afni_warp.c)
 FOREACH(TYPE byte short float complex rgbyte)
@@ -154,6 +155,7 @@ FOREACH(TYPE byte short float complex rgbyte)
                               PROPERTIES COMPILE_FLAGS "-DDTYPE=${TYPE}")
 ENDFOREACH(TYPE)
 ADD_LIBRARY(afni_warp ${WARPSRC})
+TARGET_LINK_LIBRARIES(afni_warp mri)
 
 INSTALL(
  TARGETS mri mrix afni_warp
