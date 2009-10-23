@@ -1,5 +1,10 @@
 PROJECT(SUMA)
 
+# Define options to customize the build-process
+OPTION(AFNI_BUILD_LOCAL_GLW
+       "Build and use AFNI's local copy of libGLw"
+       OFF)
+
 # Check general prerequisites - OpenGL, SUMA
 INCLUDE(FindOpenGL)
 if (NOT OPENGL_FOUND)
@@ -21,8 +26,13 @@ SET(SUMA_SRCS
  SUMA_global.c SUMA_plot.c SUMA_volume_render.c
  SUMA_SurfaceToSurface.c SUMA_LocalStat.c SUMA_spharm.c SUMA_dot.c
  PLY/plyfile.c MarchingCubes/MarchingCubes.c
- GLw_local/GLwDrawA.c
- )
+  )
+
+IF(AFNI_BUILD_LOCAL_GLW)
+  LIST(APPEND SUMA_SRCS GLw_local/GLwDrawA.c)
+ELSE(AFNI_BUILD_LOCAL_GLW)
+  FIND_LIBRARY(GLW_LIBRARY GLw)
+ENDIF(AFNI_BUILD_LOCAL_GLW)
 
 ADD_DEFINITIONS(-DSUMA_COMPILED -DnoGLwidget)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/PLY ${CMAKE_CURRENT_SOURCE_DIR}/GLw_local)
@@ -34,6 +44,10 @@ IF(CMAKE_BUILD_TYPE STREQUAL Debug)
 ENDIF(CMAKE_BUILD_TYPE STREQUAL Debug)
 
 ADD_LIBRARY(SUMA ${SUMA_SRCS})
+# need to link against GLw if not included in the library
+IF(NOT AFNI_BUILD_LOCAL_GLW)
+  TARGET_LINK_LIBRARIES(SUMA ${GLW_LIBRARY})
+ENDIF(NOT AFNI_BUILD_LOCAL_GLW)
 
 # Programs without special compilation options
 SET(PROGRAMS SUMA_glxdino SUMA_paperplane SUMA_pixmap2eps)
