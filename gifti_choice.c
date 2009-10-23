@@ -18,10 +18,10 @@
  *
  *  #include "gifti_io.c"        library
  *  #include "gifti_xml.c"
- *
- *  #include "thd_gifti.c"       afni interface
- *  #include "suma_gifti.c"      suma interface
  */
+   #include "thd_gifti.c"       /* afni interface */
+   #include "suma_gifti.c"      /* suma interface */
+
 #else
 
     /* if we do not love or even want GIFTI, include failure functions here */
