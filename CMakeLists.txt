@@ -148,6 +148,7 @@ LINK_DIRECTORIES(${AFNI_LIBPATH})
 
 # Sub-projects
 INCLUDE(CMakeLists_libmri.txt)
+ADD_SUBDIRECTORY(gifti)
 ADD_SUBDIRECTORY(coxplot)
 ADD_SUBDIRECTORY(rickr)
 ADD_SUBDIRECTORY(faces)
@@ -226,12 +227,6 @@ IF(AFNI_BUILD_LOCAL_NIFTICLIBS)
   ADD_EXECUTABLE(nifti_stats nifti/utils/nifti_stats.c)
   TARGET_LINK_LIBRARIES(nifti_stats ${AFNI_LIBS})
 ENDIF(AFNI_BUILD_LOCAL_NIFTICLIBS)
-
-if (HAVE_GIFTI)
- ADD_EXECUTABLE(gifti_tool gifti/gifti_tool.c)
- TARGET_LINK_LIBRARIES(gifti_tool ${AFNI_LIBS})
- SET(GIFTI_PROGRAMS gifti_tool)
-ENDIF (HAVE_GIFTI)
 
 ADD_EXECUTABLE(help_format help_format.c)
 
