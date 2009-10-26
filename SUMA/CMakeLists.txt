@@ -16,34 +16,63 @@ FIND_PACKAGE(OpenGL REQUIRED)
 FIND_PACKAGE(GLUT REQUIRED)
 INCLUDE_DIRECTORIES(${OPENGL_INCLUDE_DIR} ${GLUT_INCLUDE_DIR})
 
-SET(SUMA_SRCS 
- SUMA_trackball.c SUMA_SVmanip.c SUMA_input.c SUMA_MiscFunc.c SUMA_IV_XYZextract.c	
- SUMA_IV_FaceSetsextract.c SUMA_SurfNorm.c SUMA_DOmanip.c SUMA_StripPath.c 	
- SUMA_Load_Surface_Object.c SUMA_CreateDO.c SUMA_help.c SUMA_display.c SUMA_ParseCommands.c	
- SUMA_Engine.c SUMA_Surface_IO.c SUMA_VolData.c SUMA_niml.c SUMA_Color.c	
- SUMA_GeomComp.c SUMA_SphericalMapping.c SUMA_DataSets.c	
- SUMA_Homer.c SUMA_xColBar.c SUMA_SurfClust.c SUMA_IsoSurface.c SUMA_ConvexHull.c SUMA_BrainWrap.c 
- SUMA_global.c SUMA_plot.c SUMA_volume_render.c
- SUMA_SurfaceToSurface.c SUMA_LocalStat.c SUMA_spharm.c SUMA_dot.c
- PLY/plyfile.c MarchingCubes/MarchingCubes.c
-  )
+# gts (and glib headers) are only needed for SurfMesh
+INCLUDE(FindPkgConfig)
+pkg_check_modules(GTS gts)
+IF(GTS_FOUND)
+  # Macro to turn a list into a string (why doesn't CMake have this
+  # built-in?)
+  MACRO (LIST_TO_STRING _string _list)
+  SET (${_string})
+    FOREACH (_item ${_list})
+      SET (${_string} "${${_string}} ${_item}")
+    ENDFOREACH (_item)
+  ENDMACRO (LIST_TO_STRING)
 
+  LIST_TO_STRING(XGTS_CFLAGS "${GTS_CFLAGS}")
+  MESSAGE(STATUS "GTS library found - compiling SurfMesh")
+ELSE(GTS_FOUND)
+  MESSAGE(STATUS "GTS library not found - compiling without SurfMesh")
+ENDIF(GTS_FOUND)
+
+#
+# libSUMA
+#
+SET(LIBSUMA_SRCS
+  SUMA_trackball.c SUMA_SVmanip.c SUMA_input.c SUMA_MiscFunc.c
+  SUMA_IV_XYZextract.c SUMA_IV_FaceSetsextract.c SUMA_SurfNorm.c
+  SUMA_DOmanip.c SUMA_StripPath.c SUMA_Load_Surface_Object.c SUMA_CreateDO.c
+  SUMA_help.c SUMA_display.c SUMA_ParseCommands.c SUMA_Engine.c
+  SUMA_Surface_IO.c SUMA_VolData.c SUMA_niml.c SUMA_Color.c SUMA_GeomComp.c
+  SUMA_SphericalMapping.c SUMA_DataSets.c SUMA_Homer.c SUMA_xColBar.c
+  SUMA_SurfClust.c SUMA_IsoSurface.c SUMA_ConvexHull.c SUMA_BrainWrap.c
+  SUMA_global.c SUMA_plot.c SUMA_volume_render.c SUMA_SurfaceToSurface.c
+  SUMA_LocalStat.c SUMA_spharm.c SUMA_dot.c PLY/plyfile.c
+  MarchingCubes/MarchingCubes.c)
+
+# add libGLw symbols if requested
 IF(AFNI_BUILD_LOCAL_GLW)
-  LIST(APPEND SUMA_SRCS GLw_local/GLwDrawA.c)
+  LIST(APPEND LIBSUMA_SRCS GLw_local/GLwDrawA.c)
+  INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/GLw_local)
 ELSE(AFNI_BUILD_LOCAL_GLW)
   FIND_LIBRARY(GLW_LIBRARY GLw)
 ENDIF(AFNI_BUILD_LOCAL_GLW)
 
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/PLY)
+
+# TODO determine what this is for
 ADD_DEFINITIONS(-DSUMA_COMPILED -DnoGLwidget)
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/PLY ${CMAKE_CURRENT_SOURCE_DIR}/GLw_local)
 
-SET(SUMA_LIBS ${AFNI_LIBS} ${THREEDEDGE_LIBS} ${RICKR_LIBS} ${WARP_LIBS} SUMA ${OPENGL_LIBRARIES} ${GLUT_LIBRARIES})
-IF(CMAKE_BUILD_TYPE STREQUAL Debug)
- # Include files multiple times for backwards dependencies
- SET(SUMA_LIBS ${SUMA_LIBS} ${AFNI_LIBS} ${THREEDEDGE_LIBS} ${RICKR_LIBS} ${WARP_LIBS})
-ENDIF(CMAKE_BUILD_TYPE STREQUAL Debug)
+SET(SUMA_LIBS
+  ${AFNI_LIBS}
+  ${THREEDEDGE_LIBS}
+  ${RICKR_LIBS}
+  ${WARP_LIBS}
+  SUMA
+  ${OPENGL_LIBRARIES}
+  ${GLUT_LIBRARIES})
 
-ADD_LIBRARY(SUMA ${SUMA_SRCS})
+ADD_LIBRARY(SUMA ${LIBSUMA_SRCS})
 TARGET_LINK_LIBRARIES(SUMA ${OPENGL_LIBRARIES} ${GLUT_LIBRARIES}
    ${MOTIF_LIBRARIES} mrix mri rickr)
 # need to link against GLw if not included in the library
@@ -51,263 +80,153 @@ IF(NOT AFNI_BUILD_LOCAL_GLW)
   TARGET_LINK_LIBRARIES(SUMA ${GLW_LIBRARY})
 ENDIF(NOT AFNI_BUILD_LOCAL_GLW)
 
-# Programs without special compilation options
-SET(PROGRAMS SUMA_glxdino SUMA_paperplane SUMA_pixmap2eps)
+#
+# Programs
+#
+SET(PROGRAMS
+  suma prompt_user MakeColorMap ScaleToMap
+  inflate_compare SurfaceMetrics ConvertSurface
+  ConvertDset ROI2dataset SurfSmooth SurfPatch SurfQual SurfClust IsoSurface
+  ConvexHull 3dSkullStrip 3dCRUISEtoAFNI 3dBRAIN_VOYAGERtoAFNI 3dVol2Surf
+  SurfMeasures FSread_annot SampBias volume_render 3dSurfMask SurfToSurf
+  ROIgrow AnalyzeTrace DriveSuma SurfDist SpharmReco SpharmDeco SurfDsetInfo
+  SurfLocalStat SurfFWHM NikoMap SurfInfo 3dSurf2Vol)
+
+# automatically add targets for all programs following to frequently used
+# naming scheme
 FOREACH(program ${PROGRAMS})
- ADD_EXECUTABLE(${program} ${program}.c)
- TARGET_LINK_LIBRARIES(${program} ${SUMA_LIBS})
+  ADD_EXECUTABLE(${program} SUMA_${program}.c)
 ENDFOREACH(program)
 
-# gts (and glib headers) are only needed for SurfMesh
-INCLUDE(FindPkgConfig)
-pkg_check_modules(GTS gts)
-#message(STATUS "inc: -${GTS_INCLUDE_DIRS}")
-#message(STATUS "link libraries: -${GTS_LIBRARIES}")
-#message(STATUS "cflags: -${GTS_CFLAGS}")
-#message(STATUS "link dir: -${GTS_LINK_DIR}")
-if (GTS_FOUND)
- ###############################################################################
- # Macro to turn a list into a string (why doesn't CMake have this
- # built-in?)
- MACRO (LIST_TO_STRING _string _list)
-  SET (${_string})
-   FOREACH (_item ${_list})
-    SET (${_string} "${${_string}} ${_item}")
-  ENDFOREACH (_item)
- ENDMACRO (LIST_TO_STRING)
+# SUMA prefixed programs
+FOREACH(program SUMA_glxdino SUMA_paperplane SUMA_pixmap2eps
+                SUMA_Load_Surface_Object SUMA_inflate_compare SUMA_Homer)
+  ADD_EXECUTABLE(${program} ${program}.c)
+  LIST(APPEND PROGRAMS ${program})
+ENDFOREACH(program)
 
- LIST_TO_STRING(XGTS_CFLAGS "${GTS_CFLAGS}")
- ADD_EXECUTABLE(SurfMesh SUMA_coarsen.c SUMA_gts.c SUMA_gts_insert.c)
- SET_TARGET_PROPERTIES(SurfMesh PROPERTIES COMPILE_FLAGS ${XGTS_CFLAGS})
- TARGET_LINK_LIBRARIES(SurfMesh ${SUMA_LIBS} ${GTS_LIBRARIES})
- LIST(APPEND PROGRAMS SurfMesh)
-else (GTS_FOUND)
- MESSAGE("GTS library not found - compiling without SurfMesh")
-endif (GTS_FOUND)
-
-ADD_EXECUTABLE(suma SUMA_suma.c)
-TARGET_LINK_LIBRARIES(suma ${SUMA_LIBS})
-
-ADD_EXECUTABLE(prompt_user SUMA_prompt_user.c)
-TARGET_LINK_LIBRARIES(prompt_user ${SUMA_LIBS})
-
-ADD_EXECUTABLE(MakeColorMap SUMA_MakeColorMap.c)
-SET_TARGET_PROPERTIES(MakeColorMap PROPERTIES COMPILE_FLAGS -DSUMA_MakeColorMap_STAND_ALONE)
-TARGET_LINK_LIBRARIES(MakeColorMap ${SUMA_LIBS})
-
-ADD_EXECUTABLE(ScaleToMap SUMA_ScaleToMap.c)
-SET_TARGET_PROPERTIES(ScaleToMap PROPERTIES COMPILE_FLAGS -DSUMA_ScaleToMap_STAND_ALONE)
-TARGET_LINK_LIBRARIES(ScaleToMap ${SUMA_LIBS})
-
-ADD_EXECUTABLE(SUMA_FreeSurfer SUMA_Surface_IO.c)
-SET_TARGET_PROPERTIES(SUMA_FreeSurfer PROPERTIES COMPILE_FLAGS -DSUMA_FreeSurfer_STAND_ALONE)
-TARGET_LINK_LIBRARIES(SUMA_FreeSurfer ${SUMA_LIBS})
+#
+# Additonal targets
+#
+ADD_EXECUTABLE(SumaProgramTemplate SUMA_ProgramTemplate.c)
+LIST(APPEND PROGRAMS SumaProgramTemplate)
 
 ADD_EXECUTABLE(SUMA_Read_SpecFile SUMA_Load_Surface_Object.c)
-SET_TARGET_PROPERTIES(SUMA_Read_SpecFile PROPERTIES COMPILE_FLAGS -DSUMA_Read_SpecFile_STAND_ALONE)
-TARGET_LINK_LIBRARIES(SUMA_Read_SpecFile ${SUMA_LIBS})
-
-ADD_EXECUTABLE(SUMA_Load_Surface_Object SUMA_Load_Surface_Object.c)
-SET_TARGET_PROPERTIES(SUMA_Load_Surface_Object PROPERTIES COMPILE_FLAGS -DSUMA_Load_Surface_Object_STAND_ALONE)
-TARGET_LINK_LIBRARIES(SUMA_Load_Surface_Object ${SUMA_LIBS})
-
-ADD_EXECUTABLE(SUMA_SureFit SUMA_Surface_IO.c)
-SET_TARGET_PROPERTIES(SUMA_SureFit PROPERTIES COMPILE_FLAGS -DSUMA_SureFit_STAND_ALONE)
-TARGET_LINK_LIBRARIES(SUMA_SureFit ${SUMA_LIBS})
+LIST(APPEND PROGRAMS SUMA_Read_SpecFile)
 
 ADD_EXECUTABLE(CompareSurfaces SUMA_compare_surfaces.c)
 SET_TARGET_PROPERTIES(CompareSurfaces PROPERTIES COMPILE_FLAGS -DSUMA_compare_surfaces_STAND_ALONE)
-TARGET_LINK_LIBRARIES(CompareSurfaces ${SUMA_LIBS})
+LIST(APPEND PROGRAMS CompareSurfaces)
 
-ADD_EXECUTABLE(SUMA_inflate_compare SUMA_inflate_compare.c)
-SET_TARGET_PROPERTIES(SUMA_inflate_compare PROPERTIES COMPILE_FLAGS -DSUMA_inflate_compare_STAND_ALONE)
-TARGET_LINK_LIBRARIES(SUMA_inflate_compare ${SUMA_LIBS})
 
+# reusing SUMA_surface_IO.c
+ADD_EXECUTABLE(SUMA_FreeSurfer SUMA_Surface_IO.c)
+LIST(APPEND PROGRAMS SUMA_FreeSurfer)
+
+ADD_EXECUTABLE(SUMA_SureFit SUMA_Surface_IO.c)
+LIST(APPEND PROGRAMS SUMA_SureFit)
+
+ADD_EXECUTABLE(SUMA_Ply_Read SUMA_Surface_IO.c)
+LIST(APPEND PROGRAMS SUMA_Ply_Read)
+
+
+# reusing SUMA_SphericalMapping.c
 ADD_EXECUTABLE(CreateIcosahedron SUMA_SphericalMapping.c)
-SET_TARGET_PROPERTIES(CreateIcosahedron PROPERTIES COMPILE_FLAGS -DSUMA_CreateIcosahedron_STAND_ALONE)
-TARGET_LINK_LIBRARIES(CreateIcosahedron ${SUMA_LIBS})
+LIST(APPEND PROGRAMS CreateIcosahedron)
 
 ADD_EXECUTABLE(SUMA_Map_SurfacetoSurface SUMA_SphericalMapping.c)
-SET_TARGET_PROPERTIES(SUMA_Map_SurfacetoSurface PROPERTIES COMPILE_FLAGS -DSUMA_Map_SurfacetoSurface_STAND_ALONE)
-TARGET_LINK_LIBRARIES(SUMA_Map_SurfacetoSurface ${AFNI_LIBS} ${RICKR_LIBS} ${WARP_LIBS} ${THREEDEDGE_LIBS} ${SUMA_LIBS})
+TARGET_LINK_LIBRARIES(SUMA_Map_SurfacetoSurface
+  ${AFNI_LIBS} ${RICKR_LIBS} ${WARP_LIBS} ${THREEDEDGE_LIBS})
+LIST(APPEND PROGRAMS SUMA_Map_SurfacetoSurface)
 
 ADD_EXECUTABLE(MapIcosahedron SUMA_SphericalMapping.c)
-SET_TARGET_PROPERTIES(MapIcosahedron PROPERTIES COMPILE_FLAGS -DSUMA_MapIcosahedron_STAND_ALONE)
-TARGET_LINK_LIBRARIES(MapIcosahedron ${SUMA_LIBS})
+LIST(APPEND PROGRAMS MapIcosahedron)
+
+
+# reusing SUMA_Load_Surface_Object.c
+ADD_EXECUTABLE(inspec SUMA_Load_Surface_Object.c)
+LIST(APPEND PROGRAMS inspec)
+
+ADD_EXECUTABLE(quickspec SUMA_Load_Surface_Object.c)
+LIST(APPEND PROGRAMS quickspec)
+
 
 # error: too few arguments to function 'SUMA_disp_vecdmat'
 #ADD_EXECUTABLE(SUMA_SurfNorm SUMA_SurfNorm.c)
 #SET_TARGET_PROPERTIES(SUMA_SurfNorm PROPERTIES COMPILE_FLAGS -DSUMA_SurfNorm_STAND_ALONE)
-#TARGET_LINK_LIBRARIES(SUMA_SurfNorm ${AFNI_LIBS} ${THREEDEDGE_LIBS} ${SUMA_LIBS})
-
-ADD_EXECUTABLE(SUMA_Ply_Read SUMA_Surface_IO.c)
-SET_TARGET_PROPERTIES(SUMA_Ply_Read PROPERTIES COMPILE_FLAGS -DSUMA_Ply_Read_STAND_ALONE)
-TARGET_LINK_LIBRARIES(SUMA_Ply_Read ${SUMA_LIBS})
+#LIST(APPEND PROGRAMS SUMA_SurfNorm)
 
 ADD_EXECUTABLE(SUMA_ParseName SUMA_StripPath.c)
-SET_TARGET_PROPERTIES(SUMA_ParseName PROPERTIES COMPILE_FLAGS -DSUMA_ParseName_STAND_ALONE)
-TARGET_LINK_LIBRARIES(SUMA_ParseName ${SUMA_LIBS})
-
-ADD_EXECUTABLE(ConvertSurface SUMA_ConvertSurface.c)
-SET_TARGET_PROPERTIES(ConvertSurface PROPERTIES COMPILE_FLAGS -DSUMA_ConvertSurface_STAND_ALONE)
-TARGET_LINK_LIBRARIES(ConvertSurface ${SUMA_LIBS})
-
-ADD_EXECUTABLE(SurfaceMetrics SUMA_SurfaceMetrics.c)
-SET_TARGET_PROPERTIES(SurfaceMetrics PROPERTIES COMPILE_FLAGS -DSUMA_SurfaceMetrics_STAND_ALONE)
-TARGET_LINK_LIBRARIES(SurfaceMetrics ${SUMA_LIBS})
-
-ADD_EXECUTABLE(inspec SUMA_Load_Surface_Object.c)
-SET_TARGET_PROPERTIES(inspec PROPERTIES COMPILE_FLAGS -DSUMA_inspec_STAND_ALONE)
-TARGET_LINK_LIBRARIES(inspec ${SUMA_LIBS})
-
-ADD_EXECUTABLE(quickspec SUMA_Load_Surface_Object.c)
-SET_TARGET_PROPERTIES(quickspec PROPERTIES COMPILE_FLAGS -DSUMA_quickspec_STAND_ALONE)
-TARGET_LINK_LIBRARIES(quickspec ${SUMA_LIBS})
-
-ADD_EXECUTABLE(ConvertDset SUMA_ConvertDset.c)
-TARGET_LINK_LIBRARIES(ConvertDset ${SUMA_LIBS})
-
-ADD_EXECUTABLE(ROI2dataset SUMA_ROI2dataset.c)
-SET_TARGET_PROPERTIES(ROI2dataset PROPERTIES COMPILE_FLAGS -DSUMA_ROI2dataset_STAND_ALONE)
-TARGET_LINK_LIBRARIES(ROI2dataset ${SUMA_LIBS})
-
-# Actually only SUMA_GeomComp contains code supposed for standalone compilation,
-# but the SUMA_global module above assure it works also for standalone programs
-ADD_EXECUTABLE(SurfSmooth SUMA_SurfSmooth.c)
-#SET_TARGET_PROPERTIES(SurfSmooth PROPERTIES COMPILE_FLAGS -DSUMA_SurfSmooth_STAND_ALONE)
-TARGET_LINK_LIBRARIES(SurfSmooth ${SUMA_LIBS})
-
-ADD_EXECUTABLE(SurfPatch SUMA_SurfPatch.c)
-SET_TARGET_PROPERTIES(SurfPatch PROPERTIES COMPILE_FLAGS -DSUMA_getPatch_STANDALONE)
-TARGET_LINK_LIBRARIES(SurfPatch ${SUMA_LIBS})
-
-ADD_EXECUTABLE(SurfQual SUMA_SurfQual.c)
-SET_TARGET_PROPERTIES(SurfQual PROPERTIES COMPILE_FLAGS -DSUMA_SurfQual_STANDALONE)
-TARGET_LINK_LIBRARIES(SurfQual ${SUMA_LIBS})
-
-ADD_EXECUTABLE(SUMA_Homer SUMA_Homer.c)
-SET_TARGET_PROPERTIES(SUMA_Homer PROPERTIES COMPILE_FLAGS -DSUMA_Homer_STAND_ALONE)
-TARGET_LINK_LIBRARIES(SUMA_Homer ${SUMA_LIBS})
-
-ADD_EXECUTABLE(SurfClust SUMA_SurfClust.c)
-SET_TARGET_PROPERTIES(SurfClust PROPERTIES COMPILE_FLAGS -DSUMA_SurfClust_STANDALONE)
-TARGET_LINK_LIBRARIES(SurfClust ${SUMA_LIBS})
-
-ADD_EXECUTABLE(IsoSurface SUMA_IsoSurface.c)
-SET_TARGET_PROPERTIES(IsoSurface PROPERTIES COMPILE_FLAGS -DSUMA_IsoSurface_STANDALONE)
-TARGET_LINK_LIBRARIES(IsoSurface ${SUMA_LIBS})
-
-ADD_EXECUTABLE(ConvexHull SUMA_ConvexHull.c)
-SET_TARGET_PROPERTIES(ConvexHull PROPERTIES COMPILE_FLAGS -DSUMA_ConvexHull_STANDALONE)
-TARGET_LINK_LIBRARIES(ConvexHull ${SUMA_LIBS})
-
-ADD_EXECUTABLE(3dSkullStrip SUMA_3dSkullStrip.c)
-SET_TARGET_PROPERTIES(3dSkullStrip PROPERTIES COMPILE_FLAGS -DSUMA_BrainWrap_STANDALONE)
-TARGET_LINK_LIBRARIES(3dSkullStrip ${SUMA_LIBS})
-
-ADD_EXECUTABLE(3dCRUISEtoAFNI SUMA_3dCRUISEtoAFNI.c)
-TARGET_LINK_LIBRARIES(3dCRUISEtoAFNI ${SUMA_LIBS})
-
-ADD_EXECUTABLE(3dBRAIN_VOYAGERtoAFNI SUMA_3dBRAIN_VOYAGERtoAFNI.c)
-TARGET_LINK_LIBRARIES(3dBRAIN_VOYAGERtoAFNI ${SUMA_LIBS})
-
-ADD_EXECUTABLE(3dVol2Surf SUMA_3dVol2Surf.c)
-TARGET_LINK_LIBRARIES(3dVol2Surf ${SUMA_LIBS})
-
-ADD_EXECUTABLE(SurfMeasures SUMA_SurfMeasures.c)
-TARGET_LINK_LIBRARIES(SurfMeasures ${SUMA_LIBS})
-
-ADD_EXECUTABLE(FSread_annot SUMA_FSread_annot.c)
-SET_TARGET_PROPERTIES(FSread_annot PROPERTIES COMPILE_FLAGS -DSUMA_FSread_annot_STAND_ALONE)
-TARGET_LINK_LIBRARIES(FSread_annot ${SUMA_LIBS})
+LIST(APPEND PROGRAMS SUMA_ParseName)
 
 ADD_EXECUTABLE(ShowCmap SUMA_xColBar.c)
 SET_TARGET_PROPERTIES(ShowCmap PROPERTIES COMPILE_FLAGS -DSUMA_SHOW_CMAP_STAND_ALONE)
-TARGET_LINK_LIBRARIES(ShowCmap ${SUMA_LIBS})
-
-ADD_EXECUTABLE(SampBias SUMA_SampBias.c)
-SET_TARGET_PROPERTIES(SampBias PROPERTIES COMPILE_FLAGS -DSUMA_SampBias_STAND_ALONE)
-TARGET_LINK_LIBRARIES(SampBias ${SUMA_LIBS})
-
-ADD_EXECUTABLE(volume_render SUMA_volume_render.c)
-SET_TARGET_PROPERTIES(volume_render PROPERTIES COMPILE_FLAGS -DDO_VOLUME_MAIN)
-TARGET_LINK_LIBRARIES(volume_render ${SUMA_LIBS})
+LIST(APPEND PROGRAMS ShowCmap)
 
 # Source files missing
 #ADD_EXECUTABLE(resolvitivity SUMA_resolvitivity.c)
-#TARGET_LINK_LIBRARIES(resolvitivity ${SUMA_LIBS})
+#LIST(APPEND PROGRAMS resolvitivity)
 
 #ADD_EXECUTABLE(3dfilter SUMA_3dfilter.c)
-#TARGET_LINK_LIBRARIES(3dfilter ${SUMA_LIBS})
-
-ADD_EXECUTABLE(3dSurfMask SUMA_3dSurfMask.c)
-TARGET_LINK_LIBRARIES(3dSurfMask ${SUMA_LIBS})
-
-ADD_EXECUTABLE(SurfToSurf SUMA_SurfToSurf.c)
-TARGET_LINK_LIBRARIES(SurfToSurf ${SUMA_LIBS})
+#LIST(APPEND PROGRAMS 3dfilter)
 
 ADD_EXECUTABLE(Surf2VolCoord SUMA_Surf2VolCoord_demo.c)
-TARGET_LINK_LIBRARIES(Surf2VolCoord ${SUMA_LIBS})
-
-ADD_EXECUTABLE(ROIgrow SUMA_ROIgrow.c)
-TARGET_LINK_LIBRARIES(ROIgrow ${SUMA_LIBS})
-
-ADD_EXECUTABLE(SumaProgramTemplate SUMA_ProgramTemplate.c)
-TARGET_LINK_LIBRARIES(SumaProgramTemplate ${SUMA_LIBS})
-
-ADD_EXECUTABLE(AnalyzeTrace SUMA_AnalyzeTrace.c)
-TARGET_LINK_LIBRARIES(AnalyzeTrace ${SUMA_LIBS})
-
-ADD_EXECUTABLE(DriveSuma SUMA_DriveSuma.c)
-TARGET_LINK_LIBRARIES(DriveSuma ${SUMA_LIBS})
-
-ADD_EXECUTABLE(SurfDist SUMA_SurfDist.c)
-TARGET_LINK_LIBRARIES(SurfDist ${SUMA_LIBS})
-
-ADD_EXECUTABLE(SpharmReco SUMA_SpharmReco.c)
-TARGET_LINK_LIBRARIES(SpharmReco ${SUMA_LIBS})
-
-ADD_EXECUTABLE(SpharmDeco SUMA_SpharmDeco.c)
-TARGET_LINK_LIBRARIES(SpharmDeco ${SUMA_LIBS})
-
-ADD_EXECUTABLE(SurfDsetInfo SUMA_SurfDsetInfo.c)
-TARGET_LINK_LIBRARIES(SurfDsetInfo ${SUMA_LIBS})
-
-ADD_EXECUTABLE(SurfLocalstat SUMA_SurfLocalStat.c)
-TARGET_LINK_LIBRARIES(SurfLocalstat ${SUMA_LIBS})
-
-ADD_EXECUTABLE(SurfFWHM SUMA_SurfFWHM.c)
-TARGET_LINK_LIBRARIES(SurfFWHM ${SUMA_LIBS})
+LIST(APPEND PROGRAMS Surf2VolCoord)
 
 #error: too few arguments to function 'Debug_Move'
 #ADD_EXECUTABLE(toy_circle SUMA_toy_circle.c)
-#TARGET_LINK_LIBRARIES(toy_circle ${SUMA_LIBS})
+#LIST(APPEND PROGRAMS toy_circle)
 
 ADD_EXECUTABLE(path_optimize SUMA_path_optimize.c SUMA_SurfWarp.c)
 TARGET_LINK_LIBRARIES(path_optimize ${SUMA_LIBS})
+LIST(APPEND PROGRAMS path_optimize)
 
 # Source files missing
 #ADD_EXECUTABLE(spharm_test SUMA_spharm.c)
-#TARGET_LINK_LIBRARIES(spharm_test ${SUMA_LIBS})
+#LIST(APPEND PROGRAMS spharm_test)
 
-ADD_EXECUTABLE(NikoMap SUMA_NikoMap.c)
-TARGET_LINK_LIBRARIES(NikoMap ${SUMA_LIBS})
+IF(GTS_FOUND)
+  ADD_EXECUTABLE(SurfMesh SUMA_coarsen.c SUMA_gts.c SUMA_gts_insert.c)
+  SET_TARGET_PROPERTIES(SurfMesh PROPERTIES COMPILE_FLAGS ${XGTS_CFLAGS})
+  TARGET_LINK_LIBRARIES(SurfMesh ${GTS_LIBRARIES})
+  LIST(APPEND PROGRAMS SurfMesh)
+ENDIF(GTS_FOUND)
 
-SET(ADDPROGRAMS 
- suma prompt_user MakeColorMap ScaleToMap SUMA_FreeSurfer SUMA_Read_SpecFile
- SUMA_Load_Surface_Object SUMA_SureFit CompareSurfaces SUMA_inflate_compare
- CreateIcosahedron SUMA_Map_SurfacetoSurface MapIcosahedron
- SUMA_Ply_Read SUMA_ParseName ConvertSurface SurfaceMetrics
- inspec quickspec ConvertDset ROI2dataset
- SurfSmooth SurfClust IsoSurface
- 3dBRAIN_VOYAGERtoAFNI 3dCRUISEtoAFNI 3dSkullStrip 3dSurfMask 3dVol2Surf
- AnalyzeTrace ConvexHull DriveSuma SurfDist SpharmReco SpharmDeco
- FSread_annot NikoMap ROIgrow SUMA_Homer
- SampBias ShowCmap SumaProgramTemplate SurfDsetInfo SurfFWHM
- SurfLocalstat SurfMeasures SurfPatch SurfQual SurfToSurf
- volume_render)
+# all programs link against SUMA_LIBS
+FOREACH(program ${PROGRAMS})
+  TARGET_LINK_LIBRARIES(${program} ${SUMA_LIBS})
+ENDFOREACH(program)
 
-INSTALL(TARGETS SUMA ${PROGRAMS} ${ADDPROGRAMS}
+#
+# Customize some of the targets generated above
+#
+FOREACH(program
+  MakeColorMap ScaleToMap SurfaceMetrics ConvertSurface
+  ROI2dataset SurfClust IsoSurface SurfQual ConvexHull FSread_annot SampBias
+  CreateIcosahedron MapIcosahedron inspec quickspec)
+  SET_TARGET_PROPERTIES(${program} PROPERTIES
+                        COMPILE_FLAGS -DSUMA_${program}_STAND_ALONE)
+ENDFOREACH(program)
+
+# pretty much the same again but for programms with 'SUMA_' prefix
+FOREACH(program
+  SUMA_Read_SpecFile SUMA_FreeSurfer SUMA_SureFit SUMA_Ply_Read
+  SUMA_Map_SurfacetoSurface SUMA_Load_Surface_Object
+  SUMA_ParseName SUMA_Homer SUMA_inflate_compare )
+  SET_TARGET_PROPERTIES(${program} PROPERTIES
+                        COMPILE_FLAGS -D${program}_STAND_ALONE)
+ENDFOREACH(program)
+
+# more customization not following any standard naming scheme
+SET_TARGET_PROPERTIES(SurfPatch PROPERTIES COMPILE_FLAGS -DSUMA_getPatch_STANDALONE)
+SET_TARGET_PROPERTIES(3dSkullStrip PROPERTIES COMPILE_FLAGS -DSUMA_BrainWrap_STANDALONE)
+SET_TARGET_PROPERTIES(volume_render PROPERTIES COMPILE_FLAGS -DDO_VOLUME_MAIN)
+
+
+#
+# Install targets
+#
+INSTALL(TARGETS SUMA ${PROGRAMS}
   RUNTIME DESTINATION ${AFNI_INSTALL_BIN_DIR} COMPONENT Runtime
   LIBRARY DESTINATION ${AFNI_INSTALL_LIB_DIR} COMPONENT Runtime
   ARCHIVE DESTINATION ${AFNI_INSTALL_LIB_DIR} COMPONENT Development)
