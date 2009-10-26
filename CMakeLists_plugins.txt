@@ -18,7 +18,7 @@ SET(models
   model_squarewave_apf model_trnglwave_ap model_trnglwave_apf model_exp
   model_diffexp model_gammavar model_convgamma model_convgamma2a
   model_michaelis_menton model_linplusort model_zero model_demri_3
-  model_expr2 model_conv_diffgamma model_expMEMRI)
+  model_expr2 model_conv_diffgamma model_expMEMRI model_expMEMRI3)
 
 SET(ziad_plugins
   plug_3Ddump_V2 plug_4Ddump plug_delay_V2 plug_extract)
