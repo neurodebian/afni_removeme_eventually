@@ -63,65 +63,68 @@ FOREACH(program ${PROGRAMS})
   TARGET_LINK_LIBRARIES(${program} ${AFNI_LIBS})
 ENDFOREACH(program)
 
+#
+# More programs with more linking
+#
+FOREACH(program
+  3dAllineate 3dSpatNorm whereami 3dSegment 3dABoverlap 3daxialize adwarp)
+  ADD_EXECUTABLE(${program} ${program}.c)
+  TARGET_LINK_LIBRARIES(${program} ${AFNI_LIBS} ${WARP_LIBS} ${RICKR_LIBS})
+  LIST(APPEND PROGRAMS ${program})
+ENDFOREACH(program)
+
+
+#
+# Further customized targets
+#
 ADD_EXECUTABLE(1dSEM 1dSEM.c sqrmat.c)
 TARGET_LINK_LIBRARIES(1dSEM ${AFNI_LIBS})
-
-ADD_EXECUTABLE(3dAllineate 3dAllineate.c)
-TARGET_LINK_LIBRARIES(3dAllineate ${AFNI_LIBS} ${WARP_LIBS} ${RICKR_LIBS})
-
-ADD_EXECUTABLE(3dSpatNorm 3dSpatNorm.c)
-TARGET_LINK_LIBRARIES(3dSpatNorm ${AFNI_LIBS} ${WARP_LIBS} ${RICKR_LIBS})
-
-ADD_EXECUTABLE(whereami whereami.c)
-TARGET_LINK_LIBRARIES(whereami ${AFNI_LIBS} ${WARP_LIBS} ${RICKR_LIBS})
-
-ADD_EXECUTABLE(3dSegment 3dSegment.c)
-TARGET_LINK_LIBRARIES(3dSegment ${AFNI_LIBS} ${WARP_LIBS} ${RICKR_LIBS})
-
-ADD_EXECUTABLE(3dABoverlap 3dABoverlap.c)
-TARGET_LINK_LIBRARIES(3dABoverlap ${AFNI_LIBS} ${WARP_LIBS} ${RICKR_LIBS})
+LIST(APPEND PROGRAMS 1dSEM)
 
 ADD_EXECUTABLE(3danisosmooth 3danisosmooth.c DWIstructtensor.c)
 TARGET_LINK_LIBRARIES(3danisosmooth ${AFNI_LIBS})
-
-ADD_EXECUTABLE(3daxialize 3daxialize.c)
-TARGET_LINK_LIBRARIES(3daxialize ${AFNI_LIBS} ${WARP_LIBS})
+LIST(APPEND PROGRAMS 3danisosmooth)
 
 ADD_EXECUTABLE(3dfim 3dfim.c afni_pcor_update.c ts.c)
 # This is for compiling to an object that was called afni_pcor_float.o
 SET_SOURCE_FILES_PROPERTIES(afni_pcor_update.c PROPERTIES COMPILE_FLAGS "-DDTYPE=float")
 TARGET_LINK_LIBRARIES(3dfim ${AFNI_LIBS})
+LIST(APPEND PROGRAMS 3dfim)
 
 ADD_EXECUTABLE(3dmaxima 3dmaxima.c maxima.c)
 TARGET_LINK_LIBRARIES(3dmaxima ${AFNI_LIBS})
+LIST(APPEND PROGRAMS 3dmaxima)
 
 ADD_EXECUTABLE(3dretroicor 3dretroicor.c retroicor.c)
 TARGET_LINK_LIBRARIES(3dretroicor ${AFNI_LIBS})
+LIST(APPEND PROGRAMS 3dretroicor)
 
 ADD_EXECUTABLE(FD2 FD2.c ts.c mcw.c overfim.c pcor.c csfft_AJ.c)
 # This is for compiling pcor.c to an object that was called pcorsh.o
 SET_SOURCE_FILES_PROPERTIES(pcor.c PROPERTIES COMPILE_FLAGS "-DREF_FLOAT_SINGLE -DVOX_SHORT")
 TARGET_LINK_LIBRARIES(FD2 ${AFNI_LIBS})
+LIST(APPEND PROGRAMS FD2)
 
 ADD_EXECUTABLE(fim2 fim2.c ts.c pcor.c)
 TARGET_LINK_LIBRARIES(fim2 ${AFNI_LIBS})
-
-ADD_EXECUTABLE(adwarp adwarp.c)
-TARGET_LINK_LIBRARIES(adwarp ${AFNI_LIBS} ${WARP_LIBS})
+LIST(APPEND PROGRAMS fim2)
 
 ADD_EXECUTABLE(3dDeconvolve_f 3dDeconvolve.c matrix_f.c)
 # This is for compiling 3dDeconvolve.c and matrix_f.c to objects that were
 # called 3dDeconvolve_f.o and matrix_f.o
 SET_TARGET_PROPERTIES(3dDeconvolve_f PROPERTIES COMPILE_FLAGS "-DFLOATIZE")
 TARGET_LINK_LIBRARIES(3dDeconvolve_f ${AFNI_LIBS})
+LIST(APPEND PROGRAMS 3dDeconvolve_f)
 
 ADD_EXECUTABLE(help_format help_format.c)
+LIST(APPEND PROGRAMS help_format)
 
 ADD_EXECUTABLE(afni_history
   afni_history.c afni_history_bpittman.c afni_history_christip.c
   afni_history_dglen.c afni_history_gangc.c afni_history_rickr.c
   afni_history_rwcox.c afni_history_ziad.c)
 TARGET_LINK_LIBRARIES(afni_history ${AFNI_LIBS})
+LIST(APPEND PROGRAMS afni_history)
 
 #
 # AFNI
@@ -139,12 +142,12 @@ SET_SOURCE_FILES_PROPERTIES(afni_pcor_update.c
                             PROPERTIES COMPILE_FLAGS "-DDTYPE=float")
 ADD_EXECUTABLE(afni ${AFSRC})
 TARGET_LINK_LIBRARIES(afni ${AFNI_LIBS} ${WARP_LIBS} ${RICKR_LIBS})
+LIST(APPEND PROGRAMS afni)
 
 
-SET(ADDPROGRAMS
-  afni 1dSEM 3dAllineate 3dSpatNorm whereami 3dSegment 3dABoverlap
-  3danisosmooth 3daxialize 3dfim 3dmaxima 3dretroicor FD2 fim2 adwarp
-  3dDeconvolve_f help_format afni_history)
+#
+# Optional stuff depending on additional external software
+#
 
 # add local nifti apps if desired
 IF(AFNI_BUILD_LOCAL_NIFTICLIBS)
@@ -157,14 +160,16 @@ IF(AFNI_BUILD_LOCAL_NIFTICLIBS)
   ADD_EXECUTABLE(nifti_stats nifti/utils/nifti_stats.c)
   TARGET_LINK_LIBRARIES(nifti_stats ${AFNI_LIBS})
 
-  LIST(APPEND ADDPROGRAMS nifti1_test nifti_tool nifti_stats)
+  LIST(APPEND PROGRAMS nifti1_test nifti_tool nifti_stats)
+  MESSAGE(STATUS "Using internal NIfTI libs, compiling nifti_* tools")
 ENDIF(AFNI_BUILD_LOCAL_NIFTICLIBS)
 
 # add local 3dedge3 if desired
 IF(AFNI_BUILD_LOCAL_3DEGDE3)
   ADD_EXECUTABLE(3dedge3 3dedge3.c)
   TARGET_LINK_LIBRARIES(3dedge3 ${AFNI_LIBS} ${THREEDEDGE_LIBS})
-  LIST(APPEND ADDPROGRAMS 3dedge3)
+  LIST(APPEND PROGRAMS 3dedge3)
+  MESSAGE(STATUS "Using internal 3DEdge3, compiling '3degde3'")
 ENDIF(AFNI_BUILD_LOCAL_3DEGDE3)
 
 
@@ -172,7 +177,7 @@ IF(GSL_LIBRARY)
   MESSAGE(STATUS "Found GSL library, compiling 'balloon'")
   ADD_EXECUTABLE(balloon balloon.c)
   TARGET_LINK_LIBRARIES(balloon gsl gslcblas)
-  LIST(APPEND ADDPROGRAMS balloon)
+  LIST(APPEND PROGRAMS balloon)
 ENDIF(GSL_LIBRARY)
 
 
