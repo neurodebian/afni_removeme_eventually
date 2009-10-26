@@ -49,8 +49,8 @@ SET(SCRIPTS
   3dPAR2AFNI.pl @DriveAfni @DriveSuma @AddEdge
   @SurfSmooth.HEAT_07.examples @SUMA_FSvolToBRIK @isOblique afni_run_R
   @GetAfniDims @GetAfniRes @NoisySkullStrip @statauxcode @ScaleVolume
-  @ShowDynamicRange AFNI_Batch_R @DO.examples demo.fixed.niml.do
-  demo.mobile.niml.do @Spharm.examples @GetAfniBin @fast_roi
+  @ShowDynamicRange AFNI_Batch_R @DO.examples
+  @Spharm.examples @GetAfniBin @fast_roi
   @make_plug_diff @build_afni_Xlib @update.afni.binaries @ROI_Corr_Mat
   @FS_roi_label @demo_prompt @ScriptCheck)
 
