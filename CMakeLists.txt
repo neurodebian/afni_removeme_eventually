@@ -31,6 +31,8 @@ SET(AFNI_INSTALL_BIN_DIR "bin" CACHE PATH
     "Directory to install compiled programs into")
 SET(AFNI_INSTALL_LIB_DIR "bin" CACHE PATH
     "Directory to install libraries into")
+SET(AFNI_INSTALL_INCLUDE_DIR "include" CACHE PATH
+    "Directory to install library headers into")
 SET(AFNI_INSTALL_PLUGIN_DIR "bin" CACHE PATH
     "Directory to install plugins into")
 SET(AFNI_INSTALL_SCRIPT_DIR "bin" CACHE PATH
@@ -134,7 +136,9 @@ ELSE(UNIX)
   MESSAGE(FATAL_ERROR "Only UNIX-like platforms are supported.")
 ENDIF(UNIX)
 
-# TODO check if that is necessary at all
+# Predefined permission set to enforce proper permissions
+# during install even if files in the sources have different
+# settings
 SET(FILE_PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
 
 # core libs pretty much everythings has to be linked against
