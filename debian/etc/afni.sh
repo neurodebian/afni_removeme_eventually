@@ -27,7 +27,7 @@ AFNI_PLUGINPATH=${AFNI_INSTALLDIR}/plugins
 AFNI_MODELPATH=${AFNI_INSTALLDIR}/models
 
 # Location of the talairach daemon database
-AFNI_TTATLAS_DATASET=/usr/share/afni/atlas
+AFNI_TTATLAS_DATASET=/usr/share/afni/atlases
 
 #
 # Runtime checks
@@ -43,10 +43,6 @@ export PATH AFNI_PLUGINPATH AFNI_MODELPATH AFNI_IMSAVE_WARNINGS \
 ###################################################
 ####    DO NOT ADD ANYTHING BELOW THIS LINE    ####
 ###################################################
-
-# Configure the linker search path for AFNI's internal shared libraries
-LD_LIBRARY_PATH=/usr/lib/afni/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
-export LD_LIBRARY_PATH
 
 
 # attempt to load user configuration

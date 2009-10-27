@@ -1,3 +1,15 @@
+afni (0.20091023~dfsg.1-1) unstable; urgency=low
+
+  * New upstream code.
+  * New CMake buildsystem based on an initial patch by Bernd Feige.
+  * New afni-dev package with static libraries and header files for
+    AFNI plugin development.
+  * Add wrapper to start AFNI's without GUI without having to manually source
+    the config file.
+  * Add afni.desktop and afni.menu for desktop integration.
+
+ -- Michael Hanke <michael.hanke@gmail.com>  Tue, 27 Oct 2009 09:42:40 -0400
+
 afni (0.20091009~dfsg.1-1) unstable; urgency=low
 
   * Initial release (Closes: #409849).

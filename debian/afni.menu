@@ -1,0 +1,7 @@
+?package(fslview): \
+    needs="X11" \
+    section="Applications/Science/Medicine" \
+    title="AFNI" \
+    longtitle="Analysis of Functional NeuroImages" \
+    command="/usr/bin/afni" \
+    hints="MRI,fMRI,AFNI"

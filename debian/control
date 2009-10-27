@@ -2,9 +2,12 @@ Source: afni
 Section: science
 Priority: extra
 Maintainer: Michael Hanke <michael.hanke@gmail.com>
-Build-Depends: cdbs, debhelper (>= 7), libnifti1-dev | libnifti-dev, libvolpack1-dev | libvolpack-dev, libglw1-mesa-dev | libglw-dev, libgts-dev, libjpeg62-dev | libjpeg-dev, libqhull-dev, libnetcdf-dev, freeglut3-dev | freeglut-dev, libgl1-mesa-dev | libgl-dev, libexpat1-dev | libexpat-dev, libf2c2-dev, zlib1g-dev, lesstif2-dev, libxmu-dev, libxpm-dev, libgsl0-dev
-Standards-Version: 3.8.1
+Build-Depends: cdbs, cmake (>= 2.6), debhelper (>= 7), libnifti1-dev | libnifti-dev, libvolpack1-dev | libvolpack-dev, libglw1-mesa-dev | libglw-dev, libgts-dev, libjpeg62-dev | libjpeg-dev, libqhull-dev, libnetcdf-dev, freeglut3-dev | freeglut-dev, libgl1-mesa-dev | libgl-dev, libexpat1-dev | libexpat-dev, libf2c2-dev, zlib1g-dev, lesstif2-dev, libxmu-dev, libxpm-dev, libgsl0-dev, libxi-dev
+Standards-Version: 3.8.3.0
 Homepage: http://afni.nimh.nih.gov
+Vcs-Browser: http://git.debian.org/?p=pkg-exppsy/afni.git
+Vcs-Git: git://git.debian.org/git/pkg-exppsy/afni.git
+XS-DM-Upload-Allowed: yes
 
 
 Package: afni
@@ -25,3 +28,15 @@ Architecture: all
 Depends: python, tcsh, ${shlibs:Depends}, ${misc:Depends}
 Description: miscellaneous scripts and data files for AFNI
  This package provides the required architecture independent parts of AFNI.
+
+
+Package: afni-dev
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: header and static libraries for AFNI plugin development
+ AFNI is an environment for processing and displaying functional MRI data.
+ It provides a complete analysis toolchain, including 3D cortical surface
+ models, and mapping of volumetric data (SUMA).
+ .
+ This packages provides the necessary libraries and header files for AFNI
+ plugin development.

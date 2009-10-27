@@ -61,6 +61,8 @@ afni-common: csh-considered-harmful ./usr/lib/afni/bin/@statauxcode
 afni-common: csh-considered-harmful ./usr/lib/afni/bin/@update.afni.binaries
 afni-common: csh-considered-harmful ./usr/lib/afni/bin/AFNI_Batch_R
 afni-common: csh-considered-harmful ./usr/lib/afni/bin/afni_run_R
+afni-common: csh-considered-harmful ./usr/lib/afni/bin/@NoPound
+afni-common: csh-considered-harmful ./usr/lib/afni/bin/@Reorder
 afni-common: unusual-interpreter ./usr/lib/afni/bin/ExamineXmat.R #!AFNI_Batch_R
 afni-common: unusual-interpreter ./usr/lib/afni/bin/smooth.R #!AFNI_Batch_R
 afni-common: unusual-interpreter ./usr/lib/afni/bin/3dICA.R #!afni_run_R

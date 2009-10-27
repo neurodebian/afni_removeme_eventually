@@ -1,2 +1,5 @@
-Figure out if libSUMA can also be build as a shared lib. It uses some global
-symbols like 'SUMAg_CF', which might cause weired behavior -- not sure.
+Duplicate files
+===============
+  eispack.h eispack/eispack.h
+  coxplot.h coxplot/coxplot.h
+
