@@ -2,7 +2,7 @@ Source: afni
 Section: science
 Priority: extra
 Maintainer: Michael Hanke <michael.hanke@gmail.com>
-Build-Depends: cdbs, cmake (>= 2.6), debhelper (>= 7), libnifti1-dev | libnifti-dev, libvolpack1-dev | libvolpack-dev, libglw1-mesa-dev | libglw-dev, libgts-dev, libjpeg62-dev | libjpeg-dev, libqhull-dev, libnetcdf-dev, freeglut3-dev | freeglut-dev, libgl1-mesa-dev | libgl-dev, libexpat1-dev | libexpat-dev, libf2c2-dev, zlib1g-dev, lesstif2-dev, libxmu-dev, libxpm-dev, libgsl0-dev, libxi-dev
+Build-Depends: cdbs, cmake (>= 2.6.4), debhelper (>= 7), libnifti1-dev | libnifti-dev, libvolpack1-dev | libvolpack-dev, libglw1-mesa-dev | libglw-dev, libgts-dev, libjpeg62-dev | libjpeg-dev, libqhull-dev, libnetcdf-dev, freeglut3-dev | freeglut-dev, libgl1-mesa-dev | libgl-dev, libexpat1-dev | libexpat-dev, libf2c2-dev, zlib1g-dev, lesstif2-dev, libxmu-dev, libxpm-dev, libgsl0-dev, libxi-dev
 Standards-Version: 3.8.3.0
 Homepage: http://afni.nimh.nih.gov
 Vcs-Browser: http://git.debian.org/?p=pkg-exppsy/afni.git
