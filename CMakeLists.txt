@@ -22,6 +22,9 @@ OPTION(AFNI_BUILD_LOCAL_GIFTI
 OPTION(AFNI_BUILD_CORELIBS_ONLY
        "Only build core libraries, no SUMA, plugins or programs"
        OFF)
+OPTION(AFNI_BUILD_WITH_LESSTIF2
+       "Build using lesstif2, otherwise with OpenMotif"
+       ON)
 #
 # Install destinations
 #
@@ -41,6 +44,8 @@ SET(AFNI_INSTALL_PICS_DIR "bin" CACHE PATH
     "Directory to install images into")
 SET(AFNI_INSTALL_POEMS_DIR "bin" CACHE PATH
     "Directory to install poems into")
+SET(AFNI_SHOWOFF "${CMAKE_SYSTEM}" CACHE STRING
+    "Identify this build of AFNI (no blanks)")
 
 ##
 ## Check for and configure for external dependencies
@@ -48,6 +53,9 @@ SET(AFNI_INSTALL_POEMS_DIR "bin" CACHE PATH
 
 FIND_PACKAGE(X11 REQUIRED)
 FIND_PACKAGE(Motif REQUIRED)
+IF(AFNI_BUILD_WITH_LESSTIF2)
+  ADD_DEFINITIONS(-DUSING_LESSTIF)
+ENDIF(AFNI_BUILD_WITH_LESSTIF2)
 INCLUDE_DIRECTORIES(${MOTIF_INCLUDE_DIR})
 
 #
@@ -155,6 +163,9 @@ SET(AFNI_LIBS
 SET(WARP_LIBS afni_warp ${AFNI_LIBS})
 SET(RICKR_LIBS rickr ${WARP_LIBS} ${AFNI_LIBS})
 
+
+# Showoff
+ADD_DEFINITIONS(-DSHOWOFF=${AFNI_SHOWOFF})
 
 ##
 ## Sub-projects
