@@ -6,6 +6,10 @@
 
 #include "mrilib.h"
 
+#ifdef USE_OMP
+#include <omp.h>
+#endif
+
 /*------------------------------------------------------------------------
    Compute the median of an array of floats.  Will rearrange (partially
    sort) the array in the process.  The algorithm is based on Quicksort,
@@ -165,10 +169,12 @@ void qmedmad_float( int n, float *ar, float *med, float *mad )
 }
 
 /*---------------------------------------------------------------*/
-/* Return median, MAD, and biweight midvariance. */
+/* Return median, MAD, and 0.989*sqrt(biweight midvariance)
+   (factor of 0.989 makes this = stdev for normal distribution).
+*//*-------------------------------------------------------------*/
 
 #undef  BC
-#define BC 9.0f
+#define BC 9.0f  /* cutoff for biweight midvariance */
 
 void qmedmadbmv_float( int n, float *ar, float *med, float *mad, float *bmv )
 {
