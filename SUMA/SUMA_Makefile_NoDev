@@ -5,8 +5,7 @@ SUMALIB = libSUMA.a
 SUMAGTSLIB = libSUMAGTS.a
 AFNILIB = -lmrix -lcoxplot -lmri -lf2c
 MAINCODE = SUMA
-# there is a proper libglut on Debian
-SUMALIBLIST = libSUMA.a libply.a -lglut
+SUMALIBLIST = libSUMA.a libglut.a libply.a 
 GLWLIB = libGLws.a
 
 ## 07 Dec 2005 -- Modify include path (RWCox)
@@ -564,11 +563,10 @@ AddGTS: ${SUMA_GTS_OBJS}
 	  	$(RANLIB) ${SUMALIB} ;  )
 
 libglut.a:
-	echo "Not building libglut -- take it from Debian package"
-#	( cd GLUT/libglut ;	\
-#	  $(MAKE) clean $@ 'SUMA_INCLUDE_PATH=$(SUMA_INPATH)' 'CC=$(CC)' 'RM=$(RM)' 'RANLIB=$(RANLIB)' 'CCOPT=$(CCOPT)' 'WARNOPT=$(WARNOPT)' ; \
-#	  $(RANLIB) $@ ;	\
-#     $(CP) -p $@ ../.. ; )
+	( cd GLUT/libglut ;	\
+	  $(MAKE) clean $@ 'SUMA_INCLUDE_PATH=$(SUMA_INPATH)' 'CC=$(CC)' 'RM=$(RM)' 'RANLIB=$(RANLIB)' 'CCOPT=$(CCOPT)' 'WARNOPT=$(WARNOPT)' ; \
+	  $(RANLIB) $@ ;	\
+     $(CP) -p $@ ../.. ; )
      
 install:
 	@echo Installing Binaries...
