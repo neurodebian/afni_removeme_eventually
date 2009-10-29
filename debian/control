@@ -13,7 +13,7 @@ XS-DM-Upload-Allowed: yes
 Package: afni
 Architecture: any
 Depends: afni-common (= ${source:Version}), tcsh, gifsicle, libjpeg-progs, ${shlibs:Depends}, ${misc:Depends}
-Recommends: nifti-bin, bzip2
+Recommends: nifti-bin, bzip2, ffmpeg
 Description: toolkit for analyzing and visualizing functional MRI data
  AFNI is an environment for processing and displaying functional MRI data.
  It provides a complete analysis toolchain, including 3D cortical surface

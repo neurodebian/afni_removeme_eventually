@@ -1,3 +1,10 @@
+afni (0.20091028~dfsg.1-1) unstable; urgency=low
+
+  * New upstream code.
+  * Add patch to allow AFNI to use ffmpeg instead of the stripped mpeg_encode.
+
+ -- Michael Hanke <michael.hanke@gmail.com>  Thu, 29 Oct 2009 14:29:18 -0400
+
 afni (0.20091023~dfsg.1-1) unstable; urgency=low
 
   * New upstream code.
