@@ -1417,7 +1417,7 @@ static int get_posns_from_elist(char *plist[], char *elist[], char *text,
    int        ee;
    char     * cp;
 
-   ENTRY("flip_slices_mosaic");
+   ENTRY("get_posns_from_elist");
 
    if( check_env && !g_use_last_elem) {
         check_env = 0;
