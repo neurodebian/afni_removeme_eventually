@@ -20,6 +20,27 @@ for other shells than bash).
 Questions regarding the usage of \fBAFNI\fR or related theory can be
 posted in the
 \fBAFNI forum\fR (see \fIhttp://afni.nimh.nih.gov/afni/community/board\fR).
+.SH MISSING 3DEDGE LIBRARY
+3degde and its underlying library lib3dedge are covered by a license that
+forbids distribution of its source code, hence cannot be part of the Debian
+package. This removal has an impact on some tools in AFNI, since they make use
+of this functionality be default. The Debian package has modified these tools
+to allow disabling lib3degde. However, to make this modification visible the
+default has NOT been changed and these option need to be given manually.
+
+.TP
+for align_epi_anat.py add options:
+-skullstrip_opts -no_use_edge
+
+.TP
+for @auto_tlrc add:
+-no_use_edge
+
+.TP
+for 3dSkullStrip add:
+-no_use_edge
+
+Moreover, for this tools it is not possible to use the -push_to_edge options.
 .SH "FILES"
 .IP /etc/afni/afni.sh
 .IP /usr/share/doc/afni-common/README.environment.gz
