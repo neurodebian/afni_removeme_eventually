@@ -32,7 +32,7 @@ SET(MRI_SRC
   mri_pcvector.c mri_fdrize.c mri_floatvec.c mri_sort.c mri_warpfield.c
   mri_dicom_stuff.c mri_check.c mri_allzero.c mri_subset.c mri_to_fvect.c
   mri_genalign_util.c rcmat.c dmat44.c mri_rbfinterp.c matrix.c
-  gifti_choice.c zfun.c)
+  gifti_choice.c zfun.c cs_pv.c)
 
 SET(THD_SRC
   thd_atr.c thd_dsetto1D.c thd_initalldir.c thd_reconpar.c thd_auxdata.c
@@ -59,7 +59,7 @@ SET(THD_SRC
   thd_brainormalize.c thd_opentcat.c thd_nimlatr.c thd_dsetatr.c
   thd_logafni.c thd_dset_nbhd.c thd_vcheck.c thd_matdaxes.c thd_niml.c
   afni_vedit.c thd_fdrcurve.c thd_dset_to_vectim.c thd_bandpass.c
-  thd_instacorr.c)
+  thd_instacorr.c thd_svdblur.c)
 
 SET(EDT_SRC
   edt_addbrick.c edt_blur.c edt_buildmask.c edt_checkargv.c edt_clust.c
