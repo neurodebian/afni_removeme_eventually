@@ -1,3 +1,12 @@
+afni (0.20091204~dfsg.1-1) unstable; urgency=low
+
+  * New upstream code.
+  * Major bugfix caused by multiple, but different, versions of f2c.h --
+    causing int to be int32 or int64 for different parts of AFNI, at the same
+    time.
+
+ -- Michael Hanke <michael.hanke@gmail.com>  Mon, 07 Dec 2009 20:47:56 -0500
+
 afni (0.20091028~dfsg.1-1) unstable; urgency=low
 
   * New upstream code.
