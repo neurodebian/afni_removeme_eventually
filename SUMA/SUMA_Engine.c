@@ -151,7 +151,7 @@ SUMA_Boolean SUMA_Engine (DList **listp)
                   break;
                }
                
-               if (cmap->N_Col > 256) {
+               if (cmap->N_M[0] > 256) {
                   SUMA_SLP_Err(  "Cannot send more\n"
                                  "than 256 colors to\n"
                                  "AFNI.");
@@ -165,7 +165,7 @@ SUMA_Boolean SUMA_Engine (DList **listp)
                stmp = SUMA_append_string("DEFINE_COLORSCALE ", cmap->Name);
                /* SEND COLORMAP In REVERSE ORDER TO AFNI,
                C'est la vie */
-               for (i=cmap->N_Col-1; i >= 0; --i) {
+               for (i=cmap->N_M[0]-1; i >= 0; --i) {
                   sprintf(sbuf,"rgbi:%f/%f/%f", 
                            cmap->M[i][0], cmap->M[i][1], cmap->M[i][2]);
                   stmp = SUMA_append_replace_string(stmp, sbuf, " ", 1);
@@ -226,7 +226,7 @@ SUMA_Boolean SUMA_Engine (DList **listp)
                /* set the range of the colorbar */
                nel = NI_new_data_element("ni_do", 0);
                NI_set_attribute ( nel, "ni_verb", "DRIVE_AFNI");
-               sprintf(sbuf," %d", cmap->N_Col);
+               sprintf(sbuf," %d", cmap->N_M[0]);
                stmp = SUMA_append_string("SET_FUNC_RANGE A.", sbuf);
                NI_set_attribute ( nel, "ni_object", stmp);
                if (NI_write_element( SUMAg_CF->ns_v[SUMA_AFNI_STREAM_INDEX] , 
@@ -580,7 +580,7 @@ SUMA_Boolean SUMA_Engine (DList **listp)
             }
             if (!sv) sv = &(SUMAg_SVv[0]);
             SO = (SUMA_SurfaceObject *)EngineData->vp;
-            if (!SUMA_ColPlaneShowOne_Set (SO, YUP)) {
+            if (!SUMA_ColPlaneShowOneFore_Set (SO, YUP)) {
                SUMA_S_Err("Failed to set one only");
                break;  
             }
@@ -614,7 +614,7 @@ SUMA_Boolean SUMA_Engine (DList **listp)
                      SUMA_CreateFileSelectionDialogStruct ( 
                         sv->X->TOPLEVEL,
                         SUMA_FILE_OPEN, YUP,
-                        SUMA_LoadDsetFile,
+                        SUMA_LoadDsetOntoSO,
                         (void *)EngineData->vp,
                         NULL, NULL,
                         sbuf,
@@ -624,7 +624,7 @@ SUMA_Boolean SUMA_Engine (DList **listp)
                      SUMA_CreateFileSelectionDialogStruct (
                         (Widget) EngineData->ip, 
                         SUMA_FILE_OPEN, YUP,
-                        SUMA_LoadDsetFile, 
+                        SUMA_LoadDsetOntoSO, 
                         (void *)EngineData->vp,
                         NULL, NULL,
                         sbuf,
@@ -652,7 +652,7 @@ SUMA_Boolean SUMA_Engine (DList **listp)
                         FuncName, NextCom, NextComCode);
                break;
             }
-            SUMA_LoadDsetFile(EngineData->cp, EngineData->vp);
+            SUMA_LoadDsetOntoSO(EngineData->cp, EngineData->vp);
             break;
 
          case SE_OpenColFile:
@@ -756,19 +756,23 @@ SUMA_Boolean SUMA_Engine (DList **listp)
                   SUMA_RETURN(NOPE);
                }   
                
-               /* determine if there are ROIs being drawn on surfaces displayed here */
+               /* determine if there are ROIs being drawn on surfaces 
+                  displayed here */
                DrawnROI = NULL;
                /* start with the Focus_SO */
                if (sv->Focus_SO_ID >= 0) {
                   SO = (SUMA_SurfaceObject *)SUMAg_DOv[sv->Focus_SO_ID].OP;
-                  DrawnROI = SUMA_FetchROI_InCreation (SO, SUMAg_DOv,  SUMAg_N_DOv); 
+                  DrawnROI = SUMA_FetchROI_InCreation (SO, SUMAg_DOv,  
+                                                       SUMAg_N_DOv); 
                }
-               if (!DrawnROI) { /* none found on focus surface, check other surfaces in this viewer */
+               if (!DrawnROI) { /* none found on focus surface, check 
+                                 other surfaces in this viewer */
                   N_SOlist = SUMA_RegisteredSOs(sv, SUMAg_DOv, SOlist);
                   if (N_SOlist) {
                      it = 0;
                      do {
-                        DrawnROI = SUMA_FetchROI_InCreation (SO, SUMAg_DOv,  SUMAg_N_DOv);
+                        DrawnROI = SUMA_FetchROI_InCreation (SO, SUMAg_DOv,  
+                                                             SUMAg_N_DOv);
                         ++it;
                      } while (!DrawnROI && it < N_SOlist);
                   }
@@ -776,19 +780,94 @@ SUMA_Boolean SUMA_Engine (DList **listp)
                
                /* call function to create ROI window */
                if (!SUMA_OpenDrawROIWindow (DrawnROI)) {
-                  SUMA_RegisterMessage (SUMAg_CF->MessageList, "Failed to open Draw ROI window", FuncName, 
-                                       SMT_Error, SMA_LogAndPopup);
+                  SUMA_RegisterMessage (SUMAg_CF->MessageList, 
+                                        "Failed to open Draw ROI window", 
+                                        FuncName, 
+                                        SMT_Error, SMA_LogAndPopup);
 
                }
                break;
             
             }
          case SE_SetRenderMode:
-            { /* sets the rendering mode of a surface, expects SO in vp and rendering mode in i*/
+            { /* sets the rendering mode of a surface, 
+               expects SO in vp and rendering mode in i*/
                SO = (SUMA_SurfaceObject *)EngineData->vp;
                SO->PolyMode = EngineData->i;     
                if (SO->PolyMode == SRM_Hide) SO->Show = NOPE;
                else SO->Show = YUP;             
+            }  
+            break;
+            
+         case SE_SetDsetViewMode:
+            { /* sets the viewing mode of a dset, 
+               expects SO in vp and rendering mode in i*/
+               SUMA_COLOR_MAP *cmp=NULL;
+               static int nwarn=0, nwarn2=0;
+               
+               SO = (SUMA_SurfaceObject *)EngineData->vp;
+               it = SUMA_ABS(SO->SurfCont->curColPlane->ShowMode);
+               if (EngineData->i == SW_SurfCont_DsetViewXXX) {
+                  SO->SurfCont->curColPlane->ShowMode = 
+                     -SUMA_ABS(SO->SurfCont->curColPlane->ShowMode);
+               } else {
+                  SO->SurfCont->curColPlane->ShowMode =  EngineData->i ;
+               }
+               if (strcmp(SO->SurfCont->curColPlane->cmapname,"explicit")) {
+                  /* Can we do contours? */
+                  cmp = SUMA_FindNamedColMap(
+                                 SO->SurfCont->curColPlane->cmapname);
+                  if (!cmp) { SUMA_S_Err("Unexpected null colormap"); break;}
+                  if (SUMA_NeedsLinearizing(cmp)) {
+                     if (EngineData->i == SW_SurfCont_DsetViewCon   ||
+                         EngineData->i == SW_SurfCont_DsetViewCaC ) {
+                        if (!nwarn) {
+                           SUMA_SLP_Note("Cannot do contouring with colormaps\n"
+                                         "that panes of unequal sizes.\n"
+                                         "Contouring turned off.\n"
+                                         "Notice shown once per session.");
+                           ++nwarn;
+                        }
+                        SO->SurfCont->curColPlane->ShowMode = it; /* get back */ 
+                        SUMA_SET_MENU( SO->SurfCont->DsetViewModeMenu,
+                           SUMA_ShowMode2ShowModeMenuItem(it));
+                        /* kill current contours, if any */
+                        SUMA_KillOverlayContours(SO->SurfCont->curColPlane);
+                     }
+                  }
+                  /* if new mode require contours, better regenerate them */
+                  if ( (it != SW_SurfCont_DsetViewCon &&
+                        it != SW_SurfCont_DsetViewCaC ) &&
+                       (SO->SurfCont->curColPlane->ShowMode == 
+                                 SW_SurfCont_DsetViewCon   ||
+                        SO->SurfCont->curColPlane->ShowMode == 
+                                 SW_SurfCont_DsetViewCaC) ) {
+                     if (!SUMA_ColorizePlane(SO->SurfCont->curColPlane)) {
+                        SUMA_S_Err( "Police at the station - "
+                                    "and they don't look friendly.");
+                     }
+                  }
+               } else {
+                  /* explicit colormap no need for all the complications above*/
+                     if (EngineData->i == SW_SurfCont_DsetViewCon   ||
+                         EngineData->i == SW_SurfCont_DsetViewCaC ) {
+                        if (!nwarn2) {
+                           SUMA_SLP_Note("Cannot do contouring with explicitly\n"
+                                         "colored datasets. \n"
+                                         "Notice shown once per session.");
+                           ++nwarn2;
+                        }
+                        SO->SurfCont->curColPlane->ShowMode = it; /* get back */ 
+                        SUMA_SET_MENU( SO->SurfCont->DsetViewModeMenu,
+                           SUMA_ShowMode2ShowModeMenuItem(it));
+                        /* kill current contours, if any . There should be none
+                           here but there is no harm */
+                        SUMA_KillOverlayContours(SO->SurfCont->curColPlane);
+                     }
+               }  
+               if (!SUMA_RemixRedisplay (SO)) {
+                  SUMA_S_Err("Dunno what happened here");
+               }
             }  
             break;
             
@@ -1001,6 +1080,51 @@ SUMA_Boolean SUMA_Engine (DList **listp)
                      SUMA_CreateTextShell(s, "SUMA Plot help", TextShell);
                   SUMA_free(s);   
                }
+            }
+            break;
+         
+         case SE_Whereami:
+            /* opens wheremi text window, 
+               Expects SO in vp, and a string for the whereami data
+               In the future, it should expect a list of whereami
+               data and it should build the report on its own.
+               Each whereami datum should contain atlas info, space, coordinate,
+               label, etc. */
+            {
+               char *s = NULL;
+               
+               if (EngineData->vp_Dest != NextComCode ||
+                   EngineData->s_Dest != NextComCode) {
+                  fprintf (SUMA_STDERR,
+                          "Error %s: Data not destined correctly for %s (%d).\n",
+                           FuncName, NextCom, NextComCode);
+                  break;
+               }
+               if (!sv) sv = &(SUMAg_SVv[0]);
+               if (!(SO = (SUMA_SurfaceObject *)EngineData->vp)) break;
+               if (!(s = (char*)EngineData->s)) break;
+               
+               if (!SUMAg_CF->X->Whereami_TextShell) {
+                  if (!(SUMAg_CF->X->Whereami_TextShell = 
+                           SUMA_CreateTextShellStruct (  SUMA_Whereami_open, 
+                                                   NULL, 
+                                                   SUMA_Whereami_destroyed,
+                                                   NULL))) {
+                     SUMA_S_Err("Failed to create TextShellStruct.");
+                     break;
+                  }
+               } 
+               
+               if (SUMAg_CF->X->Whereami_TextShell) { /* update */
+                     SUMAg_CF->X->Whereami_TextShell->CursorAtBottom = YUP;
+                     (void) SUMA_CreateTextShell (s, 
+                              "Where Thou Layeth", 
+                              SUMAg_CF->X->Whereami_TextShell);
+                     XRaiseWindow(
+                        SUMAg_CF->X->DPY_controller1, 
+                        XtWindow(SUMAg_CF->X->Whereami_TextShell->toplevel));
+                     
+               } 
             }
             break;
          case SE_Load_Group:
@@ -1401,10 +1525,13 @@ SUMA_Boolean SUMA_Engine (DList **listp)
          case SE_CloseStream4All:
             /* expects the stream index in i in EngineData */
             if (EngineData->i_Dest != NextComCode) {
-               fprintf (SUMA_STDERR,"Error %s: Data not destined correctly for %s (%d).\n",FuncName, NextCom, NextComCode);
+               fprintf (SUMA_STDERR,
+                        "Error %s: Data not destined correctly for %s (%d).\n",
+                        FuncName, NextCom, NextComCode);
                break;
             }   
-            /* odds are communicating program died or closed stream, mark all surfaces as unsent */
+            /* odds are communicating program died or closed stream, 
+               mark all surfaces as unsent */
             if (EngineData->i == SUMA_AFNI_STREAM_INDEX) {
                for (ii=0; ii<SUMAg_N_DOv; ++ii) {
                   if (SUMA_isSO(SUMAg_DOv[ii])) {
@@ -1419,7 +1546,8 @@ SUMA_Boolean SUMA_Engine (DList **listp)
             nn = NI_stream_goodcheck(SUMAg_CF->ns_v[EngineData->i] , 1 ) ;
             
             if( nn >= 0 ){ 
-               fprintf(stderr,"Error %s: Stream still alive, this should not be. Closing anyway.\n", FuncName); 
+               SUMA_S_Err("Stream still alive, this should not be. "
+                          "Closing anyway."); 
                NI_stream_close(SUMAg_CF->ns_v[EngineData->i]); 
             }
             
@@ -1432,11 +1560,13 @@ SUMA_Boolean SUMA_Engine (DList **listp)
             
          case SE_SetForceAfniSurf:
             /* expects nothing in EngineData */
-            /* send to afni surfaces that can be sent even if they have been sent already */
+            /* send to afni surfaces that can be sent even if they 
+               have been sent already */
             #if 0 /* pre Oct 26 */
             for (ii=0; ii<sv->N_DO; ++ii) {
                if (SUMA_isSO(SUMAg_DOv[sv->RegisteredDO[ii]])) {
-                  SO = (SUMA_SurfaceObject *)(SUMAg_DOv[sv->RegisteredDO[ii]].OP);
+                  SO = (SUMA_SurfaceObject *)
+                           (SUMAg_DOv[sv->RegisteredDO[ii]].OP);
                   if (SO->SentToAfni) SO->SentToAfni = NOPE;
                }
             }
@@ -1445,7 +1575,8 @@ SUMA_Boolean SUMA_Engine (DList **listp)
                for (ii=0; ii<SUMAg_N_DOv; ++ii) {
                   if (SUMA_isSO(SUMAg_DOv[ii])) {
                      SO = (SUMA_SurfaceObject *)(SUMAg_DOv[ii].OP);
-                     if (SO->AnatCorrect && SO->SentToAfni) SO->SentToAfni = NOPE;
+                     if (SO->AnatCorrect && SO->SentToAfni) 
+                        SO->SentToAfni = NOPE;
                   }
                }
             #endif
@@ -1458,14 +1589,17 @@ SUMA_Boolean SUMA_Engine (DList **listp)
             break;
             
          case SE_SetAfniSurfList:
-            /* expects ivec in EngineData and a string in s saying what is to be sent, a flag in i 1=report transmission, 0 = be quiet*/
+            /* expects ivec in EngineData and a string in s saying what is to be 
+               sent, a flag in i 1=report transmission, 0 = be quiet*/
             { int nels_sent, N_Send, *SendList;
               char *stmp = NULL; 
               static char LastPrefix[THD_MAX_PREFIX+1] = {"nuda"};
                if (EngineData->ivec_Dest != NextComCode || 
                   EngineData->s_Dest != NextComCode || 
                   EngineData->i_Dest != NextComCode) {
-                  fprintf (SUMA_STDERR,"Error %s: Data not destined correctly for %s (%d).\n",FuncName, NextCom, NextComCode);
+                  fprintf (SUMA_STDERR,
+                     "Error %s: Data not destined correctly for %s (%d).\n",
+                     FuncName, NextCom, NextComCode);
                   break;
                }
                N_Send = EngineData->ivec->n;
@@ -1475,61 +1609,98 @@ SUMA_Boolean SUMA_Engine (DList **listp)
                   for (ii=0; ii<N_Send; ++ii) {
                      nels_sent = 0;
                      SO = (SUMA_SurfaceObject *)(SUMAg_DOv[SendList[ii]].OP);
-                     if (EngineData->i && SO->Label) fprintf(SUMA_STDERR,"%s: Sending surface %s (%s)...\n", FuncName, SO->Label, EngineData->s);
+                     if (EngineData->i && SO->Label) 
+                        fprintf(SUMA_STDERR,"%s: Sending surface %s (%s)...\n", 
+                                             FuncName, SO->Label, EngineData->s);
                      if (SUMA_iswordin(EngineData->s,"NodeList") == 1) {
                         nel = SUMA_makeNI_SurfIXYZ (SO);
                         if (!nel) {
-                           fprintf(SUMA_STDERR,"Error %s: SUMA_makeNI_SurfIXYZ failed\n", FuncName);
+                           fprintf(SUMA_STDERR,
+                                    "Error %s: SUMA_makeNI_SurfIXYZ failed\n", 
+                                    FuncName);
                            break;
                         }
-                        /* set up some defaults color (see matlab's rgbdectohex for visual aid) info for AFNI interface */
+                        /* set up some defaults color 
+                           (see matlab's rgbdectohex for visual aid) 
+                           info for AFNI interface */
                         switch(ii) {
                            case 0: /* typically wm left*/
-                              NI_set_attribute(nel,"afni_surface_controls_toggle", "on");
-                              NI_set_attribute(nel,"afni_surface_controls_nodes","none");
-                              NI_set_attribute(nel,"afni_surface_controls_lines","#00ff00"); /* green 0 255 0 */
-                              NI_set_attribute(nel,"afni_surface_controls_plusminus","none");
+                              NI_set_attribute(nel,
+                                 "afni_surface_controls_toggle", "on");
+                              NI_set_attribute(nel,
+                                 "afni_surface_controls_nodes","none");
+                              NI_set_attribute(nel,
+                                 "afni_surface_controls_lines","#00ff00"); 
+                                                            /* green 0 255 0 */
+                              NI_set_attribute(nel,
+                                 "afni_surface_controls_plusminus","none");
                               break;
                            case 1: /* typically pial left */
-                              NI_set_attribute(nel,"afni_surface_controls_toggle", "on");
-                              NI_set_attribute(nel,"afni_surface_controls_nodes","none");
-                              NI_set_attribute(nel,"afni_surface_controls_lines","#0000ff");  /* 0 0  225  blue */  
-                              NI_set_attribute(nel,"afni_surface_controls_plusminus","none");
+                              NI_set_attribute(nel,
+                                 "afni_surface_controls_toggle", "on");
+                              NI_set_attribute(nel,
+                                 "afni_surface_controls_nodes","none");
+                              NI_set_attribute(nel,
+                                 "afni_surface_controls_lines","#0000ff");  
+                                                         /* 0 0  225  blue */  
+                              NI_set_attribute(nel,
+                                 "afni_surface_controls_plusminus","none");
                               break;
                            case 2: /* typically wm right */
-                              NI_set_attribute(nel,"afni_surface_controls_toggle", "on");
-                              NI_set_attribute(nel,"afni_surface_controls_nodes","none");
-                              NI_set_attribute(nel,"afni_surface_controls_lines","#ffff00");   /* green 0 255 0*/ 
-                              NI_set_attribute(nel,"afni_surface_controls_plusminus","none");
+                              NI_set_attribute(nel,
+                                 "afni_surface_controls_toggle", "on");
+                              NI_set_attribute(nel,
+                                 "afni_surface_controls_nodes","none");
+                              NI_set_attribute(nel,
+                                 "afni_surface_controls_lines","#ffff00");   
+                                                            /* green 0 255 0*/ 
+                              NI_set_attribute(nel,
+                                 "afni_surface_controls_plusminus","none");
                               break;
                            case 4: /* typically pial right */
-                              NI_set_attribute(nel,"afni_surface_controls_toggle", "on");
-                              NI_set_attribute(nel,"afni_surface_controls_nodes","none");
-                              NI_set_attribute(nel,"afni_surface_controls_lines","#ff0000");  /* red 255 0 0 */
-                              NI_set_attribute(nel,"afni_surface_controls_plusminus","none");
+                              NI_set_attribute(nel,
+                                 "afni_surface_controls_toggle", "on");
+                              NI_set_attribute(nel,
+                                 "afni_surface_controls_nodes","none");
+                              NI_set_attribute(nel,
+                                 "afni_surface_controls_lines","#ff0000");  
+                                                            /* red 255 0 0 */
+                              NI_set_attribute(nel,
+                                 "afni_surface_controls_plusminus","none");
                               break;
                            default: /* hot pink */
-                              NI_set_attribute(nel,"afni_surface_controls_toggle", "on");
-                              NI_set_attribute(nel,"afni_surface_controls_nodes","none");
-                              NI_set_attribute(nel,"afni_surface_controls_lines","#ff69b4");  /* hot pink 255 105 180 */
-                              NI_set_attribute(nel,"afni_surface_controls_plusminus","none");
+                              NI_set_attribute(nel,
+                                 "afni_surface_controls_toggle", "on");
+                              NI_set_attribute(nel,
+                                 "afni_surface_controls_nodes","none");
+                              NI_set_attribute(nel,
+                                 "afni_surface_controls_lines","#ff69b4");  
+                                                   /* hot pink 255 105 180 */
+                              NI_set_attribute(nel,
+                                 "afni_surface_controls_plusminus","none");
                               break;
                         }
                         /* send surface nel */
-                        if (LocalHead) fprintf(SUMA_STDERR,"%s: Sending SURF_iXYZ nel...\n ", FuncName) ;
-                        nn = NI_write_element( SUMAg_CF->ns_v[SUMA_AFNI_STREAM_INDEX] , nel , NI_TALK_MODE ) ;
+                        if (LocalHead) 
+                           fprintf(SUMA_STDERR,"%s: Sending SURF_iXYZ nel...\n ",                                                FuncName) ;
+                        nn = NI_write_element( 
+                                 SUMAg_CF->ns_v[SUMA_AFNI_STREAM_INDEX] , nel , 
+                                                NI_TALK_MODE ) ;
 
                         if( nn < 0 ){
-                             fprintf(SUMA_STDERR,"Error %s: NI_write_element failed\n", FuncName);
+                             SUMA_S_Err("NI_write_element failed\n");
                         }
 
                         #if 0
                            {
                               NI_stream nstdout;
-                               nstdout = NI_stream_open( "fd:1","w");
-                                if( nstdout == NULL ){ fprintf(SUMA_STDERR,"Can't open fd:1\n"); break; }
-                                 NI_write_element( nstdout , nel , NI_TEXT_MODE ) ;
-                               NI_stream_close(nstdout);
+                              nstdout = NI_stream_open( "fd:1","w");
+                              if( nstdout == NULL ){ 
+                                 fprintf(SUMA_STDERR,"Can't open fd:1\n"); 
+                                 break; 
+                              }
+                              NI_write_element( nstdout , nel , NI_TEXT_MODE ) ;
+                              NI_stream_close(nstdout);
                            }
                         #endif
 
@@ -1541,15 +1712,18 @@ SUMA_Boolean SUMA_Engine (DList **listp)
                         /* send node normals       ZSS Oct 05 04 */
                         nel = SUMA_makeNI_SurfINORM (SO);
                         if (!nel) {
-                           fprintf(SUMA_STDERR,"Error %s: SUMA_makeNI_SurfINORM failed\n", FuncName);
+                           SUMA_S_Err("SUMA_makeNI_SurfINORM failed");
                            break;
                         }
                         /* send surface nel */
-                        if (LocalHead) fprintf(SUMA_STDERR,"%s: Sending SURF_NORM nel ...\n", FuncName) ;
-                        nn = NI_write_element( SUMAg_CF->ns_v[SUMA_AFNI_STREAM_INDEX] , nel , NI_TALK_MODE ) ;
-
+                        if (LocalHead)    
+                           fprintf(SUMA_STDERR,
+                                   "%s: Sending SURF_NORM nel ...\n", FuncName) ;
+                        nn = NI_write_element( 
+                                 SUMAg_CF->ns_v[SUMA_AFNI_STREAM_INDEX] , nel , 
+                                                NI_TALK_MODE ) ;
                         if( nn < 0 ){
-                             fprintf(SUMA_STDERR,"Error %s: NI_write_element failed\n", FuncName);
+                             SUMA_S_Err("NI_write_element failed");
                         }
                         NI_free_element(nel);
                         nel = NULL;
@@ -1560,15 +1734,19 @@ SUMA_Boolean SUMA_Engine (DList **listp)
                         /* send triangles */
                         nel = SUMA_makeNI_SurfIJK (SO);
                         if (!nel) {
-                           fprintf(SUMA_STDERR,"Error %s: SUMA_makeNI_SurfIJK failed\n", FuncName);
+                           SUMA_S_Err("SUMA_makeNI_SurfIJK failed");
                            break;
                         }
                         /* send surface nel */
-                        if (LocalHead) fprintf(SUMA_STDERR,"%s: Sending SURF_IJK nel ...\n", FuncName) ;
-                        nn = NI_write_element( SUMAg_CF->ns_v[SUMA_AFNI_STREAM_INDEX] , nel , NI_TALK_MODE ) ;
+                        if (LocalHead)    
+                           fprintf(SUMA_STDERR,"%s: Sending SURF_IJK nel ...\n", 
+                                               FuncName) ;
+                        nn = NI_write_element( 
+                                 SUMAg_CF->ns_v[SUMA_AFNI_STREAM_INDEX] , nel , 
+                                                NI_TALK_MODE ) ;
 
                         if( nn < 0 ){
-                             fprintf(SUMA_STDERR,"Error %s: NI_write_element failed\n", FuncName);
+                           SUMA_S_Err("NI_write_element failed");
                         }
                         NI_free_element(nel);
                         nel = NULL;
@@ -1581,29 +1759,36 @@ SUMA_Boolean SUMA_Engine (DList **listp)
                         SUMA_SL_Warn("Nothing sent dude, what's happening?");
                      }
                   }
-                  /* Now make afni switch to the surface volume of the last surface 
-                                 ZSS Sept 28 06: To avoid the jamming of
-                                 AFNI and SUMA's write buffers. It used to be
-                                 That AFNI switched automatically at the first surface
-                                 and started writing colored data while suma was still
-                                 writing surfaces. As a result, both programs got stuck
-                                 waiting for the write operation to finish and it never
-                                 did because buffers got full and no one was busy listening
-                                 Kudos to Rick R. for having figured the Ladies' bug source */
+                  /* Now make afni switch to the surface volume of the 
+                     last surface 
+                  ZSS Sept 28 06: To avoid the jamming of
+                  AFNI and SUMA's write buffers. It used to be
+                  That AFNI switched automatically at the first surface
+                  and started writing colored data while suma was still
+                  writing surfaces. As a result, both programs got stuck
+                  waiting for the write operation to finish and it never
+                  did because buffers got full and no one was busy listening
+                  Kudos to Rick R. for having figured the Ladies' bug source */
                   SO = (SUMA_SurfaceObject *)(SUMAg_DOv[SendList[N_Send-1]].OP);
                   if (SO->VolPar && SO->VolPar->filecode) {
                      if (strcmp(LastPrefix, SO->VolPar->prefix)) {
                         nel = NI_new_data_element("ni_do", 0);
                         NI_set_attribute ( nel, "ni_verb", "DRIVE_AFNI");
-                        stmp = SUMA_append_string("SWITCH_UNDERLAY A.", SO->VolPar->prefix);
+                        stmp = SUMA_append_string("SWITCH_UNDERLAY A.", 
+                                                  SO->VolPar->prefix);
+                        stmp = SUMA_append_replace_string(stmp, "0", " ", 1);
                         NI_set_attribute ( nel, "ni_object", stmp);
-                        fprintf(SUMA_STDERR,"%s: Sending switch underlay command to (%s)...\n", FuncName, stmp);
-                        if (NI_write_element( SUMAg_CF->ns_v[SUMA_AFNI_STREAM_INDEX] , nel, NI_TALK_MODE ) < 0) {
+                        fprintf(SUMA_STDERR,
+                              "%s: Sending switch underlay command to (%s)...\n",                               FuncName, stmp);
+                        if (NI_write_element( 
+                                 SUMAg_CF->ns_v[SUMA_AFNI_STREAM_INDEX] , nel, 
+                                                NI_TALK_MODE ) < 0) {
                            SUMA_SLP_Err("Failed to send SWITCH_ANATOMY to afni");
                         }
                         NI_free_element(nel) ; nel = NULL;
                         if (stmp) SUMA_free(stmp); stmp = NULL;
-                        snprintf(LastPrefix, THD_MAX_PREFIX, "%s", SO->VolPar->prefix);
+                        snprintf(LastPrefix, THD_MAX_PREFIX, "%s", 
+                                 SO->VolPar->prefix);
                      }
                   } 
                   
@@ -1632,21 +1817,25 @@ SUMA_Boolean SUMA_Engine (DList **listp)
                                                   SES_Suma, (void *)sv, 
                                                   NOPE, 
                                                   SEI_Tail, NULL))) {
-                     fprintf(SUMA_STDERR,"Error %s: Failed to register element\n", FuncName);
+                     fprintf(SUMA_STDERR,
+                             "Error %s: Failed to register element\n", FuncName);
+                     break;
+                  }
+                  if (!(LocElm = SUMA_RegisterEngineListCommand (  
+                        list, ED,
+                        SEF_s, (void *)("NodeList, FaceSetList, NodeNormList"), 
+                        SES_Suma, (void *)sv, NOPE, 
+                        SEI_In, LocElm))) {
+                     fprintf(SUMA_STDERR,
+                             "Error %s: Failed to register element\n", FuncName);
                      break;
                   }
                   if (!(LocElm = SUMA_RegisterEngineListCommand (  list, ED,
-                                                         SEF_s, (void *)("NodeList, FaceSetList, NodeNormList"), 
-                                                         SES_Suma, (void *)sv, NOPE, 
-                                                         SEI_In, LocElm))) {
-                     fprintf(SUMA_STDERR,"Error %s: Failed to register element\n", FuncName);
-                     break;
-                  }
-                  if (!(LocElm = SUMA_RegisterEngineListCommand (  list, ED,
-                                                         SEF_i, (void *)&ti, 
-                                                         SES_Suma, (void *)sv, NOPE, 
-                                                         SEI_In, LocElm))) {
-                     fprintf(SUMA_STDERR,"Error %s: Failed to register element\n", FuncName);
+                                                SEF_i, (void *)&ti, 
+                                                SES_Suma, (void *)sv, NOPE, 
+                                                SEI_In, LocElm))) {
+                     fprintf(SUMA_STDERR,
+                             "Error %s: Failed to register element\n", FuncName);
                      break;
                   }
                   if (SendList) SUMA_free(SendList); SendList = NULL;   
@@ -1682,7 +1871,7 @@ SUMA_Boolean SUMA_Engine (DList **listp)
                ED = SUMA_InitializeEngineListData (SE_SetAfniSurfList);
                if (!(LocElm = SUMA_RegisterEngineListCommand (  list, ED,
                                                       SEF_ivec, (void *)(&ivec), 
-                                                      SES_Suma, (void *)sv, NOPE, 
+                                                      SES_Suma, (void *)sv, NOPE,
                                                       SEI_Tail, NULL))) {
                   fprintf( SUMA_STDERR,
                            "Error %s: Failed to register element\n", FuncName);
@@ -2106,8 +2295,7 @@ SUMA_Boolean SUMA_Engine (DList **listp)
             /* SUMA_nel_stdout (nel);*/
       
             if( nn < 0 ){
-                   fprintf(SUMA_STDERR,
-                           "Error %s: NI_write_element failed\n", FuncName);
+               SUMA_S_Err("NI_write_element failed");
             }
             
             NI_free_element(nel);
@@ -2118,29 +2306,43 @@ SUMA_Boolean SUMA_Engine (DList **listp)
             /* expects a center XYZ in EngineData->fv15[0 .. 2]
             expects a normal vector in EngineData->fv15[3 .. 5] */
             if (EngineData->fv15_Dest != NextComCode) {
-               fprintf (SUMA_STDERR,"Error %s: Data not destined correctly for %s (%d).\n",FuncName, NextCom, NextComCode);
+               fprintf (SUMA_STDERR,
+                  "Error %s: Data not destined correctly for %s (%d).\n",
+                  FuncName, NextCom, NextComCode);
                break;
             } 
             
             { float CurrentDistance;
               float fm2_3[2][3]={ {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0} }, *dir;
               
-            /* modify the ViewFrom Value such that the viewing distance remains the same */
-            CurrentDistance = sqrt((sv->GVS[sv->StdView].ViewFrom[0]-sv->GVS[sv->StdView].ViewCenter[0])*(sv->GVS[sv->StdView].ViewFrom[0]-sv->GVS[sv->StdView].ViewCenter[0]) +\
-                                    (sv->GVS[sv->StdView].ViewFrom[1]-sv->GVS[sv->StdView].ViewCenter[1])*(sv->GVS[sv->StdView].ViewFrom[1]-sv->GVS[sv->StdView].ViewCenter[1]) +\
-                                    (sv->GVS[sv->StdView].ViewFrom[2]-sv->GVS[sv->StdView].ViewCenter[2])*(sv->GVS[sv->StdView].ViewFrom[2]-sv->GVS[sv->StdView].ViewCenter[2]));
+            /* modify the ViewFrom Value such that the viewing distance 
+               remains the same */
+            CurrentDistance = sqrt((sv->GVS[sv->StdView].ViewFrom[0] - 
+                                    sv->GVS[sv->StdView].ViewCenter[0]) *
+                                   (sv->GVS[sv->StdView].ViewFrom[0] - 
+                                    sv->GVS[sv->StdView].ViewCenter[0]) +
+                                   (sv->GVS[sv->StdView].ViewFrom[1] - 
+                                    sv->GVS[sv->StdView].ViewCenter[1]) * 
+                                   (sv->GVS[sv->StdView].ViewFrom[1] - 
+                                    sv->GVS[sv->StdView].ViewCenter[1]) +
+                                   (sv->GVS[sv->StdView].ViewFrom[2] - 
+                                    sv->GVS[sv->StdView].ViewCenter[2]) * 
+                                   (sv->GVS[sv->StdView].ViewFrom[2] - 
+                                    sv->GVS[sv->StdView].ViewCenter[2]));
             
             /* set the ViewCenter Value to that of the node's XYZ*/
             sv->GVS[sv->StdView].ViewCenter[0] = EngineData->fv15[0];
             sv->GVS[sv->StdView].ViewCenter[1] = EngineData->fv15[1]; 
             sv->GVS[sv->StdView].ViewCenter[2] = EngineData->fv15[2];
             
-            /* obtain the LookFrom point based on CurrentDistance and the normal vector */
+            /* obtain the LookFrom point based on CurrentDistance and 
+               the normal vector */
             dir = &(EngineData->fv15[3]);
-            SUMA_POINT_AT_DISTANCE(dir, sv->GVS[sv->StdView].ViewCenter, CurrentDistance, fm2_3);
+            SUMA_POINT_AT_DISTANCE(dir, 
+                  sv->GVS[sv->StdView].ViewCenter, CurrentDistance, fm2_3);
             
-            fprintf(SUMA_STDOUT,"\nPoints: %f %f %f\n%f %f %f\n", \
-               fm2_3[0][0], fm2_3[0][1], fm2_3[0][2], \
+            fprintf(SUMA_STDOUT,"\nPoints: %f %f %f\n%f %f %f\n", 
+               fm2_3[0][0], fm2_3[0][1], fm2_3[0][2], 
                fm2_3[1][0], fm2_3[1][1], fm2_3[1][2]);
             
             sv->GVS[sv->StdView].ViewFrom[0] = fm2_3[0][0]; 
@@ -2215,7 +2417,8 @@ SUMA_Boolean SUMA_Engine (DList **listp)
          case SE_RedisplayNow:
             /* expects nothing in EngineData */
             /*call handle redisplay immediately to one specific viewer*/
-            if (LocalHead) fprintf (SUMA_STDOUT,"%s: Redisplaying NOW ...", FuncName);
+            if (LocalHead) 
+               fprintf (SUMA_STDOUT,"%s: Redisplaying NOW ...", FuncName);
             sv->ResetGLStateVariables = YUP;
             SUMA_handleRedisplay((XtPointer)sv->X->GLXAREA);
             if (LocalHead) fprintf (SUMA_STDOUT," Done\n");
@@ -2225,11 +2428,16 @@ SUMA_Boolean SUMA_Engine (DList **listp)
             /* expects nothing in EngineData */
             /* causes  an immediate redisplay to all visible viewers */
             for (ii=0; ii<SUMAg_N_SVv; ++ii) {
-               if (LocalHead) fprintf (SUMA_STDERR,"%s: Checking viewer %d.\n", FuncName, ii);
+               if (LocalHead) 
+                  fprintf (SUMA_STDERR,
+                           "%s: Checking viewer %d.\n", FuncName, ii);
                if (!SUMAg_SVv[ii].isShaded && SUMAg_SVv[ii].X->TOPLEVEL) {
                   /* you must check for both conditions because by default 
-                  all viewers are initialized to isShaded = NOPE, even before they are ever opened */
-                  if (LocalHead) fprintf (SUMA_STDERR,"%s: Redisplaying viewer %d.\n", FuncName, ii);
+                  all viewers are initialized to isShaded = NOPE, even before 
+                  they are ever opened */
+                  if (LocalHead) 
+                     fprintf (SUMA_STDERR,
+                              "%s: Redisplaying viewer %d.\n", FuncName, ii);
                   SUMAg_SVv[ii].ResetGLStateVariables = YUP;
                   SUMA_handleRedisplay((XtPointer)SUMAg_SVv[ii].X->GLXAREA);
                }
@@ -2276,7 +2484,9 @@ SUMA_Boolean SUMA_Engine (DList **listp)
             }
             /* set the color remix flag */
             if (!SUMA_SetShownLocalRemixFlag (sv)) {
-               fprintf (SUMA_STDERR,"Error %s: Failed in SUMA_SetShownLocalRemixFlag.\n", FuncName);
+               fprintf (SUMA_STDERR,
+                        "Error %s: Failed in SUMA_SetShownLocalRemixFlag.\n", 
+                        FuncName);
                break;
             }
             break;
@@ -2292,7 +2502,9 @@ SUMA_Boolean SUMA_Engine (DList **listp)
             }
             /* set the color remix flag */
             if (!SUMA_SetShownLocalRemixFlag (sv)) {
-               fprintf (SUMA_STDERR,"Error %s: Failed in SUMA_SetShownLocalRemixFlag.\n", FuncName);
+               fprintf (SUMA_STDERR,
+                        "Error %s: Failed in SUMA_SetShownLocalRemixFlag.\n", 
+                        FuncName);
                break;
             }
             break;
@@ -2642,7 +2854,7 @@ SUMA_Boolean SUMA_Engine (DList **listp)
                   SUMA_UpdateColPlaneShellAsNeeded(SO); 
                                  /* update other open ColPlaneShells */
                   /* If you're viewing one plane at a time, do a remix */
-                  if (SO->SurfCont->ShowCurOnly) SUMA_RemixRedisplay(SO);
+                  if (SO->SurfCont->ShowCurForeOnly) SUMA_RemixRedisplay(SO);
                }
             }
             
@@ -2707,7 +2919,9 @@ SUMA_Boolean SUMA_Engine (DList **listp)
                                  SO->SurfCont->curColPlane->OptScl->IntRange[0]);
                      SUMA_INSERT_CELL_VALUE(SO->SurfCont->SetRangeTable, 1, 2, 
                                  SO->SurfCont->curColPlane->OptScl->IntRange[1]);
-                     if (SO->SurfCont->curColPlane->Show) {
+                     if (SO->SurfCont->curColPlane->ShowMode > 0 &&
+                         SO->SurfCont->curColPlane->ShowMode < 
+                                             SW_SurfCont_DsetViewXXX ) {
                         if (!SUMA_ColorizePlane (SO->SurfCont->curColPlane)) {
                            SUMA_SLP_Err("Failed to colorize plane.\n"); 
                         } else {
@@ -2765,7 +2979,9 @@ SUMA_Boolean SUMA_Engine (DList **listp)
                               SO->SurfCont->curColPlane->OptScl->BrightRange[0]);
                      SUMA_INSERT_CELL_VALUE(SO->SurfCont->SetRangeTable, 2, 2, 
                               SO->SurfCont->curColPlane->OptScl->BrightRange[1]);
-                     if (SO->SurfCont->curColPlane->Show) {
+                     if (SO->SurfCont->curColPlane->ShowMode > 0 &&
+                         SO->SurfCont->curColPlane->ShowMode  < 
+                                             SW_SurfCont_DsetViewXXX) {
                         if (!SUMA_ColorizePlane (SO->SurfCont->curColPlane)) {
                            SUMA_SLP_Err("Failed to colorize plane.\n"); 
                         } else {
@@ -2800,7 +3016,9 @@ SUMA_Boolean SUMA_Engine (DList **listp)
                               SO->SurfCont->curColPlane->OptScl->BrightMap[0]);
                      SUMA_INSERT_CELL_VALUE(SO->SurfCont->SetRangeTable, 3, 2, 
                               SO->SurfCont->curColPlane->OptScl->BrightMap[1]);
-                     if (SO->SurfCont->curColPlane->Show) {
+                     if (SO->SurfCont->curColPlane->ShowMode > 0 &&
+                         SO->SurfCont->curColPlane->ShowMode < 
+                                             SW_SurfCont_DsetViewXXX) {
                         if (!SUMA_ColorizePlane (SO->SurfCont->curColPlane)) {
                            SUMA_SLP_Err("Failed to colorize plane.\n"); 
                         } else {
@@ -2841,17 +3059,23 @@ SUMA_Boolean SUMA_Engine (DList **listp)
                SUMA_ColPlane_NewDimFact((void*)SO);
             }
             if (NI_get_attribute(EngineData->ngr, "view_dset")) {
-               if (NI_IS_STR_ATTR_EQUAL(EngineData->ngr, "view_dset", "y")) 
-                  SO->SurfCont->curColPlane->Show = YUP;
-               else if (NI_IS_STR_ATTR_EQUAL(EngineData->ngr, "view_dset", "n"))
-                  SO->SurfCont->curColPlane->Show = NOPE;
-               else { 
+               if (NI_IS_STR_ATTR_EQUAL(EngineData->ngr, "view_dset", "y")) {
+                  if (SO->SurfCont->curColPlane->ShowMode < 0)
+                     SO->SurfCont->curColPlane->ShowMode = 
+                        -SO->SurfCont->curColPlane->ShowMode;
+               } else if (NI_IS_STR_ATTR_EQUAL(EngineData->ngr, 
+                                                "view_dset", "n")) {
+                  if (SO->SurfCont->curColPlane->ShowMode > 0)
+                     SO->SurfCont->curColPlane->ShowMode = 
+                                    -SO->SurfCont->curColPlane->ShowMode;
+               } else { 
                   SUMA_S_Errv("Bad value of %s for view_dset, setting to 'y'\n", 
                               NI_get_attribute(EngineData->ngr, "view_dset"));
-                  SO->SurfCont->curColPlane->Show = YUP;
+                  SO->SurfCont->curColPlane->ShowMode = SW_SurfCont_DsetViewCol;
                }
-               XmToggleButtonSetState ( SO->SurfCont->ColPlaneShow_tb, 
-                                        SO->SurfCont->curColPlane->Show, YUP);
+               SUMA_SET_MENU( SO->SurfCont->DsetViewModeMenu,
+                              SUMA_ShowMode2ShowModeMenuItem(
+                                 SO->SurfCont->curColPlane->ShowMode));
             }
             if (NI_get_attribute(EngineData->ngr, "view_surf")) {
                if (NI_IS_STR_ATTR_EQUAL(EngineData->ngr, "view_surf", "y")) 
@@ -2883,7 +3107,7 @@ SUMA_Boolean SUMA_Engine (DList **listp)
                               NI_get_attribute(EngineData->ngr, "1_only"));
                   itmp = YUP;
                }
-               if (!SUMA_ColPlaneShowOne_Set (SO, itmp)) {
+               if (!SUMA_ColPlaneShowOneFore_Set (SO, itmp)) {
                   SUMA_S_Err("Failed to set one only");
                   break;  
                }
@@ -3751,7 +3975,7 @@ int SUMA_NextState(SUMA_SurfaceViewer *sv)
    
    icur = SUMA_WhichState (sv->State, sv, sv->CurGroupName);
    if (icur < 0) {
-      fprintf(SUMA_STDERR,"Error %s: SUMA_WhichState failed.\n", FuncName);
+      SUMA_S_Err("SUMA_WhichState failed.");
       SUMA_RETURN (-1);
    } else {
       inxt = (icur + 1) % sv->N_VSv;
@@ -4467,7 +4691,8 @@ matrix and the projection matrix without calling for a display the changes will 
 \sa SUMA_NewGeometryInViewer
 
 */
-SUMA_Boolean SUMA_OpenGLStateReset (SUMA_DO *dov, int N_dov, SUMA_SurfaceViewer *sv)
+SUMA_Boolean SUMA_OpenGLStateReset (SUMA_DO *dov, int N_dov, 
+                                    SUMA_SurfaceViewer *sv)
 {
    static char FuncName[]={"SUMA_OpenGLStateReset"};
    SUMA_Axis *EyeAxis;
@@ -4483,7 +4708,8 @@ SUMA_Boolean SUMA_OpenGLStateReset (SUMA_DO *dov, int N_dov, SUMA_SurfaceViewer 
    #if 0
    /* modify the rotation center */
    if (!SUMA_UpdateRotaCenter(sv, dov, N_dov)) {
-      fprintf (SUMA_STDERR,"Error %s: Failed to update center of rotation", FuncName);
+      fprintf (SUMA_STDERR,
+               "Error %s: Failed to update center of rotation", FuncName);
       SUMA_RETURN (NOPE);
    }
    
@@ -4494,7 +4720,8 @@ SUMA_Boolean SUMA_OpenGLStateReset (SUMA_DO *dov, int N_dov, SUMA_SurfaceViewer 
    }
    #endif
    
-   /* This is all that is needed, the others above do not need to be updated at this stage*/
+   /* This is all that is needed, the others above do not need to 
+      be updated at this stage*/
    
    /* Change the defaults of the eye axis to fit standard EyeAxis */
    EyeAxis_ID = SUMA_GetEyeAxis (sv, dov);
@@ -4544,7 +4771,8 @@ int SUMA_GetEyeAxis (SUMA_SurfaceViewer *sv, SUMA_DO *dov)
       }
    }
    if (cnt > 1) {
-      fprintf (SUMA_STDERR,"Error %s: Found more than one Eye Axis. \n", FuncName);
+      fprintf (SUMA_STDERR,
+               "Error %s: Found more than one Eye Axis. \n", FuncName);
       SUMA_RETURN (-1);
    }
    

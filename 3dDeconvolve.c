@@ -1200,8 +1200,11 @@ void display_help_menu()
     "   Normalize all basis functions for '-stim_times' to have             \n"
     "   amplitude 'a' (must have a > 0).  The peak absolute value           \n"
     "   of each basis function will be scaled to be 'a'.                    \n"
-    "   NOTE: -basis_normall only affect -stim_times options that           \n"
-    "         appear LATER on the command line                              \n"
+    "   NOTES:                                                              \n"
+    "    * -basis_normall only affect -stim_times options that              \n"
+    "        appear LATER on the command line                               \n"
+    "    * The main use for this option is for use with the                 \n"
+    "        'EXPR' basis functions.                                        \n"
 #if 0
     "                                                                       \n"
     "[-slice_base k sname]                                                  \n"
@@ -10536,13 +10539,18 @@ basis_expansion * basis_parser( char *sym )
       set ffac so that the peak value becomes basis_normall */
 
 #undef  BNSUB
-#define BNSUB 999
+#define BNSUB 1999
    if( basis_normall > 0.0f ){
-     int jj ; float dt , ftop , val ;
+     int jj , jtop=BNSUB ; float dt , ftop , val ;
      bot = be->tbot ; top = be->ttop ; dt = (top-bot)/BNSUB ;
+     if( dt < 0.01f * basis_TR ){        /* should be rare */
+       dt = 0.01f * basis_TR ; jtop = 1 + (int)((top-bot)/dt) ;
+     } else if( dt > 0.1f * basis_TR ){  /* should not happen */
+       dt = 0.10f * basis_TR ; jtop = 1 + (int)((top-bot)/dt) ;
+     }
      for( nn=0 ; nn < be->nfunc ; nn++ ){
        ftop = 0.0f ;
-       for( jj=0 ; jj <= BNSUB ; jj++ ){
+       for( jj=0 ; jj <= jtop ; jj++ ){
          val = basis_funceval( be->bfunc[nn] , bot+jj*dt ) ;
          val = fabs(val) ; if( val > ftop ) ftop = val ;
        }

@@ -65,6 +65,123 @@
 
 afni_history_struct ziad_history[] = {
 /*=====BELOW THIS LINE=====*/
+ { 1 , DEC , 2009 , ZSS , "suma-general" , MINOR , TYPE_BUG_FIX ,
+   "Ignore triangles from Caret with nodes that have all zero coords",
+   "Not doing so results in bad display of some flat meshes because\n"
+   "the .topo file contains triangles with nodes that appear masked by\n"
+   "0.0 0.0 0.0 in the .coord file"
+ } ,
+
+ { 1 , DEC , 2009 , ZSS , "@SUMA_Make_Spec_Caret" , MINOR , TYPE_BUG_FIX ,
+   "Improved script to make it pick up new naming convention.",
+   NULL
+ } ,
+ 
+ { 25 , NOV , 2009 , ZSS , "MapIcosahedron" , MAJOR , TYPE_NEW_OPT ,
+   "Added -NN_dset_map and -dset_map options to map dsets onto new meshes",
+   "The program now automatically warps LabelDsets specified in the spec\n"
+   "file, or any dataset specified on the command line."
+ } ,
+ 
+ { 24 , NOV , 2009 , ZSS , "1dmatcalc" , MINOR , TYPE_NEW_OPT ,
+   "Added &read4x4Xform to read in spatial affine transformations.",
+   "1dmatcalc can now take in spatial affine transforms in vector\n"
+   "or matrix form"
+ } ,
+ 
+ { 24 , NOV , 2009 , ZSS , "afni-matlab" , MINOR , TYPE_BUG_FIX ,
+   "Stopped writing empty attributes which caused trouble in AFNI.",
+   "Empty attributes make AFNI halt the parsing of the header."
+ } ,
+ 
+ { 23 , NOV , 2009 , ZSS , "afni" , MICRO , TYPE_BUG_FIX ,
+   "A couple of small fixes to drive_switch functions.",
+   "The problem with with sscanf reading past string end\n"
+   "in certain cases."
+ } ,
+ 
+ { 23 , NOV , 2009 , ZSS , "suma" , MINOR , TYPE_BUG_FIX ,
+   "Workaround for connection drop between AFNI and SUMA in Shared Memory Mode.",
+   "Env SUMA_AttemptTalkRecover allows SUMA to recover from drop.\n"
+   "This ENV is set by default to No."
+ } ,
+ 
+ { 19 , NOV , 2009 , ZSS , "suma" , MINOR , TYPE_BUG_FIX ,
+   "Fixed recorder lag on OS X machines.",
+   "On OS X platforms, the 'r' or 'R' recording modes\n"
+   "used to record the previous image it seems. "
+ } ,
+ 
+ { 17 , NOV , 2009 , ZSS , "@SUMA_Make_Spec_FS" , MINOR , TYPE_NEW_OPT ,
+   "Script now automatically sets up the spec file with labeled datasets",
+   "Labeled datasets are created from annotation files,\n"
+   "and are now rendered in a special manner in SUMA"
+ } ,
+ 
+ { 17 , NOV , 2009 , ZSS , "suma_general" , MINOR , TYPE_NEW_ENV ,
+   "SUMA_AlwaysAssignSurface (see suma -environment for details)",
+   NULL
+ } ,  
+ 
+ { 17 , NOV , 2009 , ZSS , "suma_general" , MINOR , TYPE_NEW_ENV ,
+   "SUMA_LabelDsetOpacity (see suma -environment for details)",
+   NULL
+ } ,  
+ 
+ { 17 , NOV , 2009 , ZSS , "suma_general" , MINOR , TYPE_NEW_ENV ,
+   "SUMA_ConvexityDsetOpacity (see suma -environment for details)",
+   NULL
+ } ,  
+ 
+ { 17 , NOV , 2009 , ZSS , "suma_general" , MINOR , TYPE_NEW_ENV ,
+   "SUMA_ShowLabelDsetAtStartup (see suma -environment for details)",
+   NULL
+ } ,  
+ 
+ { 17 , NOV , 2009 , ZSS , "ROI2dataset" , MINOR , TYPE_NEW_OPT ,
+   "Option -label_dset creates a labeled dataset from ROIs.",
+   "Labeled datasets are now rendered in a special manner in SUMA"
+ } ,
+
+ { 17 , NOV , 2009 , ZSS , "FSread_annot" , MINOR , TYPE_NEW_OPT ,
+   "Option -dset creates a labeled dataset from annotation file.",
+   "Labeled datasets are now rendered in a special manner in SUMA"
+ } ,
+
+ { 17 , NOV , 2009 , ZSS , "suma" , MAJOR , TYPE_NEW_OPT ,
+   "SUMA now handles labeled datatets in a special manner",
+   "An example of a labeled dataset would be FreeSurfer's annotation files.\n"
+   "If an annotation file is present in the spec file (@SUMA_Make_Spec_FS),\n"
+   "SUMA will display it as part of the background.\n"
+   "You can chose to display the labeled dataset in color, contours, or both.\n"
+   "Data from labeled datasets is now shown under the 'Lbl' field in the\n"
+   "surface controller's Xhair block.\n"
+ } ,
+
+
+ { 9 , NOV , 2009 , ZSS , "SurfMeasures" , MINOR , TYPE_NEW_OPT ,
+   "Added option for improved node volume estimation.",
+   "The new measure, called node_volg, uses Gauss' Theorem to estimate\n"
+   "the volume associated with a node in two isotopic surfaces. This option\n"
+   "is more robust to surface curvature variations.\n"
+ } ,
+
+ { 9 , NOV , 2009 , ZSS , "SurfPatch" , MINOR , TYPE_NEW_OPT ,
+   "Added options to check for, and correct 'bowties' in pathches.",
+   "Bowties in patches result in non 2-manifold stiched surfaces whose\n"
+   "volume cannot be caluclated. The *bowtie option deal with such cases.\n"
+ } ,
+
+ { 9 , NOV , 2009 , ZSS , "SurfPatch" , MINOR , TYPE_NEW_OPT ,
+   "Added options to shrink patch contours at nodes not in selected nodes.",
+   "See options -adjust_contour for details."
+ } ,
+
+ { 3 , NOV , 2009 , ZSS , "MapIcosahedron" , MICRO , TYPE_MODIFY ,
+   "Minor code change, EdgeList was computed twice for no reason.",
+   NULL
+ } ,
+
  { 16 , OCT , 2009 , ZSS , "afni" , MICRO , TYPE_MODIFY ,
    "Turned off zeroing of uncommented text in .1D files",
    "You can turn this behaviour back on by setting env\n"

@@ -387,7 +387,7 @@ int SUMA_comma_Key(SUMA_SurfaceViewer *sv, char *key, char *callmode)
             ii = SUMA_WhichViewerInMomentum (SUMAg_SVv, SUMAg_N_SVv, sv);
             if (ii >= 0) {
                sprintf (stmp, "You cannot switch states while other viewers\n"
-                              "(like %c) are in momentum mode.\n", ii+65);
+                              "(like viewer %c) in momentum mode.\n", ii+65);
                SUMA_RegisterMessage (SUMAg_CF->MessageList, 
                                      stmp, FuncName, SMT_Error, SMA_LogAndPopup);
                SUMA_RETURN(0);
@@ -484,7 +484,7 @@ int SUMA_period_Key(SUMA_SurfaceViewer *sv, char *key, char *callmode)
             ii = SUMA_WhichViewerInMomentum (SUMAg_SVv, SUMAg_N_SVv, sv);
             if (ii >= 0) {
                sprintf (stmp, "You cannot switch states while other viewers\n"
-                              "(like %c) are in momentum mode.\n", ii+65);
+                              "(like viewer %c) are in momentum mode.\n", ii+65);
                SUMA_RegisterMessage (SUMAg_CF->MessageList, 
                                      stmp, FuncName, SMT_Error, SMA_LogAndPopup);
                SUMA_RETURN(0);
@@ -1202,7 +1202,7 @@ int SUMA_D_Key(SUMA_SurfaceViewer *sv, char *key, char *callmode)
                   ChildOverInd = SO->N_Overlays-1;
                   /* set the opacity, index column and the range */
                   child->GlobalOpacity = YUP;
-                  child->Show = YUP;
+                  child->ShowMode = SW_SurfCont_DsetViewCol;
                   child->OptScl->BrightFact = 0.8;
 
                   child->OptScl->find = 0;
@@ -1427,6 +1427,12 @@ int SUMA_G_Key(SUMA_SurfaceViewer *sv, char *key, char *callmode)
          }
          break;
       case XK_G:
+         if (SUMAg_CF->Dev ) {
+            #ifdef SUMA_USE_AFNI_GRAPH
+               /* an attempt at using AFNI's graphing interface */
+               SUMA_Afni_Graph(Sover, SO);
+            #endif
+         }
          break;
       default:
          SUMA_S_Err("Il ne faut pas etre ici");
@@ -1828,25 +1834,31 @@ int SUMA_R_Key(SUMA_SurfaceViewer *sv, char *key, char *callmode)
    switch (k) {
       case XK_r:
          if ((SUMA_APPLE_KEY(key) || SUMA_ALT_KEY(key))) {
-            sv->X->SetRot_prmpt = SUMA_CreatePromptDialogStruct (SUMA_OK_APPLY_CLEAR_CANCEL, "Center of Rotation X,Y,Z:", 
-                                                   "0,0,0",
-                                                   sv->X->TOPLEVEL, YUP,
-                                                   SUMA_APPLY_BUTTON,
-                                                   SUMA_SetRotCenter, (void *)sv,
-                                                   NULL, NULL,
-                                                   NULL, NULL,
-                                                   NULL, NULL,  
-                                                   sv->X->SetRot_prmpt);
+            sv->X->SetRot_prmpt = SUMA_CreatePromptDialogStruct (
+                  SUMA_OK_APPLY_CLEAR_CANCEL, "Center of Rotation X,Y,Z:", 
+                  "0,0,0",
+                  sv->X->TOPLEVEL, YUP,
+                  SUMA_APPLY_BUTTON,
+                  SUMA_SetRotCenter, (void *)sv,
+                  NULL, NULL,
+                  NULL, NULL,
+                  NULL, NULL,  
+                  sv->X->SetRot_prmpt);
 
-            sv->X->SetRot_prmpt = SUMA_CreatePromptDialog(sv->X->Title, sv->X->SetRot_prmpt);
+            sv->X->SetRot_prmpt = SUMA_CreatePromptDialog(sv->X->Title, 
+                                                          sv->X->SetRot_prmpt);
 
          } else if (SUMA_CTRL_KEY(key)) {
-            SUMAg_CF->SUMA_SnapshotOverSampling = (SUMAg_CF->SUMA_SnapshotOverSampling +1)%5;
-            if (SUMAg_CF->SUMA_SnapshotOverSampling == 0) SUMAg_CF->SUMA_SnapshotOverSampling = 1;
+            SUMAg_CF->SUMA_SnapshotOverSampling = 
+                  (SUMAg_CF->SUMA_SnapshotOverSampling +1)%5;
+            if (SUMAg_CF->SUMA_SnapshotOverSampling == 0) 
+                     SUMAg_CF->SUMA_SnapshotOverSampling = 1;
             { 
-               sprintf(msg,"Oversampling now set to %d", SUMAg_CF->SUMA_SnapshotOverSampling);
-               if (callmode && strcmp(callmode, "interactive") == 0) { SUMA_SLP_Note (msg); }
-               else { SUMA_S_Note (msg); }
+               sprintf(msg,"Oversampling now set to %d", 
+                           SUMAg_CF->SUMA_SnapshotOverSampling);
+               if (callmode && strcmp(callmode, "interactive") == 0) { 
+                  SUMA_SLP_Note (msg); 
+               } else { SUMA_S_Note (msg); }
             }
          } else {
             GLvoid *pixels;
@@ -1855,17 +1867,23 @@ int SUMA_R_Key(SUMA_SurfaceViewer *sv, char *key, char *callmode)
             /* Control for GL_MAX_VIEWPORT_DIMS */
             if (SUMAg_CF->SUMA_SnapshotOverSampling > 1) {
                glGetIntegerv(GL_MAX_VIEWPORT_DIMS,&k);
-               mm = SUMA_MAX_PAIR( SUMAg_CF->SUMA_SnapshotOverSampling*sv->X->HEIGHT,
-                                   SUMAg_CF->SUMA_SnapshotOverSampling*sv->X->WIDTH);
+               mm = SUMA_MAX_PAIR(
+                     SUMAg_CF->SUMA_SnapshotOverSampling*sv->X->HEIGHT,          
+                     SUMAg_CF->SUMA_SnapshotOverSampling*sv->X->WIDTH);
                if (mm > k) { /* too big, find best new dimesnions */
-                  rat = (double)mm/(double)k; /*window shrinking factor to allow for stitching*/
+                  rat = (double)mm/(double)k; 
+                     /*window shrinking factor to allow for stitching*/
                   SUMA_S_Notev(  "%d/%d (H/W) Too big for oversampling\n"
-                                 " reducing resolution by %f.\n", sv->X->HEIGHT, sv->X->WIDTH, rat);
+                                 " reducing resolution by %f.\n", 
+                                 sv->X->HEIGHT, sv->X->WIDTH, rat);
                   /* store original size */
                   ow = sv->X->WIDTH; oh = sv->X->HEIGHT;
-                  sv->WindHeight = sv->X->HEIGHT = (int)((double)sv->X->HEIGHT/rat)-1;
-                  sv->WindWidth = sv->X->WIDTH = (int)((double)sv->X->WIDTH/rat)-1;
-                  SUMA_WidgetResize (sv->X->TOPLEVEL , sv->X->WIDTH, sv->X->HEIGHT);
+                  sv->WindHeight = sv->X->HEIGHT = 
+                     (int)((double)sv->X->HEIGHT/rat)-1;
+                  sv->WindWidth = sv->X->WIDTH = 
+                     (int)((double)sv->X->WIDTH/rat)-1;
+                  SUMA_WidgetResize (sv->X->TOPLEVEL , 
+                                     sv->X->WIDTH, sv->X->HEIGHT);
                   sv->rdc = SUMA_RDC_X_RESIZE;
                   glViewport( 0, 0, 
                                  sv->X->WIDTH, sv->X->HEIGHT);  
@@ -1887,31 +1905,74 @@ int SUMA_R_Key(SUMA_SurfaceViewer *sv, char *key, char *callmode)
                                     " is then used to put the images together.\n"
                                     "(Have ViewPort GL_MAX_VIEWPORT_DIMS of %d\n"
                                     " and max dims needed of %d.)\n",
-                                    SUMAg_CF->SUMA_SnapshotOverSampling, 
-                                    SUMAg_CF->SUMA_SnapshotOverSampling*SUMAg_CF->SUMA_SnapshotOverSampling,
-                                    k,
-                                    SUMA_MAX_PAIR( SUMAg_CF->SUMA_SnapshotOverSampling*sv->X->HEIGHT,
-                                                   SUMAg_CF->SUMA_SnapshotOverSampling*sv->X->WIDTH)  );
+                           SUMAg_CF->SUMA_SnapshotOverSampling, 
+                           SUMAg_CF->SUMA_SnapshotOverSampling * 
+                              SUMAg_CF->SUMA_SnapshotOverSampling,
+                           k,
+                           SUMA_MAX_PAIR( SUMAg_CF->SUMA_SnapshotOverSampling * 
+                              sv->X->HEIGHT,
+                           SUMAg_CF->SUMA_SnapshotOverSampling*sv->X->WIDTH)  );
                      } else {
-                        /* sometimes you have repeated black areas when oversampling, allow that after very first 'tant' */
+                        /* sometimes you have repeated black areas when 
+                        oversampling, allow that after very first 'tant' */
                         SNAP_OkDuplicates();
                      }
-                     /* start from top left, move to right then go down one row (Row Major, starting on top left ) */
-                     glViewport(-ii*sv->X->WIDTH, -(SUMAg_CF->SUMA_SnapshotOverSampling - jj - 1)*sv->X->HEIGHT, 
-                                 SUMAg_CF->SUMA_SnapshotOverSampling*sv->X->WIDTH, SUMAg_CF->SUMA_SnapshotOverSampling*sv->X->HEIGHT);
+                     /* start from top left, move to right then go down 
+                        one row (Row Major, starting on top left ) */
+                     glViewport(-ii*sv->X->WIDTH,  
+                                -(SUMAg_CF->SUMA_SnapshotOverSampling - jj - 1) *
+                                  sv->X->HEIGHT, 
+                                SUMAg_CF->SUMA_SnapshotOverSampling*sv->X->WIDTH,
+                                SUMAg_CF->SUMA_SnapshotOverSampling * 
+                                 sv->X->HEIGHT);
                      SUMA_handleRedisplay((XtPointer)sv->X->GLXAREA);
+                  } else {
+                     /* ZSS   Nov 20 2009 
+                        If you do not redisplay here, you could strange cases of
+                        snapping the previous frame as reported by Colm Connolly.
+                        
+                     1. suma -spec N27_both_tlrc.spec -sv TT_N27+tlrc. &
+                     2. press F2 five times to cycle through the various axes 
+                        from none to all and back to none.
+                     3. press r to record
+
+                     The first image recorded has axes present even though none 
+                     are present in the viewer. Pressing r again produces an 
+                     image with no axes as expected.
+                     
+                     Actually, it seems this happens in many other cases, F1, F6,
+                     change state, etc. 
+                     
+                     This seems to be the same problem reported by Chunmao W. 
+                     a while back. 
+                     Same happens with R option. 
+                     
+                     Problem only happens under DARWIN it seems.
+                     
+                     I do not know why the call to SUMA_handleRedisplay does the 
+                     trick. Perhaps it is a buffer reading problem in double 
+                     buffer rendering. The fix is ugly, especially in continuous
+                     record mode (see SUMA_display function in 'if(csv->record)'
+                     block), but it works.
+                     */
+                     #ifdef DARWIN
+                     SUMA_handleRedisplay((XtPointer)sv->X->GLXAREA);
+                     #endif
                   }
                   pixels = SUMA_grabPixels(1, sv->X->WIDTH, sv->X->HEIGHT);
                   if (pixels) {
-                    ISQ_snapsave (sv->X->WIDTH, -sv->X->HEIGHT, (unsigned char *)pixels, sv->X->GLXAREA ); 
+                    ISQ_snapsave (sv->X->WIDTH, -sv->X->HEIGHT, 
+                                  (unsigned char *)pixels, sv->X->GLXAREA ); 
                     SUMA_free(pixels);
                   }else {
-                     if (callmode && strcmp(callmode, "interactive") == 0) {SUMA_SLP_Err("Failed to record image.");}
-                     else { SUMA_S_Err("Failed to record image.");}
+                     if (callmode && strcmp(callmode, "interactive") == 0) {
+                        SUMA_SLP_Err("Failed to record image.");
+                     } else { SUMA_S_Err("Failed to record image.");}
                   }
                }
             }
-            if (SUMAg_CF->SUMA_SnapshotOverSampling > 1) {  /* Now return the window to its previous size */
+            if (SUMAg_CF->SUMA_SnapshotOverSampling > 1) {  
+                        /* Now return the window to its previous size */
                if (ow > 0) {
                   sv->WindHeight = sv->X->HEIGHT = oh;
                   sv->WindWidth = sv->X->WIDTH = ow;
@@ -1926,12 +1987,15 @@ int SUMA_R_Key(SUMA_SurfaceViewer *sv, char *key, char *callmode)
             else SNAP_OkDuplicates();
             if (SUMAg_CF->SUMA_SnapshotOverSampling > 1) {
                /* record the image to make life easy on user */
-               sprintf(msg,"Writing resultant image\n to HighRes_Suma_tmp.ppm ...");
-               if (callmode && strcmp(callmode, "interactive") == 0) { SUMA_SLP_Note (msg); }
-               else { SUMA_S_Note (msg); }
-               ISQ_snap_png_rng("HighRes_Photo___tmp", 
-                              -(SUMAg_CF->SUMA_SnapshotOverSampling*SUMAg_CF->SUMA_SnapshotOverSampling),
-                              0);
+               sprintf(msg,"Writing resultant image\n"
+                           " to HighRes_Suma_tmp.ppm ...");
+               if (callmode && strcmp(callmode, "interactive") == 0) { 
+                  SUMA_SLP_Note (msg); 
+               } else { SUMA_S_Note (msg); }
+               ISQ_snap_png_rng("HighRes_Photo___tmp",
+                                -(SUMAg_CF->SUMA_SnapshotOverSampling * 
+                                  SUMAg_CF->SUMA_SnapshotOverSampling),
+                                0);
                system(  "rm -f HighRes_Suma_tmp* >& /dev/null ; "
                         "imcat -prefix HighRes_Suma_tmp HighRes_Photo___tmp* ;"
                         "rm -f HighRes_Photo___tmp* >& /dev/null");
@@ -2411,7 +2475,9 @@ int SUMA_Right_Key(SUMA_SurfaceViewer *sv, char *key, char *caller)
                /* do nothing about ctrl+shift+this key */
             }else if (SUMA_SHIFT_KEY(key)) {
                /*fprintf (SUMA_STDERR,"%s: Shift down\n", FuncName);*/
-               sv->GVS[sv->StdView].translateVec[0] += (GLfloat)sv->GVS[sv->StdView].ArrowtranslateDeltaX/(float)sv->WindWidth*sv->GVS[sv->StdView].TranslateGain;
+               sv->GVS[sv->StdView].translateVec[0] += 
+                  (GLfloat)sv->GVS[sv->StdView].ArrowtranslateDeltaX /
+                  (float)sv->WindWidth*sv->GVS[sv->StdView].TranslateGain;
                /*sv->GVS[sv->StdView].translateVec[1] -= 0;*/
                SUMA_postRedisplay(w,  NULL, NULL);
             }else if (SUMA_CTRL_KEY(key)){
@@ -2459,7 +2525,9 @@ int SUMA_Right_Key(SUMA_SurfaceViewer *sv, char *key, char *caller)
                   -ArrowDeltaRot, 0.0, /* first point */
                   ArrowDeltaRot, 0.0, /* ending x,y */
                   sv->ArrowRotationAngle);
-               add_quats (sv->GVS[sv->StdView].deltaQuat, sv->GVS[sv->StdView].currentQuat, sv->GVS[sv->StdView].currentQuat);
+               add_quats (sv->GVS[sv->StdView].deltaQuat, 
+                          sv->GVS[sv->StdView].currentQuat, 
+                          sv->GVS[sv->StdView].currentQuat);
                sv->GVS[sv->StdView].spinDeltaX = 2.0*ArrowDeltaRot*sv->WindWidth;
                sv->GVS[sv->StdView].spinDeltaY = 0;
                SUMA_postRedisplay(w,  NULL, NULL);
@@ -2503,13 +2571,14 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
    int isv;
    SUMA_SurfaceViewer *sv, *svi = NULL;
    GLfloat *glar_ColorList = NULL;
-   static Time B1time = 0;
+   static Time B1time = 0, M1time=0, M1delta=0;
    static int pButton, mButton, rButton;
    SUMA_Boolean ROI_mode; 
    static SUMA_Boolean DoubleClick = NOPE;
    DList *list = NULL;
    DListElmt *NextElm= NULL;
-   float bevx, bevy, mevx, mevy, wwid, whei, zc_fac;
+   float bevx, bevy, mevx, mevy, wwid, whei, zc_fac, mvx_fac, mvy_fac;
+   static int mvxlast, mvylast, mvdeltax, mvdeltay;
    SUMA_PROMPT_DIALOG_STRUCT *prmpt=NULL; /* Use this only to create prompt that are not to be preserved */
    SUMA_Boolean LocalHead = NOPE; /* local debugging messages */
 
@@ -2524,13 +2593,18 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
    /* find out who's calling, only GLXAREA calls this function */
    SUMA_GLXAREA_WIDGET2SV(w, sv, isv);
    if (isv < 0) {
-      fprintf (SUMA_STDERR, "Error %s: Failed in macro SUMA_GLXAREA_WIDGET2SV.\n", FuncName);
+      fprintf (SUMA_STDERR, 
+               "Error %s: Failed in macro SUMA_GLXAREA_WIDGET2SV.\n", FuncName);
       SUMA_RETURNe;
    }
-   if (LocalHead) fprintf (SUMA_STDERR,"%s: A call from SUMA_SurfaceViewer[%d], Pointer %p\n", FuncName, isv, sv);
+   if (LocalHead) 
+      fprintf (SUMA_STDERR,
+               "%s: A call from SUMA_SurfaceViewer[%d], Pointer %p\n", 
+               FuncName, isv, sv);
    
 
-   Kev = *(XKeyEvent *) &cd->event->xkey; /* RickR's suggestion to comply with ANSI C, no type casting of structures  July 04*/
+   Kev = *(XKeyEvent *) &cd->event->xkey; /* RickR's suggestion to comply with 
+                                 ANSI C, no type casting of structures  July 04*/
    Bev = *(XButtonEvent *) &cd->event->xbutton;
    Mev = *(XMotionEvent *) &cd->event->xmotion;
    
@@ -2791,7 +2865,7 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
             #endif 
             
          case XK_D:
-            if (SUMAg_CF->Dev) {
+            if (1) {
                if (SUMA_ALTHELL){ 
                   /*  Mod1Mask is alt in linux, Mod2Mask is the apple on mac*/
                } else {
@@ -2861,7 +2935,8 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
                                                       SUMA_CleanNumString, (void*)6,  
                                                       sv->X->HighlightBox_prmpt);
                
-               sv->X->HighlightBox_prmpt = SUMA_CreatePromptDialog(sv->X->Title, sv->X->HighlightBox_prmpt);
+               sv->X->HighlightBox_prmpt = SUMA_CreatePromptDialog(sv->X->Title, 
+                                                      sv->X->HighlightBox_prmpt);
                
             break;
          case XK_g:
@@ -2882,68 +2957,19 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
               if (!list) list = SUMA_CreateList();
               SUMA_REGISTER_HEAD_COMMAND_NO_DATA(list, SE_Help, SES_Suma, NULL); 
               if (!SUMA_Engine (&list)) {
-                  fprintf(stderr, "Error %s: SUMA_Engine call failed.\n", FuncName);
+                  fprintf( stderr, 
+                           "Error %s: SUMA_Engine call failed.\n", FuncName);
               }    
             }else{
                if (SUMAg_CF->Dev) {
-                  SUMA_SLP_Note("Please use ctrl+h for help.\nh alone will be reassigned\nin future versions.");
-                  #if 0
-                  /* fake some error logs */
-                  SUMA_RegisterMessage (SUMAg_CF->MessageList, "Test Notice", FuncName, SMT_Notice, SMA_Log);
-                  SUMA_RegisterMessage (SUMAg_CF->MessageList, "Test Notice2", FuncName, SMT_Notice, SMA_LogAndPopup);
-                  SUMA_RegisterMessage (SUMAg_CF->MessageList, "Test Warning", FuncName, SMT_Warning, SMA_LogAndPopup);
-                  SUMA_RegisterMessage (SUMAg_CF->MessageList, "Test Error", FuncName, SMT_Error, SMA_LogAndPopup);
-                  SUMA_RegisterMessage (SUMAg_CF->MessageList, "Test Critical", FuncName, SMT_Critical, SMA_LogAndPopup);
-                  #endif
+                  SUMA_SLP_Note("Please use ctrl+h for help.\n"
+                                "h alone will be reassigned\n"
+                                "in future versions.");
                }
             }
             break;
          
          case XK_j:
-               #if 0
-               if (Kev.state & ControlMask){     
-                 sv->X->JumpXYZ_prmpt = SUMA_CreatePromptDialogStruct (SUMA_OK_APPLY_CLEAR_CANCEL, 
-                                                      "Enter XYZ to send the cross hair to:", 
-                                                      "",
-                                                      sv->X->TOPLEVEL, YUP,
-                                                      SUMA_APPLY_BUTTON,
-                                                      SUMA_JumpXYZ, (void *)sv,
-                                                      NULL, NULL,
-                                                      NULL, NULL,
-                                                      SUMA_CleanNumString, (void*)3,  
-                                                      sv->X->JumpXYZ_prmpt);
-               
-                  sv->X->JumpXYZ_prmpt = SUMA_CreatePromptDialog(sv->X->Title, sv->X->JumpXYZ_prmpt);  
-
-               } else if (SUMA_ALTHELL){     
-                  sv->X->JumpFocusNode_prmpt = SUMA_CreatePromptDialogStruct (SUMA_OK_APPLY_CLEAR_CANCEL, 
-                                                      "Enter index of focus node\nCross hair's XYZ will not be affected:", 
-                                                      "",
-                                                      sv->X->TOPLEVEL, YUP,
-                                                      SUMA_APPLY_BUTTON,
-                                                      SUMA_JumpFocusNode, (void *)sv,
-                                                      NULL, NULL,
-                                                      NULL, NULL,
-                                                      SUMA_CleanNumString, (void*)1,  
-                                                      sv->X->JumpFocusNode_prmpt);
-               
-                  sv->X->JumpFocusNode_prmpt = SUMA_CreatePromptDialog(sv->X->Title, sv->X->JumpFocusNode_prmpt);
-                  
-               } else {
-                  sv->X->JumpIndex_prmpt = SUMA_CreatePromptDialogStruct (SUMA_OK_APPLY_CLEAR_CANCEL, 
-                                                      "Enter index of node \nto send the cross hair to:", 
-                                                      "",
-                                                      sv->X->TOPLEVEL, YUP,
-                                                      SUMA_APPLY_BUTTON,
-                                                      SUMA_JumpIndex, (void *)sv,
-                                                      NULL, NULL,
-                                                      NULL, NULL,
-                                                      SUMA_CleanNumString, (void*)1,  
-                                                      sv->X->JumpIndex_prmpt);
-               
-                  sv->X->JumpIndex_prmpt = SUMA_CreatePromptDialog(sv->X->Title, sv->X->JumpIndex_prmpt);
-               }
-               #else
                if (Kev.state & ControlMask){
                   if (!SUMA_J_Key(sv, "ctrl+j", "interactive", NULL)) {
                      SUMA_S_Err("Failed in key func.");
@@ -2957,28 +2983,12 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
                      SUMA_S_Err("Failed in key func.");
                   }
                }   
-               #endif
             break;
          
          case XK_J:
-               #if 0
-               sv->X->JumpFocusFace_prmpt = SUMA_CreatePromptDialogStruct (SUMA_OK_APPLY_CLEAR_CANCEL, 
-                                                   "Enter index of FaceSet\nto highlight (this viewer only):", 
-                                                   "",
-                                                   sv->X->TOPLEVEL, YUP,
-                                                   SUMA_APPLY_BUTTON,
-                                                   SUMA_JumpFocusFace, (void *)sv,
-                                                   NULL, NULL,
-                                                   NULL, NULL,
-                                                   SUMA_CleanNumString, (void*)1,  
-                                                   sv->X->JumpFocusFace_prmpt);
-
-               sv->X->JumpFocusFace_prmpt = SUMA_CreatePromptDialog(sv->X->Title, sv->X->JumpFocusFace_prmpt);
-               #else 
                if (!SUMA_J_Key(sv, "J", "interactive", NULL)) {
                      SUMA_S_Err("Failed in key func.");
                }
-               #endif
             break; 
               
          case XK_l:
@@ -2988,14 +2998,17 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
                   if (!list) list = SUMA_CreateList();
                   ED = SUMA_InitializeEngineListData (SE_ToggleLockAllCrossHair);
                   if (!SUMA_RegisterEngineListCommand (  list, ED, 
-                                                         SEF_Empty, NULL, 
-                                                        SES_Suma, (void *)sv, NOPE, 
-                                                        SEI_Head, NULL )) {
-                     fprintf(SUMA_STDERR,"Error %s: Failed to register command\n", FuncName);
+                                                   SEF_Empty, NULL, 
+                                                  SES_Suma, (void *)sv, NOPE, 
+                                                  SEI_Head, NULL )) {
+                     fprintf( SUMA_STDERR,
+                              "Error %s: Failed to register command\n", 
+                              FuncName);
                      break;
                   }
                   if (!SUMA_Engine (&list)) {
-                     fprintf(stderr, "Error %s: SUMA_Engine call failed.\n", FuncName);
+                     fprintf( stderr, 
+                              "Error %s: SUMA_Engine call failed.\n", FuncName);
                   }
                }
             } if (SUMA_ALTHELL){ /* alt + l */
@@ -3003,27 +3016,32 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
                if (!list) list = SUMA_CreateList();
                ED = SUMA_InitializeEngineListData (SE_SetLookAt);
                if (!SUMA_RegisterEngineListCommand (  list, ED, 
-                                                      SEF_fv3, (void *)sv->Ch->c, 
-                                                      SES_Suma, (void *)sv, NOPE, 
-                                                      SEI_Head, NULL )) {
-                  fprintf(SUMA_STDERR,"Error %s: Failed to register command\n", FuncName);
+                                                SEF_fv3, (void *)sv->Ch->c, 
+                                                SES_Suma, (void *)sv, NOPE, 
+                                                SEI_Head, NULL )) {
+                  fprintf( SUMA_STDERR,
+                           "Error %s: Failed to register command\n", FuncName);
                   SUMA_RETURNe;
                }
                if (!SUMA_Engine (&list)) {
-                  fprintf(stderr, "Error %s: SUMA_Engine call failed.\n", FuncName);
+                  fprintf(stderr, 
+                           "Error %s: SUMA_Engine call failed.\n", FuncName);
                }   
             } else {
-               sv->X->LookAt_prmpt = SUMA_CreatePromptDialogStruct (SUMA_OK_APPLY_CLEAR_CANCEL, "X,Y,Z coordinates to look at:", 
-                                                      "0,0,0",
-                                                      sv->X->TOPLEVEL, YUP,
-                                                      SUMA_APPLY_BUTTON,
-                                                      SUMA_LookAtCoordinates, (void *)sv,
-                                                      NULL, NULL,
-                                                      NULL, NULL,
-                                                      SUMA_CleanNumString, (void*)3,  
-                                                      sv->X->LookAt_prmpt);
+               sv->X->LookAt_prmpt = SUMA_CreatePromptDialogStruct(
+                                          SUMA_OK_APPLY_CLEAR_CANCEL, 
+                                          "X,Y,Z coordinates to look at:", 
+                                          "0,0,0",
+                                          sv->X->TOPLEVEL, YUP,
+                                          SUMA_APPLY_BUTTON,
+                                          SUMA_LookAtCoordinates, (void *)sv,
+                                          NULL, NULL,
+                                          NULL, NULL,
+                                          SUMA_CleanNumString, (void*)3,  
+                                          sv->X->LookAt_prmpt);
                
-               sv->X->LookAt_prmpt = SUMA_CreatePromptDialog(sv->X->Title, sv->X->LookAt_prmpt);
+               sv->X->LookAt_prmpt = SUMA_CreatePromptDialog(sv->X->Title, 
+                                                         sv->X->LookAt_prmpt);
                
             }
             break;
@@ -3032,14 +3050,23 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
                if ((Kev.state & ControlMask)){
                   if (SUMAg_CF->Dev) {
                      GLfloat light0_color[] = { SUMA_LIGHT0_COLOR_INIT};
-                     sv->dim_spe = sv->dim_spe * 0.8; if (sv->dim_spe < 0.1) sv->dim_spe = 1.0;
-                     sv->dim_dif = sv->dim_dif * 0.8; if (sv->dim_dif < 0.1) sv->dim_dif = 1.0;
-                     sv->dim_amb = sv->dim_amb * 0.8; if (sv->dim_amb < 0.1) sv->dim_amb = 1.0;
-                     sv->dim_emi = sv->dim_emi * 0.8; if (sv->dim_emi < 0.1) sv->dim_emi = 1.0;
+                     sv->dim_spe = sv->dim_spe * 0.8; 
+                        if (sv->dim_spe < 0.1) sv->dim_spe = 1.0;
+                     sv->dim_dif = sv->dim_dif * 0.8; 
+                        if (sv->dim_dif < 0.1) sv->dim_dif = 1.0;
+                     sv->dim_amb = sv->dim_amb * 0.8; 
+                        if (sv->dim_amb < 0.1) sv->dim_amb = 1.0;
+                     sv->dim_emi = sv->dim_emi * 0.8; 
+                        if (sv->dim_emi < 0.1) sv->dim_emi = 1.0;
                      /* dim the lights */
-                     fprintf(SUMA_STDERR,"%s:  light dim factor now %.3f\n", FuncName, sv->dim_spe);
-                     /*fprintf(SUMA_STDERR,"%s:  light dim factor now %.3f\n%f %f %f %f\n", FuncName, sv->dim_spe,
-                                                         sv->light0_color[0], sv->light0_color[1], sv->light0_color[2], sv->light0_color[3]);
+                     fprintf(SUMA_STDERR,
+                              "%s:  light dim factor now %.3f\n", 
+                              FuncName, sv->dim_spe);
+                     /*fprintf(SUMA_STDERR,"%s:  light dim factor now %.3f\n"
+                                           "%f %f %f %f\n", 
+                                           FuncName, sv->dim_spe,
+                              sv->light0_color[0], sv->light0_color[1], 
+                              sv->light0_color[2], sv->light0_color[3]);
                                                          */
                      light0_color[0] = sv->light0_color[0]*sv->dim_spe;
                      light0_color[1] = sv->light0_color[1]*sv->dim_spe;
@@ -3057,22 +3084,26 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
                      light0_color[3] = sv->lmodel_ambient[3]*sv->dim_amb;
                      glLightModelfv(GL_LIGHT_MODEL_AMBIENT, sv->lmodel_ambient);
                      if (!list) list = SUMA_CreateList(); 
-                     SUMA_REGISTER_HEAD_COMMAND_NO_DATA(list, SE_Redisplay, SES_Suma, sv);
+                     SUMA_REGISTER_HEAD_COMMAND_NO_DATA( list, SE_Redisplay, 
+                                                         SES_Suma, sv);
 
                      if (!SUMA_Engine (&list)) {
-                        fprintf(stderr, "Error SUMA_input: SUMA_Engine call failed.\n");
+                        fprintf(stderr, 
+                                "Error SUMA_input: SUMA_Engine call failed.\n");
                      }
                   }
                } else {
-                  prmpt = SUMA_CreatePromptDialogStruct (SUMA_OK_APPLY_CLEAR_CANCEL, "X,Y,Z coordinates of light0:", 
-                                                         "",
-                                                         sv->X->TOPLEVEL, NOPE,
-                                                         SUMA_APPLY_BUTTON,
-                                                         SUMA_SetLight0, (void *)sv,
-                                                         NULL, NULL,
-                                                         NULL, NULL,
-                                                         SUMA_CleanNumString, (void*)3,  
-                                                         NULL);
+                  prmpt = SUMA_CreatePromptDialogStruct (
+                                 SUMA_OK_APPLY_CLEAR_CANCEL, 
+                                 "X,Y,Z coordinates of light0:", 
+                                 "",
+                                 sv->X->TOPLEVEL, NOPE,
+                                 SUMA_APPLY_BUTTON,
+                                 SUMA_SetLight0, (void *)sv,
+                                 NULL, NULL,
+                                 NULL, NULL,
+                                 SUMA_CleanNumString, (void*)3,  
+                                 NULL);
 
                   prmpt = SUMA_CreatePromptDialog(sv->X->Title, prmpt);
                }
@@ -3269,16 +3300,27 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
             break;
 
          case XK_w:
-            SUMA_SLP_Warn( "Option 'w' no longer supported.\n"
-                           "Use 'R' or 'r' instead.");
-            #if 0
-               fprintf(SUMA_STDOUT,
-                  "%s: Began rendering to file. Please wait ...\n", FuncName);
-               if (!SUMA_RenderToPixMap (sv, SUMAg_DOv)) {
-                  fprintf(SUMA_STDERR, 
-                           "Error %s: Failed to write image.\n", FuncName);
-               } 
-            #endif
+            if (SUMAg_CF->Dev) {
+               SUMA_SurfaceObject *SO;
+               char *lbls=NULL;
+               
+               SO = (SUMA_SurfaceObject *)SUMAg_DOv[sv->Focus_SO_ID].OP;
+               if (SO) {
+                  if (!SUMAg_CF->X->Whereami_TextShell) {
+                     if (!(SUMAg_CF->X->Whereami_TextShell = 
+                              SUMA_CreateTextShellStruct (  SUMA_Whereami_open, 
+                                                      NULL, 
+                                                      SUMA_Whereami_destroyed,
+                                                      NULL))) {
+                        SUMA_S_Err("Failed to create TextShellStruct.");
+                        break;
+                     }
+                  }
+                  /* call the function to form labels and notify window */
+                  lbls = SUMA_GetLabelsAtNode(SO, SO->SelectedNode);
+                  if (lbls) SUMA_free(lbls); lbls = NULL;
+               }
+            } 
             break;
 
          case XK_Z:
@@ -3399,46 +3441,63 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
                /* smooth estimate twice */
                attr_sm = SUMA_SmoothAttr_Neighb (Cx, SO->N_Node, NULL, SO->FN, 1, NULL, 1);
                if (attr_sm == NULL) {
-                     fprintf(stderr,"Error %s: Failed in SUMA_SmoothAttr_Neighb\n", FuncName);
+                     fprintf(stderr,
+                             "Error %s: Failed in SUMA_SmoothAttr_Neighb\n", 
+                             FuncName);
                      break;
                }   
-               Cx = SUMA_SmoothAttr_Neighb (attr_sm, SO->N_Node, Cx, SO->FN, 1, NULL, 1);
+               Cx = SUMA_SmoothAttr_Neighb (attr_sm, SO->N_Node, Cx, 
+                                            SO->FN, 1, NULL, 1);
                if (attr_sm) SUMA_free(attr_sm);
 
-               fprintf(SUMA_STDOUT, "%s: Use SUMA_ScaleToMap to colorize Conv.txt and display it on surface.\n", FuncName);
+               fprintf( SUMA_STDOUT, 
+                        "%s: Use SUMA_ScaleToMap to colorize Conv.txt "
+                        "and display it on surface.\n", FuncName);
                CM = SUMA_FindNamedColMap ("ngray20");
                if (CM == NULL) {
-                  fprintf (SUMA_STDERR,"Error %s: Could not get standard colormap.\n", FuncName);
+                  fprintf (SUMA_STDERR,
+                           "Error %s: Could not get standard colormap.\n", 
+                           FuncName);
                   exit (1); 
                }
 
                /* get the options for creating the scaled color mapping */
                OptScl = SUMA_ScaleToMapOptInit();
                if (!OptScl) {
-                  fprintf (SUMA_STDERR,"Error %s: Could not get scaling option structure.\n", FuncName);
+                  fprintf (SUMA_STDERR,
+                           "Error %s: Could not get scaling option structure.\n", 
+                           FuncName);
                   exit (1); 
                }
 
                /* work the options a bit */
                OptScl->ApplyClip = YUP;
                IntRange[0] = 5; IntRange[1] = 95; /* percentile clipping range*/ 
-               Vsort = SUMA_PercRange (Cx, NULL, SO->N_Node, IntRange, IntRange, NULL); 
-               OptScl->IntRange[0] = IntRange[0]; OptScl->IntRange[1] = IntRange[1];
+               Vsort = SUMA_PercRange (Cx, NULL, SO->N_Node, IntRange, IntRange, 
+                                       NULL); 
+               OptScl->IntRange[0] = IntRange[0]; 
+               OptScl->IntRange[1] = IntRange[1];
 
                OptScl->BrightFact = 0.4;
 
                /* map the values in SO->Cx to the colormap */
                   /* allocate space for the result */
-                  SV = SUMA_Create_ColorScaledVect(SO->N_Node);
+                  SV = SUMA_Create_ColorScaledVect(SO->N_Node, 0);
                   if (!SV) {
-                     fprintf (SUMA_STDERR,"Error %s: Could not allocate for SV.\n", FuncName);
+                     fprintf (SUMA_STDERR,
+                              "Error %s: Could not allocate for SV.\n", 
+                              FuncName);
                      exit(1);
                   }
 
                   /* finally ! */
-                  /*fprintf (SUMA_STDERR,"%s: 1st color in map %f %f %f\n", FuncName, CM->M[0][0], CM->M[0][1],CM->M[0][2]);*/
-                  if (!SUMA_ScaleToMap (Cx, SO->N_Node, Vsort[0], Vsort[SO->N_Node-1], CM, OptScl, SV)) {
-                     fprintf (SUMA_STDERR,"Error %s: Failed in SUMA_ScaleToMap.\n", FuncName);
+                  /*fprintf ( SUMA_STDERR,"%s: 1st color in map %f %f %f\n", 
+                              FuncName, CM->M[0][0], CM->M[0][1],CM->M[0][2]);*/
+                  if (!SUMA_ScaleToMap (Cx, SO->N_Node, Vsort[0], 
+                                        Vsort[SO->N_Node-1], CM, OptScl, SV)) {
+                     fprintf (SUMA_STDERR,
+                              "Error %s: Failed in SUMA_ScaleToMap.\n", 
+                              FuncName);
                      exit(1);
                   }
 
@@ -3764,7 +3823,7 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
          DoubleClick = NOPE;
       }
       B1time = Bev.time; 
-            
+      M1time = 0;      
       switch (pButton) { /* switch type of button Press */
          case Button1:
             if (Bev.state & Button2Mask) {
@@ -3867,7 +3926,8 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
                                                       SUMAg_N_SVv, NULL);
                      if (ii >= 0) {
                         sprintf (s, "You cannot select or draw while viewers\n"
-                                    "(like %c) are in momentum mode.\n", ii+65);
+                                    "(like viewer %c) are in momentum mode.\n", 
+                                    ii+65);
                         SUMA_RegisterMessage (SUMAg_CF->MessageList, 
                                               s, FuncName, SMT_Error, 
                                               SMA_LogAndPopup);
@@ -3935,6 +3995,7 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
       break;
       
    case ButtonRelease:
+      M1time = 0;
       rButton = Bev.button;
       if (LocalHead) fprintf(SUMA_STDERR,"%s: In ButtonRelease Button %d\n", FuncName, rButton); 
       if (SUMAg_CF->SwapButtons_1_3 || (SUMAg_CF->ROI_mode && SUMAg_CF->Pen_mode)) {
@@ -3954,7 +4015,9 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
                   if (DoubleClick) BsA = SUMA_BSA_JoinEnds;
                   else BsA = SUMA_BSA_AppendStrokeOrFill;
                   if (!(DrawnROI = SUMA_ProcessBrushStroke (sv, BsA))) {
-                     if (LocalHead) fprintf (SUMA_STDERR, "%s: NULL DrawnROI returned.\n", FuncName);
+                     if (LocalHead) 
+                        fprintf (SUMA_STDERR, 
+                                 "%s: NULL DrawnROI returned.\n", FuncName);
                      SUMA_ClearBrushStroke (sv);
                      break;
                   }
@@ -3962,7 +4025,8 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
                   /* Showme the DrawnROI */
                   if (LocalHead) SUMA_ShowDrawnROI (DrawnROI, NULL, NOPE);
 
-                  /* do smething with the BrushStroke, then wipe it clean, OK to show even if empty*/
+                  /* do smething with the BrushStroke, then wipe it clean, 
+                     OK to show even if empty*/
                   if (LocalHead) SUMA_ShowBrushStroke (sv, NULL);
 
                   /* SUMA_DrawBrushStroke (sv, YUP); */
@@ -3970,10 +4034,13 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
 
                   /* redisplay all others */
                   if (!list) list = SUMA_CreateList ();
-                  SUMA_REGISTER_TAIL_COMMAND_NO_DATA(list, SE_RedisplayNow_AllOtherVisible, SES_SumaWidget, sv);
+                  SUMA_REGISTER_TAIL_COMMAND_NO_DATA(list, 
+                           SE_RedisplayNow_AllOtherVisible, SES_SumaWidget, sv);
                   SUMA_Engine (&list);
                
-                  /* redisplay . DO NOT REDISPLAY WITH SE_Redisplay_AllVisible or you will have GL state synchronization problems */
+                  /* redisplay . 
+                     DO NOT REDISPLAY WITH SE_Redisplay_AllVisible or 
+                     you will have GL state synchronization problems */
                   sv->ResetGLStateVariables = YUP;
                   SUMA_handleRedisplay((XtPointer)sv->X->GLXAREA);
 
@@ -3993,8 +4060,10 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
          else if (Mev.state & Button4MotionMask) fprintf(stdout,"   B4 mot\n");
          else if (Mev.state & Button5MotionMask) fprintf(stdout,"   B5 mot\n");
       }
-      if (SUMAg_CF->SwapButtons_1_3 || (SUMAg_CF->ROI_mode && SUMAg_CF->Pen_mode)) {
-        if (((Mev.state & Button3MotionMask) && (Mev.state & Button2MotionMask)) || ((Mev.state & Button2MotionMask) && (Mev.state & ShiftMask))) {
+      if (  SUMAg_CF->SwapButtons_1_3 || 
+            (SUMAg_CF->ROI_mode && SUMAg_CF->Pen_mode)) {
+        if (((Mev.state & Button3MotionMask) && (Mev.state & Button2MotionMask)) 
+         || ((Mev.state & Button2MotionMask) && (Mev.state & ShiftMask))) {
             mButton = SUMA_Button_12_Motion;
          } else if(Mev.state & Button3MotionMask) {
             mButton = SUMA_Button_1_Motion;
@@ -4006,7 +4075,8 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
             break;
          } 
       } else {
-         if (((Mev.state & Button1MotionMask) && (Mev.state & Button2MotionMask)) || ((Mev.state & Button2MotionMask) && (Mev.state & ShiftMask))) {
+         if (((Mev.state & Button1MotionMask) && (Mev.state & Button2MotionMask))
+          || ((Mev.state & Button2MotionMask) && (Mev.state & ShiftMask))) {
             mButton = SUMA_Button_12_Motion;
          } else if(Mev.state & Button1MotionMask) {
             mButton = SUMA_Button_1_Motion;
@@ -4023,19 +4093,30 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
          case SUMA_Button_12_Motion:
          case SUMA_Button_2_Shift_Motion:
             /*fprintf(SUMA_STDERR,"%s: In motion, Butt1 & Butt2\n", FuncName);*/
-            sv->GVS[sv->StdView].zoomDelta = 1.0 + (float)((int)Mev.y - sv->GVS[sv->StdView].zoomBegin)/MOUSE_ZOOM_FACT;
-            if (sv->GVS[sv->StdView].zoomDelta > 2.0) sv->GVS[sv->StdView].zoomDelta = 2.0;
-            else if (sv->GVS[sv->StdView].zoomDelta < 0.5) sv->GVS[sv->StdView].zoomDelta = 0.5;
+            sv->GVS[sv->StdView].zoomDelta = 1.0 + 
+                                             (float)((int)Mev.y - 
+                                 sv->GVS[sv->StdView].zoomBegin)/MOUSE_ZOOM_FACT;
+            if (sv->GVS[sv->StdView].zoomDelta > 2.0) 
+               sv->GVS[sv->StdView].zoomDelta = 2.0;
+            else if (sv->GVS[sv->StdView].zoomDelta < 0.5) 
+               sv->GVS[sv->StdView].zoomDelta = 0.5;
             sv->FOV[sv->iState] /= sv->GVS[sv->StdView].zoomDelta;
             if (sv->FOV[sv->iState] < FOV_MIN) sv->FOV[sv->iState] = FOV_MIN;
-            else if (sv->FOV[sv->iState] > FOV_MAX) sv->FOV[sv->iState] = FOV_MAX;
-               sv->GVS[sv->StdView].zoomBegin = (float)(int)Mev.y;
-               /*fprintf(stdout, "FOV zoom Delta = %f=n", sv->GVS[sv->StdView].zoomDelta);*/
+            else if (sv->FOV[sv->iState] > FOV_MAX) 
+               sv->FOV[sv->iState] = FOV_MAX;
+            sv->GVS[sv->StdView].zoomBegin = (float)(int)Mev.y;
+            /*fprintf(stdout, "FOV zoom Delta = %f=n", 
+                              sv->GVS[sv->StdView].zoomDelta);*/
             /* Now update the zoom compensation variable */
             if (sv->ZoomCompensate) {
-               sv->ZoomCompensate = sv->FOV[sv->iState] / SUMA_sv_fov_original(sv);
-               if (sv->ZoomCompensate > 1) sv->ZoomCompensate = 1.0; /* no need to compensate at low zooms */
-               else if (sv->ZoomCompensate < 0.005) sv->ZoomCompensate = 0.005; /* no need to go lower */ 
+               sv->ZoomCompensate = sqrt(sv->FOV[sv->iState] / 
+                                    SUMA_sv_fov_original(sv));
+                     /* slow down compensation, with sqrt*/
+               if (sv->ZoomCompensate > 1) 
+                  sv->ZoomCompensate = 1.0; 
+                        /* no need to compensate at low zooms */
+               else if (sv->ZoomCompensate < 0.05) 
+                  sv->ZoomCompensate = 0.05; /* no need to go lower */ 
             }
             ii = SUMA_WhichSV (sv, SUMAg_SVv, SUMAg_N_SVv);
             SUMA_postRedisplay(w, clientData, callData);    
@@ -4053,36 +4134,78 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
             }else {
                zc_fac = 1.0;
             }            
-            sv->GVS[sv->StdView].spinDeltaX = (mevx - sv->GVS[sv->StdView].spinBeginX);
-            sv->GVS[sv->StdView].spinDeltaY = (mevy - sv->GVS[sv->StdView].spinBeginY);
+            sv->GVS[sv->StdView].spinDeltaX = 
+               (mevx - sv->GVS[sv->StdView].spinBeginX);
+            sv->GVS[sv->StdView].spinDeltaY = 
+               (mevy - sv->GVS[sv->StdView].spinBeginY);
+            if (M1time) {
+               M1delta = Mev.time - M1time;
+               mvdeltax = Mev.x - mvxlast;
+               mvdeltay = Mev.y - mvylast;
+            } else {
+               M1delta = 0;
+               mvdeltax = 0;
+               mvdeltay = 0;
+            }
+            M1time = Mev.time;
+            mvxlast= Mev.x;
+            mvylast= Mev.y;
             
-            /* fprintf(stdout,"\n"
+            /* compute move rate in pixels per milliseconds,
+            You could use this to add a gain on the amount of rotation,
+            but before you could use those factors, you'll need to scale
+            the results to something appropriate */
+            mvx_fac = ((SUMA_ABS((float)mvdeltax)/(M1delta+0.01))); 
+            mvy_fac = ((SUMA_ABS((float)mvdeltay)/(M1delta+0.01))); 
+            
+            #if 0
+            fprintf(stdout,"\n"
                            "spinBeginX %f \n"
                            "spinBeginY %f \n"
                            "spinDeltaX %f \n"
                            "spinDeltaY %f \n"
                            "WindWidth %d  \n"
                            "WindHeight %d\n"
-                           "ZoomCompensate %f\n", 
-                        sv->GVS[sv->StdView].spinBeginX, sv->GVS[sv->StdView].spinBeginY, 
-                        sv->GVS[sv->StdView].spinDeltaX, sv->GVS[sv->StdView].spinDeltaY, 
-                        sv->WindWidth, sv->WindHeight, sv->ZoomCompensate); */
-            if (sv->GVS[sv->StdView].spinDeltaX || sv->GVS[sv->StdView].spinDeltaY){
+                           "ZoomCompensate %f\n"
+                           "MoveRatePixelsPerms [%f %f]\n"
+                           , 
+                        sv->GVS[sv->StdView].spinBeginX, 
+                        sv->GVS[sv->StdView].spinBeginY, 
+                        sv->GVS[sv->StdView].spinDeltaX, 
+                        sv->GVS[sv->StdView].spinDeltaY, 
+                        sv->WindWidth, sv->WindHeight, sv->ZoomCompensate,
+                        mvx_fac, mvy_fac
+                        );
+            #else
+            /* fprintf(stdout,"%f %f; ", mvx_fac, mvy_fac); */
+            #endif
+            /* do not use movement rate before you scale it properly */
+            mvx_fac = mvy_fac = 1.0;
+            
+            if (sv->GVS[sv->StdView].spinDeltaX || 
+                sv->GVS[sv->StdView].spinDeltaY){
                trackball(  sv->GVS[sv->StdView].deltaQuat, 
-                           (2*sv->GVS[sv->StdView].spinBeginX - wwid)/wwid*zc_fac, 
-                           (whei - 2*sv->GVS[sv->StdView].spinBeginY)/whei*zc_fac,
-                           (2*mevx - wwid)/wwid*zc_fac, 
-                           (whei - 2*mevy)/whei*zc_fac); /* comput the increment Quat */
+                           (2*sv->GVS[sv->StdView].spinBeginX - wwid) /
+                           wwid*zc_fac*mvx_fac, 
+                           (whei - 2*sv->GVS[sv->StdView].spinBeginY) / 
+                           whei*zc_fac*mvy_fac,
+                           (2*mevx - wwid)/wwid*zc_fac*mvx_fac, 
+                           (whei - 2*mevy)/whei*zc_fac*mvy_fac); 
+                                 /* comput the increment Quat */
                sv->GVS[sv->StdView].spinBeginX = mevx;
                sv->GVS[sv->StdView].spinBeginY = mevy;
-               add_quats (sv->GVS[sv->StdView].deltaQuat, sv->GVS[sv->StdView].currentQuat, sv->GVS[sv->StdView].currentQuat);
+               add_quats ( sv->GVS[sv->StdView].deltaQuat, 
+                           sv->GVS[sv->StdView].currentQuat, 
+                           sv->GVS[sv->StdView].currentQuat);
                
                ii = SUMA_WhichSV(sv, SUMAg_SVv, SUMAg_N_SVv);
                if (ii < 0) {
-                  fprintf (SUMA_STDERR,"Error %s: Failed to find index of sv.\n", FuncName);
+                  fprintf (SUMA_STDERR,
+                           "Error %s: Failed to find index of sv.\n", FuncName);
                   break;
                }
-               if (!SUMAg_CF->ViewLocked[ii]) { /* No locking, just redisplay current viewer */
+               if (!SUMAg_CF->ViewLocked[ii]) { /* No locking, 
+                                                just redisplay current viewer */
                   SUMA_postRedisplay(w, clientData, callData);    
                } else { /* locking, update and redisplay those locked */
                   DList *list = NULL;
@@ -4099,23 +4222,32 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
                   for (it=0; it < SUMAg_N_SVv; ++it) {
                      svi = &SUMAg_SVv[it];
                      ed_svi = SUMA_BestStandardView(svi, SUMAg_DOv, SUMAg_N_DOv);
-                     if (it != ii && SUMAg_CF->ViewLocked[it] && ed_svi == ed_sv) {
+                     if (  it != ii && 
+                           SUMAg_CF->ViewLocked[it] && ed_svi == ed_sv) {
                         /* copy quaternions */
-                        svi->GVS[svi->StdView].spinBeginX = sv->GVS[sv->StdView].spinBeginX;
-                        svi->GVS[svi->StdView].spinBeginY = sv->GVS[sv->StdView].spinBeginY;
-                        SUMA_COPY_VEC(sv->GVS[sv->StdView].deltaQuat, svi->GVS[svi->StdView].deltaQuat, 4, float, float);
-                        SUMA_COPY_VEC(sv->GVS[sv->StdView].currentQuat, svi->GVS[svi->StdView].currentQuat, 4, float, float);
+                        svi->GVS[svi->StdView].spinBeginX = 
+                           sv->GVS[sv->StdView].spinBeginX;
+                        svi->GVS[svi->StdView].spinBeginY = 
+                           sv->GVS[sv->StdView].spinBeginY;
+                        SUMA_COPY_VEC( sv->GVS[sv->StdView].deltaQuat, 
+                                       svi->GVS[svi->StdView].deltaQuat, 
+                                       4, float, float);
+                        SUMA_COPY_VEC( sv->GVS[sv->StdView].currentQuat, 
+                                       svi->GVS[svi->StdView].currentQuat, 
+                                       4, float, float);
                        
                         /* add a redisplay now */
                         ED = SUMA_InitializeEngineListData (SE_RedisplayNow);
                         SUMA_RegisterEngineListCommand ( list, ED,
-                                                         SEF_Empty, NULL,
-                                                         SES_Suma, (void *)svi, NOPE,
-                                                         SEI_Head, NULL); 
+                                                SEF_Empty, NULL,
+                                                SES_Suma, (void *)svi, NOPE,
+                                                SEI_Head, NULL); 
                      }
                   }
                   if (!SUMA_Engine (&list)) {
-                     fprintf (SUMA_STDERR, "Error %s: Failed calling SUMA_Engine.\n", FuncName);
+                     fprintf (SUMA_STDERR, 
+                              "Error %s: Failed calling SUMA_Engine.\n", 
+                              FuncName);
                      break;
                   }
                }
@@ -4131,12 +4263,19 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
             }else {
                zc_fac = 1.0;
             }
-            sv->GVS[sv->StdView].translateDeltaX =  (mevx - sv->GVS[sv->StdView].translateBeginX)/(float)sv->WindWidth*sv->GVS[sv->StdView].TranslateGain;
-            sv->GVS[sv->StdView].translateDeltaY = -(mevy - sv->GVS[sv->StdView].translateBeginY)/(float)sv->WindHeight*sv->GVS[sv->StdView].TranslateGain;
+            sv->GVS[sv->StdView].translateDeltaX =  
+               (mevx - sv->GVS[sv->StdView].translateBeginX) /
+               (float)sv->WindWidth*sv->GVS[sv->StdView].TranslateGain;
+            sv->GVS[sv->StdView].translateDeltaY = 
+               -(mevy - sv->GVS[sv->StdView].translateBeginY) /
+                (float)sv->WindHeight*sv->GVS[sv->StdView].TranslateGain;
             
-            if (sv->GVS[sv->StdView].translateDeltaX || sv->GVS[sv->StdView].translateDeltaY){
-               sv->GVS[sv->StdView].translateVec[0] += (GLfloat)sv->GVS[sv->StdView].translateDeltaX * zc_fac;
-               sv->GVS[sv->StdView].translateVec[1] += (GLfloat)sv->GVS[sv->StdView].translateDeltaY * zc_fac;
+            if (  sv->GVS[sv->StdView].translateDeltaX || 
+                  sv->GVS[sv->StdView].translateDeltaY){
+               sv->GVS[sv->StdView].translateVec[0] += 
+                  (GLfloat)sv->GVS[sv->StdView].translateDeltaX * zc_fac;
+               sv->GVS[sv->StdView].translateVec[1] += 
+                  (GLfloat)sv->GVS[sv->StdView].translateDeltaY * zc_fac;
                sv->GVS[sv->StdView].translateBeginX = mevx;
                sv->GVS[sv->StdView].translateBeginY = mevy;
                SUMA_postRedisplay(w, clientData, callData);
@@ -4144,7 +4283,8 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
             break;
          
          case SUMA_Button_3_Motion:
-            if (LocalHead) fprintf(SUMA_STDERR,"%s: In motion, Butt3 \n", FuncName); 
+            if (LocalHead) 
+               fprintf(SUMA_STDERR,"%s: In motion, Butt3 \n", FuncName); 
             
             if (SUMAg_CF->ROI_mode && sv->Focus_SO_ID >= 0 && sv->BS) {
                /* ROI drawing mode */
@@ -4154,7 +4294,9 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
                }
 
 
-               if (!SUMA_GetSelectionLine (sv, (int)Mev.x, (int)Mev.y, sv->Pick0, sv->Pick1, 0, NULL, NULL, NULL)) {
+               if (!SUMA_GetSelectionLine(sv, 
+                     (int)Mev.x, (int)Mev.y, sv->Pick0, sv->Pick1, 
+                     0, NULL, NULL, NULL)) {
                   fprintf (SUMA_STDERR, "Error %s: Failed in "
                                        "SUMA_GetSelectionLine.\n", FuncName);
                   break;
@@ -5822,11 +5964,13 @@ SUMA_ACTION_RESULT SUMA_FinishedROI (void *data, SUMA_ACTION_POLARITY Pol)
    switch (Pol) {
       case SAP_Do:
       case SAP_Redo:
-         if (LocalHead) fprintf (SUMA_STDERR, "%s: Marking as finished...\n", FuncName);
+         if (LocalHead) 
+            fprintf (SUMA_STDERR, "%s: Marking as finished...\n", FuncName);
          /* set the drawing status */
          ROIA->DrawnROI->DrawStatus = SUMA_ROI_Finished;
          
-         SOparent = SUMA_findSOp_inDOv(ROIA->DrawnROI->Parent_idcode_str, SUMAg_DOv, SUMAg_N_DOv);
+         SOparent = SUMA_findSOp_inDOv(ROIA->DrawnROI->Parent_idcode_str, 
+                                       SUMAg_DOv, SUMAg_N_DOv);
          if (!SOparent) {
             SUMA_SLP_Warn( "Parent surface\n"
                            "not found for ROI\n"
@@ -5834,7 +5978,6 @@ SUMA_ACTION_RESULT SUMA_FinishedROI (void *data, SUMA_ACTION_POLARITY Pol)
                            "be determined." );
             SUMA_RETURN(SAR_Succeed);
          }else {
-               
             /* calculate the contours */
             if (!ROIA->DrawnROI->CE) { /* must create contour */
                int *Nodes, N_Nodes;
@@ -5842,12 +5985,14 @@ SUMA_ACTION_RESULT SUMA_FinishedROI (void *data, SUMA_ACTION_POLARITY Pol)
 
                SUMA_LH("Getting Contour ");
                N_Nodes = 0;
-               Unique = YUP; /* Set to YUP if you have node indices listed more than once. */
+               Unique = YUP; /* Set to YUP if you have node 
+                                 indices listed more than once. */
                Nodes = SUMA_NodesInROI (ROIA->DrawnROI, &N_Nodes, Unique);
                if (Nodes) {
                   ROIA->DrawnROI->CE = SUMA_GetContour (
                                  SOparent, 
-                                 Nodes, N_Nodes, &(ROIA->DrawnROI->N_CE), 0, NULL);
+                                 Nodes, N_Nodes, &(ROIA->DrawnROI->N_CE), 
+                                 0, NULL, NULL, 1);
                   if (!ROIA->DrawnROI->CE) { SUMA_LH("Null DrawnROI->CE"); }
                   else { SUMA_LH("Good DrawnROI->CE"); }
                   SUMA_free(Nodes);
@@ -5860,7 +6005,8 @@ SUMA_ACTION_RESULT SUMA_FinishedROI (void *data, SUMA_ACTION_POLARITY Pol)
 
          break;
       case SAP_Undo:
-         if (LocalHead) fprintf (SUMA_STDERR, "%s: Marking as InCreation...\n", FuncName);
+         if (LocalHead) 
+            fprintf (SUMA_STDERR, "%s: Marking as InCreation...\n", FuncName);
          ROIA->DrawnROI->DrawStatus = SUMA_ROI_InCreation;
          /* remove any contour if present */
          if (ROIA->DrawnROI->CE) SUMA_free(ROIA->DrawnROI->CE); ROIA->DrawnROI->CE = NULL;

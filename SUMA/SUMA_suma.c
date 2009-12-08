@@ -153,7 +153,12 @@ void SUMA_usage (SUMA_GENERIC_ARGV_PARSE *ps)
 "                  Since it takes into consideration your own settings\n"
 "                  this command can be used to update your .sumarc \n"
 "                  regularly with a csh command like this:\n"
-"                  suma -environment > ~/sumarc && mv ~/sumarc ~/.sumarc\n" 
+"\n"
+"           suma -environment > ~/sumarc && \\\n"
+"             cp ~/.sumarc ~/.sumarc-bak ; \\\n"
+"             mv ~/sumarc ~/.sumarc\n" 
+"\n"
+"   [-update_env] Performs the set operations detailed under -environment\n"
 "   [-latest_news] Shows the latest news for the current \n"
 "                  version of the entire SUMA package.\n"
 "   [-all_latest_news] Shows the history of latest news.\n"
@@ -197,7 +202,8 @@ SUMA_SurfaceObject **SUMA_GimmeSomeSOs(int *N_SOv)
    Opt = (SUMA_GENERIC_PROG_OPTIONS_STRUCT *)
             SUMA_calloc(1,sizeof(SUMA_GENERIC_PROG_OPTIONS_STRUCT));
 
-   N_k = 12; /* Think of this number as the number of states, rather than individual surfaces
+   N_k = 12; /* Think of this number as the number of states, 
+               rather than individual surfaces
                10 from isosurface (actually 9, number 6 is removed), 
                1 from HJS collection
                1 from head collection
@@ -216,7 +222,8 @@ SUMA_SurfaceObject **SUMA_GimmeSomeSOs(int *N_SOv)
    nhjs=0;
    *N_SOv = 0; 
    i=-1;
-   /*       Sequence below, coupled with the use of rygbr20 colormap was necessary in reproducing a crash 
+   /*       Sequence below, coupled with the use of rygbr20 colormap was 
+            necessary in reproducing a crash 
             Crash was likely cause by uninitialized mcb->_case in MarchingCubes.c               ZSS: Oct 06 
       ilist[0]=1;    ilist[1]=4;    ilist[2]=8;    ilist[3]=2;    ilist[4]=10;
        ilist[5]=5;    ilist[6]=0;    ilist[7]=9;    ilist[8]=3;    ilist[9]=7; */
@@ -229,10 +236,15 @@ SUMA_SurfaceObject **SUMA_GimmeSomeSOs(int *N_SOv)
          Opt->in_vol =0;
          Opt->mcdatav= NULL;
          if ((SO = SUMA_MarchingCubesSurface(Opt))) {
-            ++*N_SOv; SOv = (SUMA_SurfaceObject **) SUMA_realloc(SOv, (*N_SOv)*sizeof(SUMA_SurfaceObject *));
+            ++*N_SOv; 
+            SOv = (SUMA_SurfaceObject **) 
+                     SUMA_realloc(SOv, (*N_SOv)*sizeof(SUMA_SurfaceObject *));
             SOv[*N_SOv-1]=SO;
-            /* assign its Group and State and Side and few other things, must look like surfaces loaded with SUMA_Load_Spec_Surf*/
-            SOv[*N_SOv-1]->Group = SUMA_copy_string(SUMA_DEF_TOY_GROUP_NAME); /* change this in sync with string in macro SUMA_BLANK_NEW_SPEC_SURF*/
+            /* assign its Group and State and Side and few other things, must 
+               look like surfaces loaded with SUMA_Load_Spec_Surf*/
+            SOv[*N_SOv-1]->Group = SUMA_copy_string(SUMA_DEF_TOY_GROUP_NAME); 
+                  /* change this in sync with string in macro 
+                     SUMA_BLANK_NEW_SPEC_SURF*/
             sprintf(sid, "%s_%d", SUMA_DEF_STATE_NAME, Opt->obj_type);
             SOv[*N_SOv-1]->State = SUMA_copy_string(sid);
             sprintf(sid, "surf_%d", Opt->obj_type);
@@ -245,7 +257,7 @@ SUMA_SurfaceObject **SUMA_GimmeSomeSOs(int *N_SOv)
                SUMA_RETURN(NULL);
             }
             /* Add this surface to SUMA's displayable objects */
-            if (!SUMA_PrepAddmappableSO(SOv[*N_SOv-1], SUMAg_DOv, &(SUMAg_N_DOv), 0, SUMAg_CF->DsetList)) {
+            if (!SUMA_PrepAddmappableSO(SOv[*N_SOv-1], SUMAg_DOv, &(SUMAg_N_DOv),                                         0, SUMAg_CF->DsetList)) {
                SUMA_S_Err("Failed to add mappable SOs ");
                SUMA_RETURN(NULL);
             }
@@ -253,10 +265,15 @@ SUMA_SurfaceObject **SUMA_GimmeSomeSOs(int *N_SOv)
       } else if (ilist[k] == 10) {  /* 10 is code for HJS */
          /* HJS's turn */
          for (nhjs=0; nhjs < 19; ++nhjs) { 
-            ++*N_SOv; SOv = (SUMA_SurfaceObject **) SUMA_realloc(SOv, (*N_SOv)*sizeof(SUMA_SurfaceObject *));
+            ++*N_SOv; 
+            SOv = (SUMA_SurfaceObject **) 
+                        SUMA_realloc(SOv, (*N_SOv)*sizeof(SUMA_SurfaceObject *));
             SOv[*N_SOv-1] = SUMA_HJS_Surface(nhjs);
-            /* assign its Group and State and Side and few other things, must look like surfaces loaded with SUMA_Load_Spec_Surf*/
-            SOv[*N_SOv-1]->Group = SUMA_copy_string(SUMA_DEF_TOY_GROUP_NAME); /* change this in sync with string in macro SUMA_BLANK_NEW_SPEC_SURF*/
+            /* assign its Group and State and Side and few other things, must 
+               look like surfaces loaded with SUMA_Load_Spec_Surf*/
+            SOv[*N_SOv-1]->Group = SUMA_copy_string(SUMA_DEF_TOY_GROUP_NAME); 
+                        /* change this in sync with string in macro 
+                           SUMA_BLANK_NEW_SPEC_SURF*/
             sprintf(sid, "H.J.S.");
             SOv[*N_SOv-1]->State = SUMA_copy_string(sid);
             sprintf(sid, "H.J.S._%d", nhjs);
@@ -269,17 +286,23 @@ SUMA_SurfaceObject **SUMA_GimmeSomeSOs(int *N_SOv)
                SUMA_RETURN(NULL);
             }
             /* Add this surface to SUMA's displayable objects */
-            if (!SUMA_PrepAddmappableSO(SOv[*N_SOv-1], SUMAg_DOv, &(SUMAg_N_DOv), 0, SUMAg_CF->DsetList)) {
+            if (!SUMA_PrepAddmappableSO(SOv[*N_SOv-1], SUMAg_DOv, &(SUMAg_N_DOv),
+                                        0, SUMAg_CF->DsetList)) {
                SUMA_S_Err("Failed to add mappable SOs ");
                SUMA_RETURN(NULL);
             }
          }
       } else if (ilist[k] == 11) {  /* 11 is code for head */
          if ((SO = SUMA_head_01_surface())) {
-            ++*N_SOv; SOv = (SUMA_SurfaceObject **) SUMA_realloc(SOv, (*N_SOv)*sizeof(SUMA_SurfaceObject *));
+            ++*N_SOv; 
+            SOv = (SUMA_SurfaceObject **) 
+                     SUMA_realloc(SOv, (*N_SOv)*sizeof(SUMA_SurfaceObject *));
             SOv[*N_SOv-1]=SO;
-            /* assign its Group and State and Side and few other things, must look like surfaces loaded with SUMA_Load_Spec_Surf*/
-            SOv[*N_SOv-1]->Group = SUMA_copy_string(SUMA_DEF_TOY_GROUP_NAME); /* change this in sync with string in macro SUMA_BLANK_NEW_SPEC_SURF*/
+            /* assign its Group and State and Side and few other things, must 
+               look like surfaces loaded with SUMA_Load_Spec_Surf*/
+            SOv[*N_SOv-1]->Group = SUMA_copy_string(SUMA_DEF_TOY_GROUP_NAME); 
+                  /* change this in sync with string in macro 
+                     SUMA_BLANK_NEW_SPEC_SURF*/
             SOv[*N_SOv-1]->State = SUMA_copy_string("head_01");
             SOv[*N_SOv-1]->Label = SUMA_copy_string("La_Tete");
             SOv[*N_SOv-1]->EmbedDim = 3;
@@ -290,7 +313,7 @@ SUMA_SurfaceObject **SUMA_GimmeSomeSOs(int *N_SOv)
                SUMA_RETURN(NULL);
             }
             /* Add this surface to SUMA's displayable objects */
-            if (!SUMA_PrepAddmappableSO(SOv[*N_SOv-1], SUMAg_DOv, &(SUMAg_N_DOv), 0, SUMAg_CF->DsetList)) {
+            if (!SUMA_PrepAddmappableSO(SOv[*N_SOv-1], SUMAg_DOv, &(SUMAg_N_DOv),                                         0, SUMAg_CF->DsetList)) {
                SUMA_S_Err("Failed to add mappable SOs ");
                SUMA_RETURN(NULL);
             }
@@ -396,7 +419,9 @@ int main (int argc,char *argv[])
       Specp[ispec] = SUMA_IO_args_2_spec (ps, &nspec); 
       if (Specp[ispec]) ++ispec;
       if (nspec != 1) {
-         SUMA_S_Errv("-spec is being parsed separately here, expecting one spec only from SUMA_IO_args_2_spec, got %d\n", nspec);
+         SUMA_S_Errv("-spec is being parsed separately here, "
+                     "expecting one spec only from SUMA_IO_args_2_spec, \n"
+                     "got %d\n", nspec);
          exit (1);
       }
       
@@ -439,12 +464,14 @@ int main (int argc,char *argv[])
          SUMA_free(s); s = NULL;
          exit (0);
       }
+      
       if (strcmp(argv[kar], "-all_latest_news") == 0) {
 			 s = SUMA_New_Additions (-1.0, 0);
           fprintf (SUMA_STDOUT,"%s\n", s); 
           SUMA_free(s); s = NULL;
           exit (0);
 		}
+      
       if (strcmp(argv[kar], "-environment") == 0) {
 			 s = SUMA_env_list_help ();
           fprintf (SUMA_STDOUT,  
@@ -459,6 +486,24 @@ int main (int argc,char *argv[])
                   "%s\n", s); 
           SUMA_free(s); s = NULL;
           exit (0);
+		}
+      if (strcmp(argv[kar], "-update_env") == 0) {
+			 if (system("suma -environment > ___sumarc")) {
+            SUMA_S_Err("Failed to create env file.");
+            exit(1);
+          }
+          if (SUMA_filexists("~/.sumarc")) {
+            if (system("\\cp -f ~/.sumarc ~/.sumarc-bak")) {
+               SUMA_S_Err("Failed to backup ~/.sumarc to ~/.sumarc-bak.");
+               exit(1);
+            }
+          }
+          if (system("\\mv ___sumarc ~/.sumarc")) {
+            SUMA_S_Err("Failed to copy newrc (___sumarc) to ~/.sumarc");
+            exit(1); 
+          }
+          SUMA_S_Note("Environment update done.");
+          exit(0);
 		}
       
       if (strcmp(argv[kar], "-latest_news") == 0) {
@@ -484,7 +529,8 @@ int main (int argc,char *argv[])
 			fprintf(SUMA_STDERR,"Error %s: Obsolete, use -trace\n", FuncName);
 			exit (0);
          /*
-         fprintf(SUMA_STDOUT,"Warning %s: SUMA running in in/out debug mode.\n", FuncName);
+         fprintf(SUMA_STDOUT,
+                 "Warning %s: SUMA running in in/out debug mode.\n", FuncName);
          SUMA_INOUT_NOTIFY_ON; 
 			brk = YUP;
          */
@@ -494,9 +540,12 @@ int main (int argc,char *argv[])
       
 		#if SUMA_MEMTRACE_FLAG
          if (!brk && (strcmp(argv[kar], "-memdbg") == 0)) {
-			   fprintf(SUMA_STDOUT,"Error %s: -memdbg is obsolete, use -trace\n", FuncName);
+			   fprintf(SUMA_STDOUT,"Error %s: -memdbg is obsolete, use -trace\n", 
+                                FuncName);
 			   exit (0);
-            fprintf(SUMA_STDOUT,"Warning %s: SUMA running in memory trace mode.\n", FuncName);
+            fprintf( SUMA_STDOUT,
+                     "Warning %s: SUMA running in memory trace mode.\n", 
+                     FuncName);
 			   SUMAg_CF->MemTrace = YUP;
             #ifdef USING_MCW_MALLOC
             #endif
@@ -505,7 +554,9 @@ int main (int argc,char *argv[])
       #endif
       
       if (!brk && (strcmp(argv[kar], "-dev") == 0)) {
-			fprintf(SUMA_STDOUT,"Warning %s: SUMA running in developer mode, some options may malfunction.\n", FuncName);
+			fprintf(SUMA_STDOUT,
+                  "Warning %s: SUMA running in developer mode, "
+                  "some options may malfunction.\n", FuncName);
 			SUMAg_CF->Dev = YUP;
 			brk = YUP;
 		}
@@ -515,7 +566,9 @@ int main (int argc,char *argv[])
 			brk = YUP;
 		}
       
-		if (!brk && (strcmp(argv[kar], "-vp") == 0 || strcmp(argv[kar], "-sa") == 0 || strcmp(argv[kar], "-sv") == 0))
+		if (!brk && (strcmp(argv[kar], "-vp") == 0 || 
+                   strcmp(argv[kar], "-sa") == 0 || 
+                   strcmp(argv[kar], "-sv") == 0))
 		{
 			kar ++;
 			if (kar >= argc)  {
@@ -523,11 +576,13 @@ int main (int argc,char *argv[])
 				exit (1);
 			}
 			if (ispec < 1) {
-            fprintf (SUMA_STDERR, "a -spec option must precede the first -sv option\n");
+            fprintf (SUMA_STDERR, 
+                     "a -spec option must precede the first -sv option\n");
 				exit (1);
          }
          if (!specfilename[ispec-1] && !Specp[ispec-1]) {
-            fprintf (SUMA_STDERR, "a -spec option must precede each -sv option\n");
+            fprintf (SUMA_STDERR, 
+                     "a -spec option must precede each -sv option\n");
 				exit (1);
          }
          VolParName[ispec-1] = argv[kar]; 
@@ -548,7 +603,9 @@ int main (int argc,char *argv[])
 			if (strcmp(argv[kar],"localhost") != 0) {
             AfniHostName = argv[kar];
          }else {
-           fprintf (SUMA_STDERR, "localhost is the default for -ah\nNo need to specify it.\n");
+           fprintf (SUMA_STDERR, 
+                    "localhost is the default for -ah\n"
+                    "No need to specify it.\n");
          }
 			/*fprintf(SUMA_STDOUT, "Found: %s\n", AfniHostName);*/
 
@@ -726,7 +783,9 @@ int main (int argc,char *argv[])
 
       N_iv15 = SUMA_MAX_SURF_VIEWERS;
       if (N_iv15 > 15) {
-         fprintf(SUMA_STDERR,"Error %s: trying to register more than 15 viewers!\n", FuncName);
+         fprintf( SUMA_STDERR,
+                  "Error %s: trying to register more than 15 viewers!\n", 
+                  FuncName);
          exit(1);
       }
       for (kar=0; kar<N_iv15; ++kar) iv15[kar] = kar;
@@ -755,18 +814,21 @@ int main (int argc,char *argv[])
    /* For some reason, I had to add the glLightfv line below
    to force the lightflipping done in SUMA_SetupSVforDOs to take place
    in the A viewer when first opened. I don't know why that is, especially
-   since other controllers would show up lit correctly without this glLightfv line below.
-   To make matters worse, the A controller's light0_position is correctly flipped.
-   It is just that the shading is done as if the position was never flipped. 
-   Actually, without the line below, the first time you hit the F key (to manually flip the light), 
-   nothing changes, that's because the light's position is unflipped, which is supposed to 
-   show the incorrect lighting. You'll have to hit F again to have the lighting correctly flipped 
+   since other controllers would show up lit correctly without this 
+   glLightfv line below.
+      To make matters worse, the A controller's light0_position is correctly 
+   flipped.
+      It is just that the shading is done as if the position was never flipped. 
+   Actually, without the line below, the first time you hit the F key (to 
+   manually flip the light), nothing changes, that's because the light's position    is unflipped, which is supposed to show the incorrect lighting. 
+   You'll have to hit F again to have the lighting correctly flipped 
    and the shading reflecting it.... ZSS, Aug. 05 04 */
    glLightfv(GL_LIGHT0, GL_POSITION, SUMAg_SVv[0].light0_position); 
 
    if (Start_niml || AFNI_yesenv("SUMA_START_NIML")) {
       if (!list) list = SUMA_CreateList();
-      SUMA_REGISTER_HEAD_COMMAND_NO_DATA(list, SE_StartListening, SES_Suma, NULL);
+      SUMA_REGISTER_HEAD_COMMAND_NO_DATA( list, SE_StartListening, 
+                                          SES_Suma, NULL);
 
       if (!SUMA_Engine (&list)) {
          fprintf(SUMA_STDERR, "Error %s: SUMA_Engine call failed.\n", FuncName);
@@ -783,14 +845,19 @@ int main (int argc,char *argv[])
 	if (ispec) {
       int k=0; 
       for (k=0; k<ispec; ++k) {
-         if (!SUMA_FreeSpecFields((Specp[k]))) { SUMA_S_Err("Failed to free spec fields"); } 
+         if (!SUMA_FreeSpecFields((Specp[k]))) { 
+            SUMA_S_Err("Failed to free spec fields"); 
+         } 
          Specp[k] = NULL;
       }
    } ispec = 0;
   
-	if (!SUMA_Free_Displayable_Object_Vect (SUMAg_DOv, SUMAg_N_DOv)) SUMA_error_message(FuncName,"DO Cleanup Failed!",1);
-	if (!SUMA_Free_SurfaceViewer_Struct_Vect (SUMAg_SVv, SUMA_MAX_SURF_VIEWERS)) SUMA_error_message(FuncName,"SUMAg_SVv Cleanup Failed!",1);
-	if (!SUMA_Free_CommonFields(SUMAg_CF)) SUMA_error_message(FuncName,"SUMAg_CF Cleanup Failed!",1);
+	if (!SUMA_Free_Displayable_Object_Vect (SUMAg_DOv, SUMAg_N_DOv)) 
+      SUMA_error_message(FuncName,"DO Cleanup Failed!",1);
+	if (!SUMA_Free_SurfaceViewer_Struct_Vect (SUMAg_SVv, SUMA_MAX_SURF_VIEWERS)) 
+      SUMA_error_message(FuncName,"SUMAg_SVv Cleanup Failed!",1);
+	if (!SUMA_Free_CommonFields(SUMAg_CF)) 
+      SUMA_error_message(FuncName,"SUMAg_CF Cleanup Failed!",1);
   SUMA_RETURN(0);             /* ANSI C requires main to return int. */
 }/* Main */ 
 
