@@ -71,8 +71,6 @@ extern AFD_dicom_header **MRILIB_dicom_header ;
 #include <stdlib.h>
 #include <math.h>
 
-#include <f2c.h>
-
 #include "mcw_malloc.h"  /* 06 Mar 1999 addition */
 #include "debugtrace.h"  /* 26 Jan 2001 addition */
 #include "Amalloc.h"     /* 09 Dec 2003 addition */
@@ -253,10 +251,7 @@ static float MRI_TYPE_maxval[9] =
 
 #ifndef TYPEDEF_complex
 #define TYPEDEF_complex
-//Prevent conflicting types when using the Debian F2C
-#ifndef F2C_INCLUDE
 typedef struct complex { float r , i ; } complex ;
-#endif
 #endif
 
 #ifndef TYPEDEF_float_pair
