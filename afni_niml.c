@@ -208,9 +208,16 @@ int AFNI_have_niml( void ){ return started ; }  /* 02 Feb 2007 */
 
 static void AFNI_niml_atexit( void )
 {
-#if 0              /*** this stuff now handled in niml/niml_stream.c ***/
    int cc ;
+   
 STATUS("called AFNI_niml_atexit") ;
+
+   if(ns_listen[NS_SUMA]) {/* be polite and tell suma */
+      NI_element *nel=NI_new_data_element("AuRevoir", 0);
+      NI_write_element( ns_listen[NS_SUMA] , nel , NI_BINARY_MODE ) ;
+   }
+
+#if 0              /*** this stuff now handled in niml/niml_stream.c ***/
    for( cc=0 ; cc < NUM_NIML ; cc++ )        /* close any open sockets */
      NI_stream_closenow( ns_listen[cc] ) ;
 #endif
@@ -230,7 +237,7 @@ ENTRY("AFNI_init_niml") ;
    if( started ) EXRETURN ;
 
    PLUTO_register_workproc( AFNI_niml_workproc , NULL ) ;
-#if 0
+#if 1 /* Turned back on to notify SUMA for a graceful exit ZSS Nov 09*/
    atexit( AFNI_niml_atexit ) ;
 #endif
 
@@ -933,7 +940,8 @@ static int slist_choose_surfs(LDP_list * ldp_list, THD_session * sess,
    ldp_surf_list * lsurf;
    int           * surfs, max_surf, ldp;
    int             first, surf;
-
+   static int      nwarn=0;
+   
 ENTRY("slist_choose_surfs");
 
    /* first, decide on how much memory we need for surfs */
@@ -965,16 +973,25 @@ ENTRY("slist_choose_surfs");
 
       /* if something is discarded and using defaults or debug */
       if ( (first < lsurf->nsurf) && (! lsurf->use_v2s || po->sopt.debug > 1) ){
-         fprintf(stderr,
-           "--------------------------------------------------\n"
-           "received too many surfaces for LDP '%s'\n",
-           lsurf->full_label_ldp[0] ? lsurf->full_label_ldp : lsurf->label_ldp);
-         for ( surf = 0; surf < first; surf++ )
-            fprintf(stderr,"    using    surf #%d : %s\n",
-                    surfs[surf], sess->su_surf[surfs[surf]]->label);
-         for ( surf = first; surf < lsurf->nsurf; surf++ )
-            fprintf(stderr,"    ignoring surf #%d : %s\n",
-                    surfs[surf], sess->su_surf[surfs[surf]]->label);
+         if (po->sopt.debug > 1 || nwarn < 2 || !(nwarn % 25)) {
+            fprintf(stderr,
+              "--------------------------------------------------\n"
+              "received too many surfaces for LDP '%s'\n",
+              lsurf->full_label_ldp[0] ? 
+                           lsurf->full_label_ldp : lsurf->label_ldp);
+            for ( surf = 0; surf < first; surf++ )
+               fprintf(stderr,"    using    surf #%d : %s\n",
+                       surfs[surf], sess->su_surf[surfs[surf]]->label);
+            for ( surf = first; surf < lsurf->nsurf; surf++ )
+               fprintf(stderr,"    ignoring surf #%d : %s\n",
+                       surfs[surf], sess->su_surf[surfs[surf]]->label);
+            fprintf(stderr,
+              "%s"
+              "--------------------------------------------------\n",
+              po->sopt.debug > 1 ? "" : 
+                  "             Warning shown intermittenlty.\n");
+         }
+         ++nwarn;
       }
    }
 

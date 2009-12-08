@@ -3,6 +3,15 @@
 /*** bandpass functions: 30 Apr 2009 -- RWCox ***/
 
 /*--------------------------------------------------------------------------*/
+
+static int nfft_fixed = 0 ;
+
+void THD_bandpass_set_nfft( int n )
+{
+  nfft_fixed = (n >= 16) ? csfft_nextup_one35(n) : 0 ;
+}
+
+/*--------------------------------------------------------------------------*/
 /*! Check THD_bandpass_vectors() input parameters for OK-ness.
     Returns 1 if OK, 0 if not OK.  If verb!=0, prints an info message.
 *//*------------------------------------------------------------------------*/
@@ -10,21 +19,21 @@
 int THD_bandpass_OK( int nx , float dt , float fbot , float ftop , int verb )
 {
    int nfft , jbot,jtop ; float df ;
-   static byte wrn=1;
-   
+   static int wrn=1;
+
    if( nx   <  9    ) return 0 ;
    if( dt   <= 0.0f ) dt   = 1.0f ;
    if( fbot <  0.0f ) fbot = 0.0f ;
    if( ftop <= fbot ){ ERROR_message("bad bandpass frequencies?"); return 0; }
-   if( wrn && dt   >  60 ) {
-      WARNING_message("Your dt (%f) is high.\n"
-                      "Make sure units are 'sec', not 'msec'.\n"
-                      "This warning will not be repeated.",
-                      dt);
-      wrn = 0;
-   } 
+   if( wrn && dt > 60 ){
+     WARNING_message("Your bandpass timestep (%f) is high.\n"
+                     "   Make sure units are 'sec', not 'msec'.\n"
+                     "   This warning will not be repeated." ,
+                     dt);
+     wrn = 0;
+   }
 
-   nfft = csfft_nextup_one35(nx) ;
+   nfft = (nfft_fixed > nx) ? nfft_fixed : csfft_nextup_one35(nx) ;
    df   = 1.0f / (nfft * dt) ;
    jbot = (int)rint(fbot/df) ;
    jtop = (int)rint(ftop/df) ;
@@ -38,7 +47,7 @@ int THD_bandpass_OK( int nx , float dt , float fbot , float ftop , int verb )
        "bandpass: ntime=%d nFFT=%d dt=%.6g dFreq=%.6g Nyquist=%.6g passband indexes=%d..%d",
        nx, nfft, dt, df, (nfft/2)*df, jbot, jtop) ;
    return 1 ;
-} 
+}
 
 /*--------------------------------------------------------------------------*/
 /*! Bandpass a set of vectors, optionally removing some orts as well.
@@ -56,37 +65,35 @@ int THD_bandpass_vectors( int nlen , int nvec   , float **vec ,
 {
    int nfft,nby2 , iv, jbot,jtop , ndof=0 ; register int jj ;
    float df ;
-   static byte wrn = 1;
+   static int wrn = 1;
    register float *xar, *yar=NULL ;
    register complex *zar ; complex Zero={0.0f,0.0f} ;
 
 ENTRY("THD_bandpass_vectors") ;
 
-   if( nlen < 9 || nvec < 1 || vec == NULL ){ 
-      ERROR_message("bad bandpass data?"); 
-      RETURN(ndof); 
+   if( nlen < 9 || nvec < 1 || vec == NULL ){
+      ERROR_message("bad bandpass data?");
+      RETURN(ndof);
    }
    if( wrn && dt   >  60 ) {
-      WARNING_message("Your dt (%f) is high.\n"
-                      "Make sure units are 'sec', not 'msec'.\n"
-                      "This warning will not be repeated.",
-                      dt);
-      wrn = 0;
+     WARNING_message("Your bandpass timestep (%f) is high.\n"
+                     "   Make sure units are 'sec', not 'msec'.\n"
+                     "   This warning will not be repeated." ,
+                     dt);
+     wrn = 0;
    }
    if( dt   <= 0.0f ) dt   = 1.0f ;
    if( fbot <  0.0f ) fbot = 0.0f ;
-   if( ftop <= fbot ){ 
-      ERROR_message("bad bandpass frequencies?"); 
-      RETURN(ndof); 
+   if( ftop <= fbot ){
+      ERROR_message("bad bandpass frequencies?"); RETURN(ndof);
    }
-   if( nort >= nlen ){ 
-      ERROR_message("too many bandpass orts?")  ; 
-      RETURN(ndof); 
+   if( nort >= nlen ){
+      ERROR_message("too many bandpass orts?")  ; RETURN(ndof);
    }
 
    /** setup for FFT **/
 
-   nfft = csfft_nextup_one35( nlen ) ;  /* length of actual FFT to do */
+   nfft = (nfft_fixed > nlen) ? nfft_fixed : csfft_nextup_one35(nlen) ;
    nby2 = nfft/2 ;
 
    df   = 1.0f / (nfft * dt) ;   /* frequency resolution */
@@ -188,7 +195,9 @@ ENTRY("THD_bandpass_vectors") ;
 
 /** INFO_message("psinv") ; MCHECK ; **/
      pim = mri_matrix_psinv( qim , NULL , 1.e-8 ) ;  /** call this [P] = nort X nlen **/
-     if( pim == NULL ){ mri_free(qim) ; ERROR_message("can't remove bandpass orts?"); RETURN(ndof); }
+     if( pim == NULL ){ mri_free(qim) ;
+                        ERROR_message("can't remove bandpass orts?"); RETURN(ndof); }
+
      par = MRI_FLOAT_PTR(pim) ;  /* nort X nlen matrix */
 
      /* Project the bandpassed orts out of data vectors:
@@ -198,7 +207,6 @@ ENTRY("THD_bandpass_vectors") ;
         that would require about nlen*nlen flops per vector, whereas
         the 2 matrix multiplications by [P] then [Q] will require
         about 2*nlen*nort flops per vector, a clear win if nort < nlen/2. */
-        
 
 /** INFO_message("project") ; MCHECK ; **/
      rar = (float *)malloc(sizeof(float)*nort) ;  /* will hold [P][y] */

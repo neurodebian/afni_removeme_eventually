@@ -247,18 +247,20 @@ int main( int argc , char *argv[] )
       "............................................................................\n"
       "\n"
       "  -lsqfit   = Solve equations via least squares [the default method].\n"
-      "             * '-l2fit' is a synonym for this option\n"
       "             * This is sometimes called L2 regression by mathematicians.\n"
+      "             * '-l2fit' and '-L2' are synonyms for this option.\n"
       "\n"
       "  -l1fit    = Solve equations via least sum of absolute residuals.\n"
       "             * This is sometimes called L1 regression by mathematicians.\n"
+      "             * '-L1' is a synonym for this option.\n"
       "             * L1 fitting is usually slower than L2 fitting, but\n"
       "               is perhaps less sensitive to outliers in the data.\n"
       "              ++ L1 deconvolution might give nicer looking results\n"
       "                 when you expect the deconvolved signal s(t) to\n"
       "                 have large-ish sections where s(t) = 0.\n"
       "             * L2 fitting is statistically more efficient when the\n"
-      "               noise is KNOWN to be normally (Gaussian) distributed.\n"
+      "               noise is KNOWN to be normally (Gaussian) distributed\n"
+      "               (and a bunch of other assumptions are also made).\n"
       "\n"
       "  -consign  = Follow this option with a list of LHS parameter indexes\n"
       "              to indicate that the sign of some output LHS parameters\n"
@@ -342,6 +344,8 @@ int main( int argc , char *argv[] )
       "                          this value (e.g., to count it more)\n"
       " AFNI_TFITTER_P2SCALE  =  number > 0 will scale the P2 penalty by\n"
       "                          this value\n"
+      " You could set these values on the command line using the AFNI standard\n"
+      " '-Dvariablename=value' command line option.\n"
       "\n"
       "------------\n"
       "NON-Options:\n"
@@ -650,10 +654,11 @@ int main( int argc , char *argv[] )
      }
 
      if( strncasecmp(argv[iarg],"-lsqfit",4) == 0 ||
-         strncasecmp(argv[iarg],"-l2fit",4)  == 0   ){
+         strncasecmp(argv[iarg],"-l2fit",4)  == 0 ||
+         strcmp     (argv[iarg],"-L2")       == 0   ){
        meth = 2 ; iarg++ ; continue ;
      }
-     if( strcasecmp(argv[iarg],"-l1fit") == 0 ){
+     if( strcasecmp(argv[iarg],"-l1fit") == 0 || strcmp(argv[iarg],"-L1") == 0 ){
        meth = 1 ; iarg++ ; continue ;
      }
 
@@ -746,9 +751,12 @@ int main( int argc , char *argv[] )
            DSET_NY(fal_set) != ny || DSET_NZ(fal_set) != nz )
         ERROR_exit("-FALTUNG dataset and RHS dataset don't match in grid size");
      }
+     if( fal_klen >= ntime )
+       ERROR_exit("-FALTUNG kernel size %d must be shorter than dataset %d",
+                       fal_klen , ntime ) ;
      if( fal_klen >= ntime/2 )
-       ERROR_exit("-FALTUNG kernel size %d longer than 1/2 dataset %d",
-                  fal_klen , ntime/2 ) ;
+       WARNING_message("-FALTUNG kernel size %d longer than 1/2 dataset %d",
+                       fal_klen , ntime/2 ) ;
      if( fal_set != NULL )
        fal_kern = (float *)malloc(sizeof(float)*fal_klen) ;
      nvoff = ntime ;

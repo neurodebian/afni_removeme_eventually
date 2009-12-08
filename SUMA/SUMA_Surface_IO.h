@@ -1,6 +1,23 @@
 #ifndef SUMA_SURFACE_IO_INCLUDED
 #define SUMA_SURFACE_IO_INCLUDED
 
+#define SUMA_FS_ANNOT_TAG_COLORTABLE   1
+#define SUMA_FS_STRLEN 50
+typedef struct {
+   int i;
+   int r;
+   int g;
+   int b;
+   int flag;
+   char name[SUMA_FS_STRLEN];
+} SUMA_FS_COLORTABLE_ENTRY;
+
+typedef struct {
+   char *fname;
+   int nbins;
+   SUMA_FS_COLORTABLE_ENTRY *bins;
+} SUMA_FS_COLORTABLE;
+
 
 SUMA_SurfaceObject *SUMA_Load_Surface_Object_Wrapper ( 
                         char *if_name, char *if_name2, char *vp_name, 
@@ -37,9 +54,24 @@ SUMA_1D_DRAWN_ROI * SUMA_Free_1DDrawROI (SUMA_1D_DRAWN_ROI *ROI1D);
 SUMA_Boolean SUMA_Write_DrawnROI_1D (SUMA_DRAWN_ROI **ROIv, int N_ROI, char *filename); 
 SUMA_1D_DRAWN_ROI * SUMA_DrawnROI_to_1DDrawROI (SUMA_DRAWN_ROI *ROI);
 SUMA_DRAWN_ROI ** SUMA_OpenDrawnROI_NIML (char *filename, int *N_ROI, SUMA_Boolean ForDisplay);
-SUMA_DRAWN_ROI ** SUMA_OpenDrawnROI_1D(char *filename, char *Parent_idcode_str, int *N_ROI, SUMA_Boolean ForDisplay);
+SUMA_DRAWN_ROI ** SUMA_OpenDrawnROI_1D(char *filename, char *Parent_idcode_str, 
+                                       int *N_ROI, SUMA_Boolean ForDisplay);
+SUMA_DRAWN_ROI **SUMA_MultiColumnsToDrawnROI( 
+         int N_Nodes, 
+         void *ind, SUMA_VARTYPE ind_type,
+         void *col0, SUMA_VARTYPE col0_type,
+         void *col1, SUMA_VARTYPE col1_type,
+         void *col2, SUMA_VARTYPE col2_type,
+         void *col3, SUMA_VARTYPE col3_type,
+         SUMA_COLOR_MAP *cmap,
+         int edges_only, 
+         char *name, char *Parent_idcode_str,
+         int *N_ROI, SUMA_Boolean ForDisplay,
+         SUMA_Boolean kkk);
 void SUMA_OpenDrawnROI (char *filename, void *data);
-SUMA_DSET *SUMA_ROIv2Grpdataset (SUMA_DRAWN_ROI** ROIv, int N_ROIv, char *Parent_idcode_str, int Pad_to, int Pad_val) ;
+SUMA_DSET *SUMA_ROIv2Grpdataset (SUMA_DRAWN_ROI** ROIv, int N_ROIv, 
+                                 char *Parent_idcode_str, int Pad_to, 
+                                 int Pad_val, SUMA_COLOR_MAP **cm) ;
 NI_element *SUMA_ROIv2dataset (SUMA_DRAWN_ROI** ROIv, int N_ROIv, char *Parent_idcode_str, int pad_to, int pad_val);
 DList *SUMA_ROIv2NodeLists (SUMA_DRAWN_ROI** ROIv, int N_ROIv, int purgedups) ; 
 void SUMA_SaveSOascii (char *filename, void *data);
@@ -62,8 +94,12 @@ SUMA_Boolean SUMA_OpenDX_Read_SO(char *fname, SUMA_SurfaceObject *SO);
 char * SUMA_OpenDX_Read_CruiseVolHead(char *fname, THD_3dim_dataset *dset, int loaddata);
 SUMA_Boolean SUMA_readFSannot (char *f_name, 
                                char *f_ROI, char *f_cmap, char *f_col, 
-                               int Showct, char *ctfile);
-SUMA_COLOR_MAP *SUMA_FScolutToColorMap(char *fscolutname, int lbl1, int lbl2, int show); 
+                               int Showct, char *ctfile,
+                               SUMA_DSET **dset);
+SUMA_COLOR_MAP *SUMA_FScolutToColorMap(char *fscolutname, 
+                                       int lbl1, int lbl2, int show); 
+SUMA_COLOR_MAP *SUMA_FScolutToColorMap_eng(SUMA_FS_COLORTABLE *ct, 
+                                       int lbl1, int lbl2, int show); 
 SUMA_Boolean SUMA_isnimlSO(NI_group *ngr);
 void SUMA_free_ROI_Extract(void *dd);
 SUMA_Boolean SUMA_MNI_OBJ_Write(char * f_name_in, SUMA_SurfaceObject *SO);

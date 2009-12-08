@@ -65,6 +65,7 @@ L_INIT_VARS:
 			full.patch.3d		\
 			full.patch.flat	\
          full.flat.patch.3d \
+         flat.patch		\
 			sphere			\
          white          \
          sphere.reg     \
@@ -479,8 +480,10 @@ L_CONVERT_SURFACES:
       foreach hand ( lh rh )
      if ( -f ${hand}.aparc.a2005s.annot ) then
          FSread_annot   -input ${hand}.aparc.a2005s.annot \
-               -roi_1D  $start_dir/$suma_dir/${hand}.aparc.a2005s.annot.1D.roi \
-               -cmap_1D $start_dir/$suma_dir/${hand}.aparc.a2005s.annot.1D.cmap 
+            -roi_1D  $start_dir/$suma_dir/${hand}.aparc.a2005s.annot.1D.roi \
+            -dset    $start_dir/$suma_dir/${hand}.aparc.a2005s.annot.niml.dset \
+            -cmap_1D $start_dir/$suma_dir/${hand}.aparc.a2005s.annot.1D.cmap 
+         endif
      endif
       end
       cd $start_dir
@@ -541,10 +544,14 @@ L_CREATE_SPEC:
 	    set s_head = `echo $surf | cut -d. -f1`	# up to first '.'
 	    set s_state = `echo $surf | cut -d. -f2-`	# after first '.'
 
+      set label_dset = ""      
 	    # check for SAME mapping ref
 	    if ( "$surf.asc" == "$s_head.smoothwm.asc" ) then
 		set map_ref = SAME
-	    else
+         if ( -f ${hand}.aparc.a2005s.annot.niml.dset ) then
+      set label_dset = ${hand}.aparc.a2005s.annot.niml.dset
+	      endif
+       else
 		set map_ref = $s_head.smoothwm.asc
 	    endif
 
@@ -555,6 +562,15 @@ L_CREATE_SPEC:
 		set embed_ref = 3
 	    endif
 
+       # Anatomical flag
+       if ( $surf =~ *.white* ||\
+            $surf =~ *.smoothwm* ||\
+            $surf =~ *.pial*) then
+		set anatomical = Y
+	    else
+		set anatomical = N
+	    endif
+       
 	    echo "NewSurface"					>> $spec_file
 	    echo "        SurfaceFormat = ASCII"		>> $spec_file
 	    echo "        SurfaceType = FreeSurfer"		>> $spec_file
@@ -562,7 +578,10 @@ L_CREATE_SPEC:
 	    echo "        LocalDomainParent = $map_ref"		>> $spec_file
 	    echo "        SurfaceState = $s_state"		>> $spec_file
 	    echo "        EmbedDimension = $embed_ref"		>> $spec_file
-	    echo ""						>> $spec_file
+       echo "        Anatomical = $anatomical" >> $spec_file
+	      if ("$label_dset" != "") \
+       echo "        LabelDset = $label_dset" >> $spec_file
+       echo ""						>> $spec_file
 	end
 
 	echo "++ created spec file'$suma_dir/$spec_file'"
@@ -625,9 +644,14 @@ L_CREATE_SPEC:
             $s_state =~ *infla*) then
          set s_state = "${s_state}_${hand}"
        endif
-	    # check for SAME mapping ref
+	    
+      set label_dset = ""
+       # check for SAME mapping ref
 	    if ( "$surf.asc" == "$s_head.smoothwm.asc" ) then
 		set map_ref = SAME
+         if ( -f ${hand}.aparc.a2005s.annot.niml.dset ) then
+      set label_dset = ${hand}.aparc.a2005s.annot.niml.dset
+	      endif
 	    else
 		set map_ref = $s_head.smoothwm.asc
 	    endif
@@ -639,6 +663,15 @@ L_CREATE_SPEC:
 		set embed_ref = 3
 	    endif
 
+       # Anatomical flag
+       if ( $surf =~ *.white* ||\
+            $surf =~ *.smoothwm* ||\
+            $surf =~ *.pial*) then
+		set anatomical = Y
+	    else
+		set anatomical = N
+	    endif
+
 	    echo "NewSurface"					>> $spec_file
 	    echo "        SurfaceFormat = ASCII"		>> $spec_file
 	    echo "        SurfaceType = FreeSurfer"		>> $spec_file
@@ -646,6 +679,9 @@ L_CREATE_SPEC:
 	    echo "        LocalDomainParent = $map_ref"		>> $spec_file
 	    echo "        SurfaceState = $s_state"		>> $spec_file
 	    echo "        EmbedDimension = $embed_ref"		>> $spec_file
+       echo "        Anatomical = $anatomical" >> $spec_file
+	      if ("$label_dset" != "") \
+       echo "        LabelDset = $label_dset" >> $spec_file
 	    echo ""						>> $spec_file
 	end
    end 	# foreach hand

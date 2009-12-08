@@ -14,218 +14,6 @@ static char * SUMA_ver2date(int ver)
    return(s_ver);
 } 
 
-typedef struct {
-   char *envhelp;
-   char *envname;
-   char *envval;  /* This is the default */
-}ENV_SPEC;
-
-static ENV_SPEC envlist[] = {
-   {  "Incremental arrow rotation angle in degrees",
-      "SUMA_ArrowRotAngle",
-      "5" } ,
-   {  "Color pattern (AFNI, EURO, DEFAULT)",
-      "SUMA_ColorPattern",
-      "EURO" },
-   {  "Swap mouse buttons 1 and 3",
-      "SUMA_SwapButtons_1_3",
-      "NO" },
-   {  "Background color r g b. No space between values",
-      "SUMA_BackgroundColor",
-      "0.0,0.0,0.0" },
-   {  "ROI color map (bgyr64, roi64, roi128, roi256)",
-      "SUMA_ROIColorMap",
-      "roi256" },
-   {  "Number of smoothing operations to run on convexity data",
-      "SUMA_NumConvSmooth",
-      "5" },
-   {  "Colormap for convexity (gray02, gray_i02, ngray20, bgyr64, etc.)",
-      "SUMA_ConvColorMap",
-      "gray02" },
-   {  "Brightness factor for convexity ",
-      "SUMA_ConvBrightFactor",
-      "0.5" },
-   {  "Number of smoothing operations to run on mixed foregroung color plane\n"
-      " before mixing with background",
-      "SUMA_NumForeSmoothing",
-      "0" },
-   {  "Number of smoothing operations to run on final set of mixed colors.\n"
-      " This would be the mixed foreground and background colors",
-      "SUMA_NumFinalSmoothing",
-      "0" },
-   {  "Setup the color mixing mode (ORIG, MOD1) ",
-      "SUMA_ColorMixingMode",
-      "ORIG" },
-   {  "Port for communicating with AFNI\n"
-      " Listening ports are derived from SUMA_AFNI_TCP_PORT\n"
-      " Listening port i\n"
-      " SUMA_AFNI_TCP_PORT + i (i > 0)",
-      "SUMA_AFNI_TCP_PORT",
-      "53211" },
-   {  "Warn before closing with the Escape key (YES/NO)",
-      "SUMA_WarnBeforeClose",
-      "YES" },
-   {  "Mask node values\n"
-      " 0 ? YES/NO",
-      "SUMA_MaskZero",
-      "YES" },
-   {  "Threshold if Val < thr (NO) or | Val | < | Thr | (YES)",
-      "SUMA_AbsThreshold",
-      "YES" },
-   {  "Threshold scale precision. 2 is the minimum allowed. \n"
-      " This value might be overriden in SUMA.",
-      "SUMA_ThresholdScalePower",
-      "2" },
-   {  "Center of Rotation is based on nodes used in the mesh and not \n"
-      " on all the nodes in NodeList",
-      "SUMA_CenterOnPatch",
-      "NO" },
-   {  "Use cross ticks on axis ?",
-      "SUMA_UseCrossTicks",
-      "NO" },
-   {  "Warn if 1D file looks like it needs a transpose",
-      "SUMA_1D_Transpose_Warn",
-      "YES" },
-   {  "Adjust roation and translation factor of mouse with changes \n"
-      " in zoom levels ",
-      "SUMA_AdjustMouseMotionWithZoom",
-      "YES" },
-   {  "Use orthographic projection ",
-      "SUMA_ViewOrthographicProjection",
-      "NO" },
-   {  "Percent gain for zooming in and out with the 'z' and 'Z' keys. \n"
-      " Typical range from 0 to 50",
-      "SUMA_KeyZoomGain",
-      "5" },
-   {  "Original FOV. Set between 1.0 and 100.0 \n"
-      " Default is 30.0, -1 == auto",
-      "SUMA_FOV_Original",
-      "-1" },
-   {  "light0 color",
-      "SUMA_Light0Color",
-      "1.0,1.0,1.0" },
-   {  "Ambient light ",
-      "SUMA_AmbientLight",
-      "1.0,1.0,1.0" },
-   {  "Allow for replacement of pre-loaded dsets",
-      "SUMA_AllowDsetReplacement",
-      "NO" },
-   {  "Allow for surfaces with same DomainGrandParentID to share overlays",
-      "SUMA_ShareGrandChildrenOverlays",
-      "NO" },
-   {  "Increase the resolution of images recorded with 'r' button.\n"
-      " Increase is done by taking multiple shots that once stitched  \n"
-      " together form a high-resolution image.\n"
-      " The maximum resolution is set by the GL_MAX_VIEWPORT_DIMS of your\n" 
-      " graphics card. I have 4096 pixels.\n"
-      " If you exceed this number, SUMA will make adjustments automatically.\n"
-      " Assemble images with program imcat.",
-      "SUMA_SnapshotOverSampling",
-      "1" },
-   {  "Ignore consecutive duplicate images in recorder",
-      "SUMA_NoDuplicatesInRecorder",
-      "YES" },
-   {  "start NIML (can't do this for more than one suma at a time!)",
-      "SUMA_START_NIML",
-      "YES" },
-   {  "Allow (YES) datasets with the same filename but differing ID \n"
-      " to be considered the same.\n"
-      " This is only useful with SUMA_AllowDsetReplacement",
-      "SUMA_AllowFilenameDsetMatch",
-      "NO" },
-   {  "Freeze zoom across states",
-      "SUMA_FreezeFOVAcrossStates",
-      "NO" },
-   {  "Dset color map",
-      "SUMA_DsetColorMap",
-      "Spectrum:red_to_blue" },
-   {  "Show only selected dset in suma's surface controller.",
-      "SUMA_ShowOneOnly",
-      "YES" },
-   {  "Update graphs, even SUMA_ShowOneOnly (or suma's '1 Only') is turned on.",
-      "SUMA_GraphHidden",
-      "YES" },
-   {  "Fraction of colormap to rotate with up/down arrow keys.",
-      "SUMA_ColorMapRotationFraction",
-      "0.05"},
-   {  "Size of surface controller font. \n"
-      " Values are SMALL, BIG (old style).",
-      "SUMA_SurfContFontSize",
-      "SMALL"},
-   {  "Where to position SUMA window when first opened.\n"
-      " Values are POINTER (at the mouse pointer's location)\n"
-      "            DEFAULT (let the window manager decide)\n",
-      "SUMA_StartUpLocation",
-      "DEFAULT"},
-   {  "Numer of nodes to jump with the 'alt+arrow' keys. \n"
-      " Valid range from 1 to 10",
-      "SUMA_KeyNodeJump",
-      "1" },
-   {  "Numer of seconds to wait for SUMA to respond to DriveSuma. \n"
-      " Valid range from 0 to 60000",
-      "SUMA_DriveSumaMaxWait",
-      "300.0" },
-   {  "String to use in creating left hemisphere dataset wildcards.",
-      "SUMA_LEFT_FILE_DSET_IDENTIFIER",
-      "*lh*.dset" },
-   {  "String to use in creating left hemisphere dataset wildcards.",
-      "SUMA_RIGHT_FILE_DSET_IDENTIFIER",
-      "*rh*.dset" },
-   {  "String to use in creating left hemisphere roi wildcards.",
-      "SUMA_LEFT_FILE_ROI_IDENTIFIER",
-      "*lh*.roi" },
-   {  "String to use in creating right hemisphere roi wildcards.",
-      "SUMA_RIGHT_FILE_ROI_IDENTIFIER",
-      "*rh*.roi" },
-   {  "String to use in creating left hemisphere roi wildcards.",
-      "SUMA_LEFT_FILE_OTHER_IDENTIFIER",
-      "*lh*" },
-   {  "String to use in creating right hemisphere roi wildcards.",
-      "SUMA_RIGHT_FILE_OTHER_IDENTIFIER",
-      "*rh*" },
-   {  NULL, NULL, NULL  }
-};
-      
-
-
-char * SUMA_env_list_help(){
-   static char FuncName[]={"SUMA_env_list_help"};
-   int i=0;
-   char *sli=NULL;
-   SUMA_STRING *SS=NULL;
-   char *s=NULL, *eee=NULL, *userval=NULL;
-   
-   SUMA_ENTRY;
-   
-   SS = SUMA_StringAppend(NULL, NULL);
-   
-   while (envlist[i].envhelp) {
-      /* find the user's setting */
-      char *eee = getenv(envlist[i].envname);
-      if (userval) 
-         SUMA_free(userval); 
-      userval=NULL;
-      if (!eee) userval = SUMA_copy_string(envlist[i].envval);
-      else userval = SUMA_copy_string(eee);
-      sli = SUMA_ReplaceChars(envlist[i].envhelp,"\n","\n//      ");
-      SS = SUMA_StringAppend_va(SS,
-                     "// %03d-%s:\n"
-                     "//     %s\n"
-                     "//     default:   %s = %s\n"
-                     "   %s = %s\n",
-                     i, envlist[i].envname,
-                     sli,
-                     envlist[i].envname,
-                     envlist[i].envval,
-                     envlist[i].envname,
-                     userval);
-      SUMA_free(sli); sli = NULL;
-      ++i;
-   }
-   SUMA_SS2S(SS,s);
-   
-   SUMA_RETURN(s);
-}
 
 /*!
    \brief Returns a string with the new additions and version information
@@ -598,6 +386,32 @@ void SUMA_Help_Plot_destroyed (void *p)
    SUMA_ENTRY;
 
    SUMAg_CF->X->Help_Plot_TextShell = NULL;
+   
+   SUMA_RETURNe;
+}
+
+/*!
+   \brief function called when whereami window is destroyed
+*/
+void SUMA_Whereami_destroyed (void *p)
+{
+   static char FuncName[]={"SUMA_Whereami_destroyed"};
+   
+   SUMA_ENTRY;
+
+   SUMAg_CF->X->Whereami_TextShell = NULL;
+   
+   SUMA_RETURNe;
+}
+
+/*!
+   \brief function called when whereami window is destroyed
+*/
+void SUMA_Whereami_open (void *p)
+{
+   static char FuncName[]={"SUMA_Whereami_open"};
+   
+   SUMA_ENTRY;
    
    SUMA_RETURNe;
 }
@@ -1115,6 +929,28 @@ char * SUMA_sources_Info(void)
 "  Phone:    (919)962-1749                       Phone: (516)632-8446 \n"
 "	    \n"
 "  EMail:    cohenj@cs.unc.edu                   varshney@cs.sunysb.edu\n"
+"\n"
+"* UTHASH:\n"
+"Copyright (c) 2005-2009, Troy D. Hanson    http://uthash.sourceforge.net\n"
+"All rights reserved.\n"
+"\n"
+"Redistribution and use in source and binary forms, with or without\n"
+"modification, are permitted provided that the following conditions are met:\n"
+"\n"
+"    * Redistributions of source code must retain the above copyright\n"
+"      notice, this list of conditions and the following disclaimer.\n"
+"\n"
+"THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ""AS\n"
+"IS"" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED\n"
+"TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A\n"
+"PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER\n"
+"OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,\n"
+"EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,\n"
+"PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR\n"
+"PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF\n"
+"LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING\n"
+"NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS\n"
+"SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n"
 "\n"
 "Sample code sources:\n"
 "--------------------\n"

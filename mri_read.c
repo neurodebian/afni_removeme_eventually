@@ -2293,10 +2293,16 @@ STATUS(fname) ;  /* 16 Oct 2007 */
 
    fvec = decode_linebuf( buf ) ;           /* 20 Jul 2004 */
    if( fvec == NULL || fvec->nar == 0 ){
+     if (strlen(buf) > 64) { 
+        buf[64]='\0'; buf[63]='.'; buf[62]='.'; buf[61]='.'; buf[60]=' ';
+     }
      if (linebufdied) {/* death?  ZSS: Oct 19 2009*/
+        static int nfail=0 ;
+        if( ++nfail < 9 )
         fprintf(stderr,
-                "\n** Error: Failed parsing data row 0 of 1D file\n"
-                "          Check for illegal non-numeric characters\n");
+                "\n** Error: Failed parsing data row 0 of 1D file '%.44s'\n"
+                "          Check for illegal non-numeric characters in:\n"
+                "          '%s'\n", fname,buf);
      }
      if( fvec != NULL ) KILL_floatvec(fvec) ;
      FRB(buf); fclose(fts); RETURN(NULL);
@@ -2345,18 +2351,24 @@ STATUS(fname) ;  /* 16 Oct 2007 */
    fclose( fts ) ; /* finished with this file! */
    (void) my_fgets( NULL , 0 , NULL ) ;  /* reset [20 Jul 2004] */
 
-   /* from <= 1 to < 1 (allow 1x1 image) 25 Jan 2006 [rickr] */
-   if( used_tsar < 1 ){ FRB(buf); free(tsar); RETURN(NULL); }
-
    if (linebufdied) {/* death? ZSS: Oct 19 2009 */
+      static int nfail=0 ;
+      if (strlen(buf) > 64) { 
+         buf[64]='\0'; buf[63]='.'; buf[62]='.'; buf[61]='.'; buf[60]=' ';
+      }
+      if( ++nfail < 9 )
       fprintf(stderr,
-                "\n** Error: Failed parsing data row %d of 1D file\n"
-                "          Check for illegal non-numeric characters\n", nrow);
+                "\n** Error: Failed parsing data row %d of 1D file '%.44s'\n"
+                "          Check for illegal non-numeric characters in:\n"
+                "          '%s'\n", nrow, fname , buf);
       if (tsar) free(tsar); tsar = NULL;
       FRB(buf);
       RETURN(NULL); 
    }
    
+   /* from <= 1 to < 1 (allow 1x1 image) 25 Jan 2006 [rickr] */
+   if( used_tsar < 1 ){ FRB(buf); free(tsar); RETURN(NULL); }
+
    tsar = (float *) realloc( tsar , sizeof(float) * used_tsar ) ;
    if( tsar == NULL ){
       fprintf(stderr,"\n*** final realloc error in mri_read_ascii ***\n"); EXIT(1);
@@ -2416,10 +2428,16 @@ ENTRY("mri_read_double_ascii") ;
 
    dvec = decode_double_linebuf( buf ) ;           /* 20 Jul 2004 */
    if( dvec == NULL || dvec->nar == 0 ){
+     if (strlen(buf) > 64) { 
+        buf[64]='\0'; buf[63]='.'; buf[62]='.'; buf[61]='.'; buf[60]=' ';
+     }
      if (doublelinebufdied) {/* death? ZSS: Oct 19 2009 */
+        static int nfail=0 ;
+        if( ++nfail < 9 )
         fprintf(stderr,
-                "\n** Error: Failed parsing data row 0 of 1D file\n"
-                "          Check for illegal non-numeric characters\n");
+                "\n** Error: Failed parsing data row 0 of 1D file '%.44s'\n"
+                "          Check for illegal non-numeric characters in:\n"
+                "          '%s'\n", fname,buf);
      }
      if( dvec != NULL ) KILL_doublevec(dvec) ;
      FRB(buf); fclose(fts); RETURN(NULL);
@@ -2468,18 +2486,24 @@ ENTRY("mri_read_double_ascii") ;
    fclose( fts ) ; /* finished with this file! */
    (void) my_fgets( NULL , 0 , NULL ) ;  /* reset [20 Jul 2004] */
 
-   /* from <= 1 to < 1 (allow 1x1 image) 25 Jan 2006 [rickr] */
-   if( used_tsar < 1 ){ FRB(buf); free(dtsar); RETURN(NULL); }
-
    if (doublelinebufdied) {/* death? ZSS: Oct 19 2009 */
+      static int nfail=0 ;
+      if (strlen(buf) > 64) { 
+         buf[64]='\0'; buf[63]='.'; buf[62]='.'; buf[61]='.'; buf[60]=' ';
+      }
+      if( ++nfail < 9 )
       fprintf(stderr,
-                "\n** Error: Failed parsing data row %d of 1D file\n"
-                "          Check for illegal non-numeric characters\n", nrow);
+                "\n** Error: Failed parsing data row %d of 1D file '%.44s'\n"
+                "          Check for illegal non-numeric characters in:\n"
+                "          '%s'\n", nrow, fname , buf);
       if (dtsar) free(dtsar); dtsar = NULL;
       FRB(buf);
       RETURN(NULL); 
    }
    
+   /* from <= 1 to < 1 (allow 1x1 image) 25 Jan 2006 [rickr] */
+   if( used_tsar < 1 ){ FRB(buf); free(dtsar); RETURN(NULL); }
+
    dtsar = (double *) realloc( dtsar , sizeof(double) * used_tsar ) ;
    if( dtsar == NULL ){
       fprintf(stderr,"\n*** final realloc error in mri_read_double_ascii ***\n"); EXIT(1);
@@ -2538,10 +2562,16 @@ ENTRY("mri_read_complex_ascii") ;
 
    vec = decode_linebuf( buf ) ;           /* 20 Jul 2004 */
    if( vec == NULL || vec->nar == 0 ){
+     if (strlen(buf) > 64) { 
+        buf[64]='\0'; buf[63]='.'; buf[62]='.'; buf[61]='.'; buf[60]=' ';
+     }
      if (linebufdied) {/* death?  ZSS: Oct 19 2009*/
+        static int nfail=0 ;
+        if( ++nfail < 9 )
         fprintf(stderr,
-                "\n** Error: Failed parsing data row 0 of 1D file\n"
-                "          Check for illegal non-numeric characters\n");
+                "\n** Error: Failed parsing data row 0 of 1D file '%.44s'\n"
+                "          Check for illegal non-numeric characters in:\n"
+                "          '%s'\n", fname,buf);
      }
      if( vec != NULL ) KILL_floatvec(vec) ;
      FRB(buf); fclose(fts); RETURN(NULL);
@@ -2595,18 +2625,24 @@ ENTRY("mri_read_complex_ascii") ;
    fclose( fts ) ; /* finished with this file! */
    (void) my_fgets( NULL , 0 , NULL ) ;  /* reset [20 Jul 2004] */
 
-   /* from <= 1 to < 1 (allow 1x1 image) 25 Jan 2006 [rickr] */
-   if( used_tsar < 1 ){ FRB(buf); free(tsar); RETURN(NULL); }
-
    if (linebufdied) {/* death? ZSS: Oct 19 2009 */
+      static int nfail=0 ;
+      if (strlen(buf) > 64) { 
+         buf[64]='\0'; buf[63]='.'; buf[62]='.'; buf[61]='.'; buf[60]=' ';
+      }
+      if( ++nfail < 9 )
       fprintf(stderr,
-                "\n** Error: Failed parsing data row %d of 1D file\n"
-                "          Check for illegal non-numeric characters\n", nrow);
+                "\n** Error: Failed parsing data row %d of 1D file '%.44s'\n"
+                "          Check for illegal non-numeric characters in:\n"
+                "          '%s'\n", nrow, fname,buf);
       if (tsar) free(tsar); tsar = NULL;
       FRB(buf);
       RETURN(NULL); 
    }
    
+   /* from <= 1 to < 1 (allow 1x1 image) 25 Jan 2006 [rickr] */
+   if( used_tsar < 1 ){ FRB(buf); free(tsar); RETURN(NULL); }
+
    tsar = (float *) realloc( tsar , sizeof(float) * used_tsar ) ;
    if( tsar == NULL ){
       fprintf(stderr,"\n*** final realloc error in mri_read_complex_ascii ***\n"); EXIT(1);
@@ -2773,6 +2809,150 @@ ENTRY("mri_read_1D") ;
    if( flip ){ inim=mri_transpose(flim); mri_free(flim); flim=inim; }
 
    mri_add_name(fname,flim) ; RETURN(flim) ;
+}
+
+/*---------------------------------------------------------------------------*/
+/*! Read a 1D with a total of 12 or 16 numbers and return it as a 4x4 matrix
+    for spatial affine transformation
+
+  \param fname = Input filename (max of 255 characters)
+  \return Pointer to MRI_IMAGE if all went well; NULL if not.
+  \date Nov 24 2009
+
+   See mri_read_1D for special name modifiers.
+   
+   The function accepts:
+   one row, or one column vector of 12 or 16 elements
+   one 3x4, or one 4x4 matrix
+   
+   When a total of 16 elements are read in, the last row
+   must be 0 0 0 1.
+   
+   Transposing is allowed but I don't know why you'd want it.
+   
+   stdin input is allowed 
+*/
+
+MRI_IMAGE * mri_read_4x4AffXfrm_1D( char *fname )
+{
+   MRI_IMAGE *inim =NULL , *outim =NULL;
+   char *cpt , *dpt ;
+   int ii=0, c=0, r=0 ;
+   float *far , *oar ;
+   int flip=0;  /* 05 Sep 2006 */
+
+ENTRY("mri_read_4x4AffXfrm_1D") ;
+
+   if( fname == NULL || fname[0] == '\0' ) RETURN(NULL) ;
+
+   /*-- 25 Jan 2008: read from stdin? --*/
+
+   ii = strlen(fname) ;
+   if( (ii <= 2 && fname[0] == '-')              ||
+       (ii <= 6 && strncmp(fname,"stdin",5) == 0)  ){
+       inim = mri_read_1D_stdin() ;
+     if (!inim) RETURN(inim);
+     if( inim != NULL && fname[ii-1] == '\'' ){
+       flip = 1; /*transpose later */
+     }
+   } else {
+      /*-- Read from file, transposing is handled later --*/
+      DNAME_FIX(fname) ;
+      strcpy(dname,fname); ii = strlen(dname);  /* 05 Sep 2006 */
+      flip = (dname[ii-1] == '\''); if( flip ) dname[ii-1] = '\0';
+
+      /* read with regular function, no transposing yet */
+      inim = mri_read_1D(dname);
+      if (!inim) RETURN(inim);
+   }
+   
+   /* check on dimensions */
+   if ( !(inim->nx == 1  && inim->ny == 12) && 
+        !(inim->nx == 12 && inim->ny == 1 ) && 
+        !(inim->nx == 1  && inim->ny == 16) && 
+        !(inim->nx == 16 && inim->ny == 1 ) && 
+        !(inim->nx == 3  && inim->ny == 4 ) &&
+        !(inim->nx == 4  && inim->ny == 4 ) ) {
+      fprintf( stderr,
+            "*** Bad dimensions of %dx%d in mri_read_4x4AffXfmr_1D: %s\n"
+            "    Allowed dimensions are 12x1, 1x12, 16x1, 1x16, 3x4, and 4x4\n",
+            inim->nx, inim->ny, dname) ;
+      mri_free(inim); inim = NULL;
+      RETURN(inim);
+   }   
+   
+   /* fprintf(stderr,"%d x %d\n", inim->nx, inim->ny); */
+      
+   /* prepare output */
+   outim = mri_new( 4 , 4 , MRI_float ) ; /* make output image */
+   far   = MRI_FLOAT_PTR( inim ) ;
+   oar   = MRI_FLOAT_PTR( outim ) ;
+
+   /* fillup oar, column by column */
+   if ((inim->nx == 1  && inim->ny == 12) ||
+       (inim->nx == 12 && inim->ny == 1 ) ) {
+      ii = 0;
+      for (r=0; r<4; ++r)  {
+         for (c=0; c<4; ++c) { 
+            if (r < 3) {
+               oar[r+c*4] = far[ii]; ++ii;
+            } else {
+               oar[r+c*4] = 0.0;
+            }
+         }
+      }
+      oar[15] = 1.0;
+   } else if ((inim->nx == 3  && inim->ny == 4 ) ) {
+      for (r=0; r<4; ++r)  {
+         for (c=0; c<4; ++c) { 
+            if (r < 3) {
+               oar[r+c*4] = far[r+c*3]; 
+            } else {
+               oar[r+c*4] = 0.0;
+            }
+         }
+      }
+      oar[15] = 1.0;
+   } else if ( (inim->nx == 1  && inim->ny == 16) ||
+               (inim->nx == 16 && inim->ny == 1 )  ) {
+      ii = 0;
+      for (r=0; r<4; ++r)  {
+         for (c=0; c<4; ++c) { 
+            oar[r+c*4] = far[ii]; ++ii;
+         }
+      }
+   } else if ( (inim->nx == 4  && inim->ny == 4 ) ) {
+      for (r=0; r<4; ++r)  {
+         for (c=0; c<4; ++c) { 
+            oar[r+c*4] = far[r+c*4]; 
+         }
+      }
+   }
+
+   /* all done with input */
+   mri_free(inim); inim = NULL;
+   
+   /* final check */
+   if ( oar[15] != 1.0f ||
+        oar[11] != 0.0f ||
+        oar[ 7] != 0.0f ||
+        oar[ 3] != 0.0f ) {
+      fprintf( stderr,
+         "*** Bad 4th row values in %s.\n"
+         "Expecting 0.0 0.0 0.0 1.0, \n"
+         "got %f  %f  %f  %f\n", 
+         dname, oar[3], oar[7], oar[11], oar[15]);
+      mri_free(outim); outim = NULL;
+      RETURN(outim);
+   }
+   
+   if( flip ){ 
+      fprintf(stderr,"Transposing xform!\n");
+      inim=mri_transpose(outim); 
+      mri_free(outim); outim=inim; inim=NULL;
+   }
+
+   mri_add_name(fname,outim) ; RETURN(outim) ;
 }
 
 MRI_IMAGE * mri_read_double_1D( char *fname )

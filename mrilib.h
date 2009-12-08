@@ -848,6 +848,7 @@ extern MRI_IMAGE * mri_read_complex_1D( char * ) ;
 extern int mri_write_1D( char * , MRI_IMAGE * ) ;        /* 16 Nov 1999 */
 extern MRI_IMAGE * mri_read_1D_stdin(void) ;             /* 25 Jan 2008 */
 
+extern MRI_IMAGE * mri_read_4x4AffXfrm_1D( char *fname );/* 24 Nov 2009 */
 extern MRI_IMAGE * mri_1D_fromstring( char * ) ;         /* 28 Apr 2003 */
 
 extern int setup_mri_write_angif( void ) ;               /* 28 Jun 2001 */
@@ -1972,6 +1973,16 @@ extern void RBF_setup_kranges( RBF_knots *rbk , RBF_evalgrid *rbg ) ;
      }                                                                        \
      DESTROY_IMARR(qimar) ;                                                   \
    } while(0)
+/*----------------------------------------------------------------------------*/
+
+extern THD_3dim_dataset * THD_svdblur( THD_3dim_dataset *inset, byte *mask,
+                                float rad, int pdim, int nort, float **ort ) ;
+extern MRI_IMARR * THD_get_dset_nbhd_array( THD_3dim_dataset *dset, byte *mask,
+                                            int xx, int yy, int zz, MCW_cluster *nbhd ) ;
+extern MRI_IMAGE * mri_svdproj( MRI_IMARR *imar , int nev ) ;
+extern MRI_IMAGE * mri_first_principal_vector( MRI_IMARR *imar ) ;
+extern int mri_principal_vectors( MRI_IMARR *imar, int nvec, float *sval, float *uvec ) ;
+
 /*----------------------------------------------------------------------------*/
 
 #define CPU_IS_64_BIT() ((sizeof(void *) == 8) ? 1 : 0 )

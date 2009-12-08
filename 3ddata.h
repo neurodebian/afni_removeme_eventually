@@ -523,6 +523,14 @@ typedef union {
       ATR_int      int_atr ;
 } ATR_any ;
 
+#undef  ATR_COUNT
+#define ATR_COUNT(aap)                                                  \
+          ( ((aap)==NULL) ? 0                                           \
+           :((aap)->type==ATR_FLOAT_TYPE)  ? ((ATR_float  *)(aap))->nfl \
+           :((aap)->type==ATR_STRING_TYPE) ? ((ATR_string *)(aap))->nch \
+           :((aap)->type==ATR_INT_TYPE)    ? ((ATR_int    *)(aap))->nin \
+           :0 )
+
 /*---------------------------------------------------------------------*/
 /*-------------------- structure for linear mapping -------------------*/
 
@@ -4505,6 +4513,7 @@ extern int THD_bandpass_vectors( int nlen, int nvec, float **vec, /* 30 Apr 2009
                                  float dt, float fbot, float ftop,
                                  int qdet, int nort, float **ort ) ;
 extern int THD_bandpass_OK( int nx, float dt, float fbot, float ftop, int verb ) ;
+extern void THD_bandpass_set_nfft( int n ) ;
 
   /*-- see mri_3dalign.c for these routines --*/
 
