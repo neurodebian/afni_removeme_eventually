@@ -4,6 +4,7 @@ if (GSL_LIBRARY)
   MESSAGE(STATUS "Found GSL library, compiling segtools")
   SET(SOURCES thd_segtools_fNM.c cluster_floatNOMASK.c)
   ADD_LIBRARY(segtools ${SOURCES})
+  TARGET_LINK_LIBRARIES(segtools gsl gslcblas)
   SET(PROGRAMS fit_onesign Aclustering 3dfit_onesign 3dAclustering_fNM)
 
   ADD_EXECUTABLE(fit_onesign fit_onesign.c)
