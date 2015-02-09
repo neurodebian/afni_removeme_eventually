@@ -5,7 +5,7 @@ Author: Michael Hanke <michael.hanke@gmail.com>
 Last-Update: 2010-09-29
 --- a/afni_func.c
 +++ b/afni_func.c
-@@ -6485,7 +6485,7 @@ ENTRY("AFNI_tips_CB") ;
+@@ -6548,7 +6548,7 @@ ENTRY("AFNI_tips_CB") ;
       XMapRaised( XtDisplay(tips_hw->wshell) , XtWindow(tips_hw->wshell) ) ;
       EXRETURN ;
     } else if( !AFNI_noenv("AFNI_DONT_USE_HTMLWIN") ){
@@ -14,7 +14,7 @@ Last-Update: 2010-09-29
       if( fpt != NULL && *fpt != '\0' ){
         inf = (char *)malloc(sizeof(char)*(strlen(fpt)+16)) ;
         strcpy(inf,"file:") ; strcat(inf,fpt) ; free(fpt) ;
-@@ -7423,6 +7423,8 @@ ENTRY("AFNI_find_poem_files") ;
+@@ -7486,6 +7486,8 @@ ENTRY("AFNI_find_poem_files") ;
     /*----- get path to search -----*/
  
                         epath = getenv("AFNI_PLUGINPATH") ;
@@ -36,7 +36,7 @@ Last-Update: 2010-09-29
     if( epath == NULL ) epath = getenv("HOME") ;
 --- a/thd_ttatlas_query.c
 +++ b/thd_ttatlas_query.c
-@@ -631,6 +631,9 @@ char * get_env_atlas_path()
+@@ -632,6 +632,9 @@ char * get_env_atlas_path()
  {
     char *epath;
                         epath = getenv("AFNI_ATLAS_PATH") ;
@@ -48,7 +48,7 @@ Last-Update: 2010-09-29
     if( epath == NULL ) epath = getenv("PATH") ;
 --- a/afni.c
 +++ b/afni.c
-@@ -5304,12 +5304,31 @@ ENTRY("AFNI_read_inputs") ;
+@@ -5317,12 +5317,31 @@ ENTRY("AFNI_read_inputs") ;
        /*-- 20 Dec 2001: Try to read a "global" session --*/
        /*-- 11 May 2002: Move read global session up here --*/
  

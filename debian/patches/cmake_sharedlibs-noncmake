@@ -199,7 +199,7 @@ Last-Update: 2010-09-21
     ff <- ff[lapply(ff,file.exists)==TRUE];
     aa <- gsub('//','/',ff[1], fixed=TRUE)
     if (is.na(aa)) aa <- NULL
-@@ -63,10 +63,10 @@ note.AFNI <- function (str='May I speak
+@@ -63,11 +63,11 @@ note.AFNI <- function (str='May I speak
  
  set_R_io <- function() {
     rio <- 0
@@ -208,7 +208,9 @@ Last-Update: 2010-09-21
     if (!is.null(ll)) {
        dd <- try(dyn.load(ll), silent=TRUE)
 -      if (dd[[1]]!="R_io") {
+-         warn.AFNI(paste("Failed to load R_io.so with this error message:\n"));
 +      if (dd[[1]]!="librio") {
-          note.AFNI(paste("Failed to load R_io.so."));
++         warn.AFNI(paste("Failed to load librio.so with this error message:\n"));
+          dyn.load(ll)
        } else {
           rio <- 1
