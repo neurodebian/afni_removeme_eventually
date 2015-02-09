@@ -1,7 +1,7 @@
 /*************************************************************************
  * connexe.c - extraction of connected components
  *
- * $Id: connexe.c,v 1.2 2012/10/04 13:28:17 ziad Exp $
+ * $Id$
  *
  * LICENSE:
  * GPL v3.0 (see gpl-3.0.txt for details)

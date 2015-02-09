@@ -85,6 +85,7 @@ typedef struct {
    THD_3dim_dataset *fset;
    THD_3dim_dataset *xset;
    THD_3dim_dataset *gset;
+   THD_3dim_dataset *outl;
    THD_3dim_dataset *gold;
    THD_3dim_dataset *gold_bias;
    THD_3dim_dataset *priCgA;
@@ -140,6 +141,7 @@ typedef struct {
    byte DO_p;
    byte DO_f;
    byte DO_c;
+   byte DO_o;
    byte DO_x;
    byte DO_r;
    byte Writepcg_G_au;
@@ -173,6 +175,9 @@ typedef struct {
    int i1, i2, i3, i4, i5;
    float f1, f2, f3, f4, f5;
    
+   int erode;
+   int dilate;
+   
    int       N_hspec;
    SUMA_HIST **hspec;
 } SEG_OPTS;
@@ -180,7 +185,7 @@ typedef struct {
 void GenPriors_usage(int) ;
 void Seg_usage(int) ;
 SEG_OPTS *Seg_ParseInput (SEG_OPTS *Opt, char *argv[], int argc);
-byte *MaskSetup(SEG_OPTS *Opt, THD_3dim_dataset *aset, 
+byte *MaskSetup(SEG_OPTS *Opt, THD_3dim_dataset *aset, int mask_zero_aset,
                 THD_3dim_dataset **msetp, byte **cmaskp, int dimcmask, 
                 float mask_bot, float mask_top, int *mcount); 
 THD_3dim_dataset *Seg_load_dset( char *set_name );

@@ -1,7 +1,7 @@
 /*************************************************************************
  * test-hyster-pnm.c - example program of hystersis thresholding
  *
- * $Id: test-hyster-pnm.c,v 1.2 2012/10/04 13:28:19 ziad Exp $
+ * $Id$
  *
  * LICENSE:
  * GPL v3.0 (see gpl-3.0.txt for details)

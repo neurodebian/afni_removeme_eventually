@@ -1,7 +1,7 @@
 /*************************************************************************
  * convert.c - conversion between types
  *
- * $Id: convert.c,v 1.3 2013/03/26 22:13:38 ziad Exp $
+ * $Id$
  *
  * LICENSE:
  * GPL v3.0 (see gpl-3.0.txt for details)

@@ -1487,6 +1487,9 @@ void AFNI_sigfunc_alrm(int sig)
      "I am not bound to please thee with my statistics"              ,
      "I will praise any man that will praise me"                     ,
      "If you have tears, prepare to shed them now"                   ,
+     "Man, those neutrinos are killing me"                           ,
+     "Are you ready for the explosion of Eta Carinae?"               ,
+     "Remember -- AFNI is free, but worth at least 1000 times more"  ,
      "Remember -- Nothing is always absolutely so"                   ,
      "Remember -- 90% of everything is cr*p"                         ,
      "Remember -- Good things always take longer than you expect"    ,
@@ -1500,12 +1503,14 @@ void AFNI_sigfunc_alrm(int sig)
      "Remember -- He who laughs, lasts"                              ,
      "The best laid statistics of mice and men gang aft agley"       ,
      "A thousand farewells pass in one moment"                       ,
+     "Did you see hyperconnectivity in the disconnected fibers?"     ,
      "Out out, brief candle"                                         ,
      "A poor player that struts and frets its hour upon the screen"  ,
      "Is it just me, or is gravity extra strong today?"              ,
      "All this Dark Matter whizzing around makes it hard to think"   ,
      "Thank you so so so very much"                                  ,
      "Will you miss me?"                                             ,
+     "Was there life before Google?"                                 ,
      "If you can't be good, be careful"                              ,
      "What sweet madness has seized me?"                             ,
      "Which is more accurate: Haruspicy or Statistical Inference?"   ,
@@ -1557,6 +1562,7 @@ void AFNI_sigfunc_alrm(int sig)
      "Brain-ology at the cutting edge since 1994!"                   ,
      "Don't you wish it had a 'Write Nature Paper' button?"          ,
 
+     "Why is 'Gold Standard' used in science? Gold is pretty but almost useless"      ,
      "Oh well, you can always end your paper with 'Further research needed'"          ,
      "It's not true my youth was wild and crazy -- only half of that is true"         ,
      "Not yet quite as powerful as the totalized and integrated mind of Arisia"       ,
@@ -1780,9 +1786,9 @@ int main( int argc , char *argv[] )
    }
 
    if( check_string("-global_opts",argc,argv) ) {      /* list global */
-     fputs(SUMA_Offset_SLines(get_help_help(),3), 
+     fputs(SUMA_Offset_SLines(get_help_help(),3),
                                     stdout);   /* opts used by all AFNI progs */
-     fputs(get_gopt_help(), stdout);   
+     fputs(get_gopt_help(), stdout);
      dienow++ ;
    }
 

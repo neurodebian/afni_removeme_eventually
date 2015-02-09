@@ -1,7 +1,7 @@
 /*************************************************************************
  * extrema.h - tools for non-maxima gradient point suppression
  *
- * $Id: extrema.h,v 1.2 2012/10/04 13:28:18 ziad Exp $
+ * $Id$
  *
  * LICENSE:
  * GPL v3.0 (see gpl-3.0.txt for details)

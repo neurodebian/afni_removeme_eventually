@@ -25,7 +25,7 @@ gary@compgen.com
 
 */
 /* Revision History:
-$Log: LiteClueP.h,v $
+$Log$
 Revision 1.1  1997/11/05 01:14:31  cox
 Initial revision
 

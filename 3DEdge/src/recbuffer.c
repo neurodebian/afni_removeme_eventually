@@ -1,7 +1,7 @@
 /*************************************************************************
  * recbuffer.c - tools for recursive filtering of 3D and 2D image buffers
  *
- * $Id: recbuffer.c,v 1.2 2012/10/04 13:28:18 ziad Exp $
+ * $Id$
  *
  * LICENSE:
  * GPL v3.0 (see gpl-3.0.txt for details)

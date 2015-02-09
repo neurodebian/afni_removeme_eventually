@@ -29,7 +29,7 @@ Thanks to Contributers:
 J Satchell, Eric Marttila 
 */
 /* Revision History:
-$Log: LiteClue.c,v $
+$Log$
 Revision 1.18  2009/03/05 21:55:24  rickr
 Cput
 

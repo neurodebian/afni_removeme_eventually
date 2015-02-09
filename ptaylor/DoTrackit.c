@@ -242,7 +242,8 @@ int WriteBasicProbFiles(int N_nets, int Ndata, int Nvox,
 								THD_3dim_dataset *dsetn,int argc, char *argv[],
                         char ***ROI_STR_LABS, int NameLabelsOut,
                         Dtable *roi_table,
-                        int **roi_labs, int PAIR_POWERON)
+                        int **roi_labs, int PAIR_POWERON,
+                        int NIFTI_OUT)
 {
 
 	int i,j,k,bb,hh,kk,rr,idx;
@@ -287,7 +288,10 @@ int WriteBasicProbFiles(int N_nets, int Ndata, int Nvox,
       // MULTI_ROI acts as both a switch and a number
       MULTI_ROI = ( NROI[hh] > 1 ) ? 1 : 0;
 
-		sprintf(prefix_netmap[hh],"%s_%03d_PAIRMAP",prefix,hh); 
+      if( NIFTI_OUT )
+         sprintf(prefix_netmap[hh],"%s_%03d_PAIRMAP.nii.gz",prefix,hh); 
+      else
+         sprintf(prefix_netmap[hh],"%s_%03d_PAIRMAP",prefix,hh); 
 
       // Sept 2014
       sprintf(prefix_dtable[hh],"%s_%03d_PAIRMAP.niml.lt",prefix, hh); 
@@ -326,8 +330,12 @@ int WriteBasicProbFiles(int N_nets, int Ndata, int Nvox,
          EDIT_dset_items(networkMAPS,
                          ADN_datum_all , MRI_short , 
                          ADN_none ) ;
-		
-		sprintf(prefix_netmap2[hh],"%s_%03d_INDIMAP",prefix,hh); 
+
+      if( NIFTI_OUT )
+         sprintf(prefix_netmap2[hh],"%s_%03d_INDIMAP.nii.gz",prefix,hh); 
+      else
+         sprintf(prefix_netmap2[hh],"%s_%03d_INDIMAP",prefix,hh); 
+
 		// just get one of right dimensions!
 		networkMAPS2 = EDIT_empty_copy( insetFA ) ; 
       // Oct. 2014: if only 1 ROI in set, then just output 0th brick
@@ -664,7 +672,8 @@ int WriteIndivProbFiles(int N_nets, int Ndata, int Nvox, int **Prob_grid,
 								THD_3dim_dataset *dsetn,int argc, char *argv[],
 								float ***Param_grid, int DUMP_TYPE,
 								int DUMP_ORIG_LABS, int **ROI_LABELS, int POST_IT,
-                        char ***ROI_STR_LAB, int NameLabelsOut)
+                        char ***ROI_STR_LAB, int NameLabelsOut,
+                        int NIFTI_OUT)
 {
 
 	int i,j,k,bb,hh,rr,ii,jj,kk;
@@ -676,9 +685,15 @@ int WriteIndivProbFiles(int N_nets, int Ndata, int Nvox, int **Prob_grid,
 	int sum_pairs=0;
 	FILE *fout;
    int idx3;
+   int OUT_FLOAT_MAP = 0;
    //char str1[128]={""}, str2[128]={""};
    //char *str_lab1=NULL, *str_lab2=NULL;
 
+
+   if( POST_IT || ( DUMP_TYPE==4) )
+      OUT_FLOAT_MAP = 1;
+   
+   
 	N_totpair = (int *)calloc(N_nets, sizeof(int)); 
    //   str_lab1 = (char *)calloc(100, sizeof(char));
    //str_lab2 = (char *)calloc(100, sizeof(char));
@@ -719,7 +734,7 @@ int WriteIndivProbFiles(int N_nets, int Ndata, int Nvox, int **Prob_grid,
 			exit(122);
 		}
 		
-
+      mkdir(prefix, 0777);
 		// ****** calc/do, loop through networks
 		for( hh=0 ; hh<N_nets ; hh++) {
 			count=0;
@@ -727,18 +742,39 @@ int WriteIndivProbFiles(int N_nets, int Ndata, int Nvox, int **Prob_grid,
 				for( j=i ; j<NROI[hh] ; j++ ) {// include diags
                idx3 = MatrInd_to_FlatUHT(i,j,NROI[hh]);
 					if(Prob_grid[hh][idx3]>0) {
-                  if( ROI_STR_LAB && NameLabelsOut ){
-                     snprintf(prefix_netmap[hh][count], 300,
-									  "%s/NET_%03d_ROI_%s_%s", prefix, hh,
-                             ROI_STR_LAB[hh][i+1], ROI_STR_LAB[hh][j+1]); 
+                  if( ROI_STR_LAB && NameLabelsOut ) {
+                     if( NIFTI_OUT )
+                        snprintf(prefix_netmap[hh][count], 300,
+                                 "%s/NET_%03d_ROI_%s_%s.nii.gz", prefix, hh,
+                                 ROI_STR_LAB[hh][i+1], ROI_STR_LAB[hh][j+1]); 
+                     else
+                        snprintf(prefix_netmap[hh][count], 300,
+                                 "%s/NET_%03d_ROI_%s_%s", prefix, hh,
+                                 ROI_STR_LAB[hh][i+1], ROI_STR_LAB[hh][j+1]); 
                   }
-						else if(!DUMP_ORIG_LABS)
-                     snprintf(prefix_netmap[hh][count], 300,
-									  "%s/NET_%03d_ROI_%03d_%03d",prefix,hh,i+1,j+1); 
-                  else
-                     snprintf(prefix_netmap[hh][count], 300,
-									  "%s/NET_%03d_ROI_%03d_%03d",prefix,hh,
-									  ROI_LABELS[hh][i+1],ROI_LABELS[hh][j+1]); 
+						else if(!DUMP_ORIG_LABS) {
+                     if( NIFTI_OUT )
+                        snprintf(prefix_netmap[hh][count], 300,
+                                 "%s/NET_%03d_ROI_%03d_%03d.nii.gz",
+                                 prefix,hh,i+1,j+1); 
+                     else
+                        snprintf(prefix_netmap[hh][count], 300,
+                                 "%s/NET_%03d_ROI_%03d_%03d",
+                                 prefix,hh,i+1,j+1); 
+                  }
+                  else{
+                     if( NIFTI_OUT )
+                        snprintf(prefix_netmap[hh][count], 300,
+                                 "%s/NET_%03d_ROI_%03d_%03d.nii.gz",prefix,hh,
+                                 ROI_LABELS[hh][i+1],ROI_LABELS[hh][j+1]); 
+                     else
+                        snprintf(prefix_netmap[hh][count], 300,
+                                 "%s/NET_%03d_ROI_%03d_%03d",prefix,hh,
+                                 ROI_LABELS[hh][i+1],ROI_LABELS[hh][j+1]); 
+                  }
+
+
+
 
 						// single brik, byte map
 						networkMAPS = EDIT_empty_copy( insetFA ) ; 
@@ -755,7 +791,7 @@ int WriteIndivProbFiles(int N_nets, int Ndata, int Nvox, int **Prob_grid,
 		
 						// first array for all tracks, 2nd for paired ones.
 						// still just need one set of matrices output
-                  if(POST_IT) {
+                  if(OUT_FLOAT_MAP) {
                     // will be single brik output
                     temp_arr_FL = (float *)calloc(Nvox, sizeof(float));
                     if(( temp_arr_FL== NULL)) {
@@ -794,7 +830,7 @@ int WriteIndivProbFiles(int N_nets, int Ndata, int Nvox, int **Prob_grid,
                               idx3 = MatrInd_to_FlatUHT(i,j,NROI[hh]);
 										if(NETROI[INDEX2[ii][jj][kk]][hh][idx3]>0) {
                                 // store locations
-                                if(POST_IT)
+                                if(OUT_FLOAT_MAP)
                                   temp_arr_FL[idx] = (float) 
                                     NETROI[INDEX2[ii][jj][kk]][hh][idx3];
                                 else
@@ -814,7 +850,7 @@ int WriteIndivProbFiles(int N_nets, int Ndata, int Nvox, int **Prob_grid,
                            "idx2 %d != %d paramgrid.\n",
                            hh,i,j,idx2,(int) Param_grid[hh][idx3][0]);
                   
-                  if(POST_IT){
+                  if(OUT_FLOAT_MAP){
                     EDIT_substitute_brick(networkMAPS, 0, MRI_float, 
                                           temp_arr_FL);
                     temp_arr_FL=NULL; // to not get into trouble...
@@ -844,7 +880,7 @@ int WriteIndivProbFiles(int N_nets, int Ndata, int Nvox, int **Prob_grid,
 											 ADN_brick_label_one , "ROI_pair",
 											 ADN_none ) ;
 						
-						// output AFNI if D_T=2 or 3
+						// output AFNI if D_T=2 or 3 -> or now 4
 						if(DUMP_TYPE>1) {
 							THD_load_statistics(networkMAPS);
 							if( !THD_ok_overwrite() && 
@@ -856,14 +892,14 @@ int WriteIndivProbFiles(int N_nets, int Ndata, int Nvox, int **Prob_grid,
 						}
 
 						DSET_delete(networkMAPS); 
-                  if(POST_IT)
+                  if(OUT_FLOAT_MAP)
                     free(temp_arr_FL);
                   else
                     free(temp_arr_BY);
                   
-						// THEN THE DUMP FILE
+						// THEN THE DUMP TEXT FILE
 						// if D_T = 1 or 3
-						if( DUMP_TYPE % 2) {
+						if( (DUMP_TYPE==1) || (DUMP_TYPE==3) ) {
 							if( (fout = fopen(prefix_dump[hh][count], "w")) == NULL) {
 								fprintf(stderr, "Error opening file %s.",
 										  prefix_dump[hh][count]);

@@ -49,6 +49,28 @@
 
 
 afni_history_struct dglen_history[] = {
+{ 23 , JAN, 2015 , DRG , "whereami GUI" , 
+    MINOR , TYPE_NEW_ENV, 
+    "Web-based links in Whereami GUI on by default",
+    "Links will be available by default now. Effectively\n"
+    "equivalent to setting these environment variables to YES:\n"
+    "AFNI_WEBBY_WAMI, AFNI_SUMSDB and AFNI_NEUROSYNTH."
+} ,
+
+{ 20 , JAN, 2015 , DRG , "whereami GUI" , 
+    MINOR , TYPE_NEW_ENV, 
+    "SumsDB link",
+    "Link out from whereami GUI in afni to SumsDB database\n"
+    "with new environment variable AFNI_SUMSDB (YES/NO).\n"
+    "Must also set AFNI_WEBBY_WAMI to YES."
+} ,
+
+{ 8 , JAN, 2015 , DRG , "@Shift_Volume" , 
+    MICRO , TYPE_BUG_FIX, 
+    "No need to update space for simple shift option",
+    "Previous version reported error for RAI shift but produced correct results\n"
+} ,
+
 { 18 , DEC, 2014 , DRG , "VmPFC atlas" , 
     MINOR , TYPE_GENERAL, 
     "Ventro-medial prefrontal cortex atlas",

@@ -138,6 +138,7 @@ SEG_OPTS *free_SegOpts(SEG_OPTS *Opt) {
    if (Opt->fset) DSET_delete(Opt->fset); Opt->fset = NULL;
    if (Opt->xset) DSET_delete(Opt->xset); Opt->xset = NULL;
    if (Opt->gset) DSET_delete(Opt->gset); Opt->gset = NULL;
+   if (Opt->outl) DSET_delete(Opt->outl); Opt->outl = NULL;
    if (Opt->sig)  DSET_delete(Opt->sig); Opt->sig = NULL;
    if (Opt->priCgA)  DSET_delete(Opt->priCgA); Opt->priCgA = NULL;
    if (Opt->priCgL)  DSET_delete(Opt->priCgL); Opt->priCgL = NULL;
@@ -902,7 +903,7 @@ SEG_OPTS *Seg_ParseInput (SEG_OPTS *Opt, char *argv[], int argc)
    RETURN(Opt);
 }
 
-byte *MaskSetup(SEG_OPTS *Opt, THD_3dim_dataset *aset, 
+byte *MaskSetup(SEG_OPTS *Opt, THD_3dim_dataset *aset, int mask_zero_aset,
                 THD_3dim_dataset **msetp, byte **cmaskp, int dimcmask, 
                 float mask_bot, float mask_top, int *mcount) 
 { 
@@ -992,30 +993,33 @@ byte *MaskSetup(SEG_OPTS *Opt, THD_3dim_dataset *aset,
    
    /* Make sure that aset has no exact 0s that are in the mask 
       Unless had VOX_DEBUG for mask */
-   if (Opt->mset_name && strcmp(Opt->mset_name,"VOX_DEBUG")) {
-      imin = THD_extract_float_brick(0,aset) ;
-      fa = MRI_FLOAT_PTR(imin);
-      Fixit = 0;
-      for( ii=0 ; ii < DSET_NVOX(aset) && !Fixit; ii++ ) {
-         if (IN_MASK(mmm, ii) && fa[ii] == 0.0) {
-            Fixit = 1; 
+   if (mask_zero_aset) {
+      if (Opt->mset_name && strcmp(Opt->mset_name,"VOX_DEBUG")) {
+         imin = THD_extract_float_brick(0,aset) ;
+         fa = MRI_FLOAT_PTR(imin);
+         Fixit = 0;
+         for( ii=0 ; ii < DSET_NVOX(aset) && !Fixit; ii++ ) {
+            if (IN_MASK(mmm, ii) && fa[ii] == 0.0) {
+               Fixit = 1; 
+            }
          }
       }
-   }
-   if (Fixit) {
-      SUMA_LH("Have to merge mask with anat");
-      if (!mmm) {
-         mmm = (byte *)malloc(DSET_NVOX(aset)*sizeof(byte));
-         memset(mmm, 1, sizeof(byte)*DSET_NVOX(aset));
-         *mcount = DSET_NVOX(aset);
-      }
-      for( ii=0 ; ii < DSET_NVOX(aset); ii++ ) {
-         if (IN_MASK(mmm, ii) && fa[ii] == 0.0) {
-            mmm[ii] = 0; *mcount = *mcount - 1;
+      if (Fixit) {
+         SUMA_LH("Have to merge mask with anat");
+         if (!mmm) {
+            mmm = (byte *)malloc(DSET_NVOX(aset)*sizeof(byte));
+            memset(mmm, 1, sizeof(byte)*DSET_NVOX(aset));
+            *mcount = DSET_NVOX(aset);
+         }
+         for( ii=0 ; ii < DSET_NVOX(aset); ii++ ) {
+            if (IN_MASK(mmm, ii) && fa[ii] == 0.0) {
+               mmm[ii] = 0; *mcount = *mcount - 1;
+            }
          }
       }
+      if (imin) mri_free(imin); imin = NULL; fa = NULL;
    }
-   if (imin) mri_free(imin); imin = NULL; fa = NULL;
+   
    SUMA_RETURN(mmm);         
 }
 
@@ -1110,7 +1114,7 @@ THD_3dim_dataset *Seg_load_dset_eng( char *set_name, char *view )
    int i=0;
    byte make_cp=0;
    int verb=0;
-   char sprefix[THD_MAX_PREFIX+10];
+   char sprefix[THD_MAX_PREFIX+10], *stmp=NULL;
    
    SUMA_ENTRY;
    
@@ -1137,6 +1141,15 @@ THD_3dim_dataset *Seg_load_dset_eng( char *set_name, char *view )
          SUMA_RETURN(NULL);
       }
    }
+   
+   if (DSET_IS_MASTERED(dset)) {
+      if (verb) INFO_message("Dset is mastered, making copy...");
+      stmp = SUMA_ModifyName(set_name, "append", ".cp", NULL);
+      sdset = dset;
+      dset = EDIT_full_copy(sdset, stmp);
+      free(stmp); DSET_delete(sdset); sdset = NULL;  
+   }
+      
    
    if (view) {
       if (view) {

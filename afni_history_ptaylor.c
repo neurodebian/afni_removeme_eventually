@@ -66,6 +66,51 @@
 afni_history_struct ptaylor_history[] = {
 /*=====BELOW THIS LINE=====*/
 
+{ 27, Jan , 2015 , PT , "fat_mvm_scripter.py" , MINOR , TYPE_MODIFY,
+   "Include main effects of interaction vars in post hoc tests.",
+   "Hadn't been testing these previously.\n"
+},
+
+{ 26, Jan , 2015 , PT , "3dTrackID" , MINOR , TYPE_NEW_OPT,
+   "Can dump output *maps*, not just masks, of each connection.",
+   "See '-dump_rois AFNI_MAP' for how it works.\n"
+},
+
+{ 26, Jan , 2015 , PT , "fat_mvm_scripter.py" , MINOR , TYPE_BUG_FIX,
+   "Hadn't included part quantitative interaction term in qVars list.",
+   "Program wouldn't run if interaction term had quant var.\n"
+},
+
+{ 26, Jan , 2015 , PT , "fat_mvm_prep.py" , MICRO , TYPE_GENERAL,
+   "Ignore empty lines or whitespace lines in CSV file.",
+   "Causes less hassle at times now.\n"
+},
+
+{ 23, Jan , 2015 , PT , "3dTrackID" , MINOR , TYPE_BUG_FIX,
+   "Rare scenario of -nifti -dump_rois AFNI not working.",
+   "Needed to add a mkdir() internally.  Itsafinenow.\n"
+},
+
+{ 22, Jan , 2015 , PT , "3dROIMaker" , MINOR , TYPE_BUG_FIX,
+   "Fixed some issues when only a tiny number of voxels is in inset.",
+   "Labelling wasn't correct when nvox < n_refset_roi.\n"
+},
+
+{ 7, Jan , 2015 , PT , "3dNetCorr" , MINOR , TYPE_NEW_OPT,
+   "Switch to output nifti files.",
+   "For corr map or Z map files.\n"
+},
+
+{ 7, Jan , 2015 , PT , "3dROIMaker" , MINOR , TYPE_NEW_OPT,
+   "Switch to output nifti files.",
+   "For GM and GMI files.\n"
+},
+
+{ 7, Jan , 2015 , PT , "3dTrackID" , MINOR , TYPE_NEW_OPT,
+   "Switch to output nifti files.",
+   "For PAIRMAP, INDIMAP and -dump_rois output.\n"
+},
+
 { 21, Dec , 2014 , PT , "3dTrackID" , MINOR , TYPE_GENERAL,
    "Change of string output in .niml.dset.",
    "Make the label match the ROI string labels.\n"

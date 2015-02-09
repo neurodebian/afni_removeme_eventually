@@ -533,6 +533,7 @@ int SUMA_set_Stat(SUMA_CLASS_STAT *cs, char *label, char *pname, double val);
 double SUMA_get_Stat(SUMA_CLASS_STAT *cs, char *label, char *pname);
 double *SUMA_get_Stats(SUMA_CLASS_STAT *cs,  char *pname);
 int SUMA_MixFrac_from_ClassStat(SUMA_CLASS_STAT *cs, float *mf);
+int SUMA_ZeroSamp_from_ClassStat(SUMA_CLASS_STAT *cs);
 int SUMA_Stat_position (SUMA_CLASS_STAT *cs, char *label, char *pname, int pp[]);
 SUMA_CLASS_STAT *SUMA_Free_Class_Stat(SUMA_CLASS_STAT *cs);
 SUMA_CLASS_STAT *SUMA_New_Class_Stat(char **clsl, int N_clsl, int *keys, 
@@ -567,17 +568,32 @@ int SUMA_pst_C_giv_ALL(THD_3dim_dataset *aset,
 int SUMA_CompareSegDsets(THD_3dim_dataset *base, THD_3dim_dataset *seg,
                          byte *cmask, byte mask_by_base,
                          SUMA_CLASS_STAT *cs );
+int SUMA_ray_k(int n1D, int ni, int nij, int nk, float *av, byte *ba, 
+               float ta[], int da[]);
+int SUMA_ray_j(int n1D, int ni, int nij, int nj, float *av, byte *ba, 
+               float ta[], int da[]);
+int SUMA_ray_i(int n1D, int ni, int nij, float *av, byte *ba, 
+               float ta[], int da[]);
+int SUMA_ray_unplug_k(int n1D, int ni, int nij, int nk, 
+                      float *av, byte *ba, int side);
+int SUMA_ray_unplug_j(int n1D, int ni, int nij, int nj, 
+                      float *av, byte *ba, int side);
+int SUMA_ray_unplug_i(int n1D, int ni, int nij, 
+                      float *av, byte *ba, int side);
 int SUMA_VolumeInFill(THD_3dim_dataset *aset,
                       THD_3dim_dataset **filledp,
                       int method, int integ, int MxIter,
-                      int minhits);
+                      int minhits, int erode, int dilate, float val,
+                      byte *mask);
 int SUMA_Volume_RadFill(THD_3dim_dataset *aset, float *ufv, byte *ucmask,
                       float *ucm, THD_3dim_dataset **filledp,
                       int nplug, int nlin, int fitord, float smooth, int N_off);
 int SUMA_mri_volume_infill(MRI_IMAGE *imin);
 int SUMA_mri_volume_infill_zoom(MRI_IMAGE *imin, byte thorough, 
                                  int integ, int mxiter);
-int SUMA_mri_volume_infill_solid(MRI_IMAGE *imin, int minhits);
+int SUMA_mri_volume_infill_solid(MRI_IMAGE *imin, int minhits, 
+                                 int mxiter, int unholize,
+                                 byte *mask);
 int SUMA_VolumeBlurInMask(THD_3dim_dataset *aset,
                                      byte *cmask,
                                      THD_3dim_dataset **blrdp,
@@ -651,6 +667,8 @@ int SUMA_Split_Classes(char **Glbls, int N_Glbls, int *Gkeys, int *Split,
 int SUMA_SetDsetLabeltable(THD_3dim_dataset *dset, char **labels, 
                            int N_labels, int *keys);
 
+SUMA_SurfaceObject *SUMA_Mask_Skin(THD_3dim_dataset *iset, int ld,
+                       int smooth_final, int shrink_mode, SUMA_COMM_STRUCT *cs);
 SUMA_SurfaceObject *SUMA_Dset_ConvexHull(THD_3dim_dataset *dset, int isb,
                                         float th, byte *umask);
 SUMA_SurfaceObject *SUMA_ExtractHead_hull(THD_3dim_dataset *iset,
@@ -659,6 +677,10 @@ SUMA_SurfaceObject *SUMA_ExtractHead(THD_3dim_dataset *iset,
                                      float hullvolthr, SUMA_COMM_STRUCT *cs);
 SUMA_SurfaceObject *SUMA_ExtractHead_RS(THD_3dim_dataset *iset,
                                THD_3dim_dataset **urset, SUMA_COMM_STRUCT *cs);
+SUMA_Boolean SUMA_ShrinkSkullHull2Mask(SUMA_SurfaceObject *SO, 
+                             THD_3dim_dataset *iset, float thr,
+                             int smooth_final,
+                             SUMA_COMM_STRUCT *cs);
 SUMA_Boolean SUMA_ShrinkSkullHull(SUMA_SurfaceObject *SO, 
                              THD_3dim_dataset *iset, float thr,
                              int use_rs, SUMA_COMM_STRUCT *cs);                  

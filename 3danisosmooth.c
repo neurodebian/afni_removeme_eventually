@@ -37,6 +37,7 @@ int compute_method = 0;   /* use Ding's method to compute phi values */
 int matchorig = 0;        /* match original range of data - off by default */
 float deltatflag = -1.0;  /* compute pseudotime step or use specific value */
 int noneg = 0;            /* allow only non-negative values - off by default */
+float NegVal = 0.0f;      /* Value to replace negative voxels */
 float edgefraction = 0.5;  /* default fraction of anisotropic image to add */
 float *brikmax, *brikmin;  /* array of maximum and minimum values for each sub-brick in volume */
 
@@ -72,7 +73,7 @@ static void Compute_3dAS_Max_Brick(THD_3dim_dataset *dset, byte *maskptr, int br
 static void AS_scale_float_dset(THD_3dim_dataset *dset, byte *maskptr, float fratio);
 
 extern THD_3dim_dataset *
-DWIstructtensor(THD_3dim_dataset * DWI_dset, int flag2D3D, byte *maskptr, int smooth_flag, int save_tempdsets_flag);
+DWIstructtensor(THD_3dim_dataset * DWI_dset, int flag2D3D, byte *maskptr, int smooth_flag, int save_tempdsets_flag, float *cen);
 extern MRI_IMARR *Compute_Gradient_Matrix(THD_3dim_dataset *DWI_dset, int flag2D3D, byte *maskptr, int prodflag, int smoothflag,
 float smooth_factor);
 extern MRI_IMARR *Compute_Gradient_Matrix_Im(MRI_IMAGE *SourceIm, int flag2D3D, byte *maskptr, int xflag, int yflag, int zflag);
@@ -106,7 +107,7 @@ int main( int argc , char * argv[] )
    void *out_ptr;
    MRI_IMARR *fim_array;
    MRI_IMAGE *fim;
-   float fimfac;
+   float fimfac, cen[3];
    float as_fmax, as_fmin;   /* max and min values in original dataset */
 
 
@@ -141,10 +142,11 @@ int main( int argc , char * argv[] )
 "    ITER is the iteration number. Existing datasets will get overwritten.\n"
 "  -save_temp_with_diff_measures: Like -savetempdata, but with \n"
 "    a dataset named Diff_measures.ITER containing FA, MD, Cl, Cp, \n"
-"    and Cs values."
+"    and Cs values.\n"
 "  -phiding = use Ding method for computing phi (default)\n"
 "  -phiexp = use exponential method for computing phi\n"
 "  -noneg = set negative voxels to 0\n" 
+"  -setneg NEGVAL = set negative voxels to NEGVAL\n" 
 "  -edgefraction n.nnn = adjust the fraction of the anisotropic\n"
 "    component to be added to the original image. Can vary between\n"
 "    0 and 1. Default =0.5\n"
@@ -357,6 +359,17 @@ int main( int argc , char * argv[] )
 	   continue;
      }
 
+     if( strcmp(argv[nopt],"-setneg") == 0 ){
+	   if(++nopt >=argc ){
+	      ERROR_exit("Error - need an argument after -setneg!");
+	      
+	   }
+      noneg = 1;
+      NegVal = atof(argv[nopt]);
+      
+      nopt++;
+	   continue;
+     }
      if( strcmp(argv[nopt],"-matchorig") == 0 ){
            matchorig = 1;
 	   nopt++;
@@ -464,6 +477,14 @@ int main( int argc , char * argv[] )
    DSET_mallocize (dset);
    DSET_load (dset);	                /* load dataset */
 
+  if (get_with_diff_measures()) {
+   THD_fvec3 cmv = THD_cmass( dset , 0, NULL);
+   UNLOAD_FVEC3(cmv, cen[0], cen[1], cen[2]);
+  } else {
+   cen[0] = cen[1] = cen[2] = 0.0;
+  }
+   
+
   /* copy to udset in floats */
   /* printf("Copying to float");*/
 #if 0 
@@ -509,13 +530,14 @@ int main( int argc , char * argv[] )
   if(afnitalk_flag) {
       Show_dset_slice(udset);  /* show mid-slice in middle brik */
   }
+  
  
   for(i=0;i<iters;i++){
      INFO_message("iteration %d", i);
      /* compute image diffusion tensor dataset */
      INFO_message("   computing structure tensor");
      structtensor =  DWIstructtensor(udset, flag2D3D, maskptr, 
-                     smooth_flag, save_tempdsets_flag*(i+1));
+                     smooth_flag, save_tempdsets_flag*(i+1), (float *)cen);
  /* Test_data(structtensor);*/
      if((i==iters-1)&&(save_tempdsets_flag)) {
        tross_Make_History ("3danisosmooth", argc, argv, structtensor);
@@ -1335,7 +1357,7 @@ static void Compute_Smooth(THD_3dim_dataset *udset, int outbrik, THD_3dim_datase
     	        Fval = Dmean * ((a * (sv0 + sv2)) + (b * (sv1 + v3 + v5)) + c*v4);
                 Fval = v4 + DeltaT  *  ((Fval*Ffrac) + (*Gvalptr*Gfrac));
 		if((noneg)&&(Fval<0.0f))      /* limit values to positive for user option */
-		   Fval = 0.0f;
+		   Fval = NegVal;
 		else {
 		   if(matchorig) {
 		     if(Fval>as_fmax) /* peg values to max and min of original values for user option*/
@@ -1562,7 +1584,7 @@ static void Compute_Smooth(THD_3dim_dataset *udset, int outbrik, THD_3dim_datase
 	       Fval *= Dmean;
                Fval = v13 + DeltaT  *  ((Fval*Ffrac) + (*Gvalptr*Gfrac));
 	       if((noneg)&&(Fval<0.0f))
-	          Fval = 0.0f;
+	          Fval = NegVal;
     	       else {
 		   if(matchorig) {
 		     if(Fval>as_fmax) /* peg values to max and min of original values for user option*/

@@ -65,6 +65,107 @@
 
 afni_history_struct ziad_history[] = {
 /*=====BELOW THIS LINE=====*/
+ { 5, Feb, 2014, ZSS, "3dinfill", MICRO, TYPE_NEW_OPT,
+   "Added -mask option to restrict filling to holes within mask",
+   NULL
+ },
+
+ { 5, Feb, 2014, ZSS, "@Test_disk_IO", MICRO, TYPE_NEW_PROG,
+   "Script to test disk I/O speeds",
+   NULL
+ },
+
+ { 5, Feb, 2014, ZSS, "3danisosmooth.c", MICRO, TYPE_MODIFY,
+   "More smoothing feature output.",
+   "Output cosine of principal gradient eigen vector with radial "
+   "direction in debugging output."
+ },
+
+ { 5, Feb, 2014, ZSS, "3dBrickStat.c", MICRO, TYPE_NEW_OPT,
+   "added -stdev",
+   NULL
+ },
+
+ { 2, Feb, 2014, ZSS, "DriveSuma", MINOR, TYPE_NEW_OPT,
+   "Take coords from a surface rather than just a file for -com node_xyz",
+   NULL
+ },
+
+ { 30, Jan, 2014, ZSS, "3dinfill", MINOR, TYPE_NEW_OPT,
+   "Improvements to SOLID fill method and addition of option -ed",
+   NULL
+ },
+
+ { 30, Jan, 2014, ZSS, "BrainSkin", MINOR, TYPE_NEW_OPT,
+   "Added -vol_skin and -vol_hull to create smooth contours of mask volume.",
+   NULL
+ },
+
+ { 23, Jan, 2014, ZSS, "3dLocalstat", MINOR, TYPE_NEW_OPT,
+   "Added -stat list and -stat hist* .",
+   NULL
+ },
+
+ { 21, Jan, 2014, ZSS, "3dGenPriors", MICRO, TYPE_NEW_OPT,
+   "Made program output centrality measures with -do o .",
+   "Documentaiton hidden until option is ready for mass usage." 
+ },
+
+ { 21, Jan, 2014, ZSS, "3dGenPriors", MICRO, TYPE_MODIFY,
+   "Made it use labeltable from -cset if needed & check for empty init classes.",
+   NULL
+ },
+
+ { 21, Jan, 2014, ZSS, "3dSkullStrip", MICRO, TYPE_BUG_FIX,
+   "Made program take sub-brick selectors at input.",
+   "Involved bringing SUMA_AfniExists() and SUMA_AfniPrefix() from stone age." 
+ },
+
+ { 16, Jan, 2014, ZSS, "3dHist", MICRO, TYPE_NEW_OPT,
+   "Added -get outl",
+   "Included fixing returned values in SUMA_hist_value() when out of bounds." 
+ },
+
+ { 15, Jan, 2014, ZSS, "imcat", MICRO, TYPE_NEW_OPT,
+   "-zero_wrap, and -gray_wrap for padding with black, white, or gray levels.",
+   NULL 
+ },
+
+ { 15, Jan, 2014, ZSS, "@ExamineGenFeatDists", MICRO, TYPE_NEW_OPT,
+   "Added option -nx, padding with white, fixed couple of small glitches too.",
+   NULL 
+ },
+
+ { 13, Jan, 2014, ZSS, "afni-general", MICRO, TYPE_MODIFY,
+   "Made R_io.so loading error a little more helpful.",
+   NULL 
+ },
+
+ { 9, Jan, 2014, ZSS, "afni-general", MINOR, TYPE_MODIFY,
+   "Made sure neighborhoods containing central voxel return its value 1st.",
+   NULL 
+ },
+
+ { 9, Jan, 2014, ZSS, "suma-general", MINOR, TYPE_MODIFY,
+   "Released new documentation to the wild.",
+   NULL 
+ },
+
+ { 9, Jan, 2014, ZSS, "3dLocalstat", MINOR, TYPE_MODIFY,
+   "Added -*diffs options for computing local differences",
+   NULL 
+ },
+
+ { 29, Dec, 2014, ZSS, "suma-general", MINOR, TYPE_MODIFY,
+   "Lot of additions to SphinxDocs/SUMA, plus auto-doc for SUMA controller",
+   NULL 
+ },
+
+ { 29, Dec, 2014, ZSS, "afni_open", MICRO, TYPE_MODIFY,
+   "Made it open local .html files",
+   NULL 
+ },
+
  { 22, Dec, 2014, ZSS, "suma", MINOR, TYPE_NEW_OPT,
    "Added All Objs button to initialize controllers for all objects if desired",
    NULL 

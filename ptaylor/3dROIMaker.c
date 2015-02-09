@@ -39,6 +39,12 @@
         new option for delineating a peak set of N connected voxels
         within an ROI
 
+    Jan 2015:
+        added nifti output switch
+
+    Jan 2015b:
+        minor bug fix when tiny number of input suprathreshold voxels
+
 */
 
 
@@ -200,6 +206,8 @@ void usage_ROIMaker(int detail)
 "    -neigh_upto_vert  :can loosen the definition of neighbors, so that\n"
 "                       voxels can be grouped into the same ROI if they share\n"
 "                       at least one vertex (see above for default).\n"
+"    -nifti            :switch to output *.nii.gz GM and GMI files\n"
+"                       (default format is BRIK/HEAD).\n"
 "\n"
 "  -preinfl_inset PSET :as a possible use, one might want to start with a WM\n"
 "                       ROI, inflate it to find the nearest GM, then expand\n"
@@ -312,6 +320,7 @@ int main(int argc, char *argv[]) {
 
    int HOT_POINTS=0;
    int HOT_CONN=0;
+   int NIFTI_OUT=0;
 
    int *RESCALES=NULL; // will be used if negative values in refset mask
    short int **temp_ref=NULL; // for holding rescaled values
@@ -507,6 +516,11 @@ int main(int argc, char *argv[]) {
 							ERROR_exit("Need argument after '-skel_thr'");
 			SKEL_THR = atof(argv[iarg]);
 			
+			iarg++ ; continue ;
+		}
+
+		if( strcmp(argv[iarg],"-nifti") == 0) {
+			NIFTI_OUT=1;
 			iarg++ ; continue ;
 		}
 
@@ -993,7 +1007,7 @@ int main(int argc, char *argv[]) {
          if( dum1[0]<0 )//??inset-->fixed
             RESCALES[i] = 1 - ((int) dum1[0]);
          //printf("\n%d\t%d --> refscal=%d",(int) dum1[0], 
-         //       (int) dum2[0], RESCALES[i]);
+         //     (int) dum2[0], RESCALES[i]);
       }
       
       // rescale values as necessary
@@ -1007,13 +1021,15 @@ int main(int argc, char *argv[]) {
                      temp_ref[m][idx] = (short int) 
                         THD_get_voxel(insetREF,idx,m);
                      if( RESCALES[m] )
-                        temp_ref[m][idx]+= RESCALES[m];
+                        temp_ref[m][idx]+= (short int) RESCALES[m];
                   }
                }
       }
       set_REFSCAL = EDIT_empty_copy( insetREF ) ; 
+
       EDIT_dset_items(set_REFSCAL,
 							 ADN_datum_all , MRI_short , 
+                      ADN_brick_fac, NULL,
 							 ADN_none ) ;
 
       for( m=0 ; m<Dim[3] ; m++ ) {
@@ -1022,14 +1038,17 @@ int main(int argc, char *argv[]) {
       }
       free(temp_ref);
 
-      for( i=0 ; i<HAVEREF ; i++) {
-         THD_subbrick_minmax(set_REFSCAL, i, 1,&dum1[0], &dum2[0]);
-         //printf("\nREFSCAL[%d] %d\t%d",i,(int) dum1[0],(int) dum2[0]);
-      }
+      for( i=0 ; i<HAVEREF ; i++)
+         THD_subbrick_minmax(set_REFSCAL, i, 1, &dum1[0], &dum2[0]);
       
-		for( i=0 ; i<HAVEREF ; i++) 
+		for( i=0 ; i<HAVEREF ; i++) {
 			INVROI_REF[i] = (int) THD_subbrick_max(set_REFSCAL, i, 1);
-		
+         if( INVROI_REF[i] >= MIN_NTHR_MAX_NROILAB ) // Jan 2015: safety catch for small input sets
+            ERROR_exit("There is a very large reference value label (%d) and this will break\n"
+                       "\t the delicate inner balance of the program. Contact PT for assistance\n",
+                       INVROI_REF[i] );
+      }
+
 		ROI_LABELS_REF = calloc( HAVEREF,sizeof(ROI_LABELS_REF));  
 		for(i=0 ; i<HAVEREF ; i++) 
 			ROI_LABELS_REF[i] = calloc(INVROI_REF[i]+1,sizeof(int)); 
@@ -1078,6 +1097,7 @@ int main(int argc, char *argv[]) {
 			fprintf(stderr, "\n\n MemAlloc failure.\n\n");
 			exit(17);
 		}
+
 		
 		// Step 3A-3: go through data set and refset, keep track of
 		// any overlaps and number of voxels in each overlapping region.
@@ -1221,7 +1241,8 @@ int main(int argc, char *argv[]) {
                                NROI_REF,
                                ROI_LABELS_REF,
                                NEIGHBOR_LIMIT);
-		
+
+
 	}
 	else { // simple case, just keep labels in order they were found.
 		for( m=0 ; m<Dim[3] ; m++ ) 
@@ -1243,8 +1264,12 @@ int main(int argc, char *argv[]) {
 	// **************************************************************
 	
 	outsetGM = EDIT_empty_copy( inset ) ; 
-	sprintf(prefix_GM,"%s_GM",prefix);
-	
+   if( NIFTI_OUT )
+      sprintf(prefix_GM,"%s_GM.nii.gz",prefix); // jan,2015
+   else
+      sprintf(prefix_GM,"%s_GM",prefix);
+
+
 	EDIT_dset_items( outsetGM,
 						  ADN_datum_all , MRI_short , 
 						  ADN_prefix    , prefix_GM ,
@@ -1428,7 +1453,10 @@ int main(int argc, char *argv[]) {
 	}
 
 	outsetGMI = EDIT_empty_copy( inset ) ; 
-	sprintf(prefix_GMI,"%s_GMI",prefix);
+   if( NIFTI_OUT )
+      sprintf(prefix_GMI,"%s_GMI.nii.gz",prefix); // jan,2015
+	else
+      sprintf(prefix_GMI,"%s_GMI",prefix);
 
    // start labelly stuff
    // Nov 2014

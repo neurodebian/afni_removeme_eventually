@@ -1,7 +1,7 @@
 /*************************************************************************
  * typedefs.h - 
  *
- * $Id: typedefs.h,v 1.3 2012/10/04 20:46:38 ziad Exp $
+ * $Id$
  *
  * LICENSE:
  * GPL v3.0 (see gpl-3.0.txt for details)

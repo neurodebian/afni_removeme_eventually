@@ -8,7 +8,7 @@
  *
  * plug_maskcalc.c		- plugin to do mask-based computations
  *
- * $Log: plug_maskcalc.c,v $
+ * $Log$
  * Revision 1.7  2005/04/19 21:07:17  rwcox
  * Cput
  *

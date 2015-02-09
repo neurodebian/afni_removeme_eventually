@@ -46,10 +46,10 @@
 **			Radiology.  It also defines unique identifiers
 **			for standard classes and objects defined by the
 **			standard.
-** Last Update:		$Author: rickr $, $Date: 2005/11/10 19:05:04 $
-** Source File:		$RCSfile: mri_dicom_hdr.h,v $
-** Revision:		$Revision: 1.9 $
-** Status:		$State: Exp $
+** Last Update:		$Author$, $Date$
+** Source File:		$RCSfile$
+** Revision:		$Revision$
+** Status:		$State$
 */
 
 #ifndef DICOM_IS_IN
@@ -313,10 +313,10 @@ extern "C" {
 ** Intent:		This module defines function prototypes for the
 **			CONDITION facility which is used to record status
 **			and error messages on a stack.
-** Last Update:		$Author: rickr $, $Date: 2005/11/10 19:05:04 $
-** Source File:		$RCSfile: mri_dicom_hdr.h,v $
-** Revision:		$Revision: 1.9 $
-** Status:		$State: Exp $
+** Last Update:		$Author$, $Date$
+** Source File:		$RCSfile$
+** Revision:		$Revision$
+** Status:		$State$
 */
 
 #ifndef COND_IS_IN
@@ -399,10 +399,10 @@ void COND_WriteConditions(FILE * lfp);
 ** Author, Date:	Thomas R. Leith, xx-May-92
 ** Intent:		This module defines private structures
 **			used by the LST facility.
-** Last Update:		$Author: rickr $, $Date: 2005/11/10 19:05:04 $
-** Source File:		$RCSfile: mri_dicom_hdr.h,v $
-** Revision:		$Revision: 1.9 $
-** Status:		$State: Exp $
+** Last Update:		$Author$, $Date$
+** Source File:		$RCSfile$
+** Revision:		$Revision$
+** Status:		$State$
 */
 
 #ifdef  __cplusplus
@@ -472,10 +472,10 @@ typedef struct lst_head {
 ** Intent:		This module defines several constants and function
 **			prototypes for the LST facility which is used to
 **			manipulate objects in linked lists.
-** Last Update:		$Author: rickr $, $Date: 2005/11/10 19:05:04 $
-** Source File:		$RCSfile: mri_dicom_hdr.h,v $
-** Revision:		$Revision: 1.9 $
-** Status:		$State: Exp $
+** Last Update:		$Author$, $Date$
+** Source File:		$RCSfile$
+** Revision:		$Revision$
+** Status:		$State$
 */
 
 #ifndef LST_IS_IN
@@ -575,10 +575,10 @@ char *LST_Message(CONDITION cond);
 ** Intent:		This file contains definitions and function prototypes
 **			for the OBJECT facility which allows the user to
 **			manipulate DICOM Objects.
-** Last Update:		$Author: rickr $, $Date: 2005/11/10 19:05:04 $
-** Source File:		$RCSfile: mri_dicom_hdr.h,v $
-** Revision:		$Revision: 1.9 $
-** Status:		$State: Exp $
+** Last Update:		$Author$, $Date$
+** Source File:		$RCSfile$
+** Revision:		$Revision$
+** Status:		$State$
 */
 
 #ifndef DCM_OBJECTS_IS_IN
@@ -2282,10 +2282,10 @@ DCM_AddFragment(DCM_OBJECT** callerObject, void* fragment, U32 fragmentLength);
 **			Radiology.  It also defines unique identifiers
 **			for standard classes and objects defined by the
 **			standard.
-** Last Update:		$Author: rickr $, $Date: 2005/11/10 19:05:04 $
-** Source File:		$RCSfile: mri_dicom_hdr.h,v $
-** Revision:		$Revision: 1.9 $
-** Status:		$State: Exp $
+** Last Update:		$Author$, $Date$
+** Source File:		$RCSfile$
+** Revision:		$Revision$
+** Status:		$State$
 */
 
 #ifndef CTNOS_IS_IN
@@ -2391,10 +2391,10 @@ typedef int CTN_SOCKET;
 ** Intent:
 **	This file defines private structures for the DICOM information
 **	object package.
-** Last Update:		$Author: rickr $, $Date: 2005/11/10 19:05:04 $
-** Source File:		$RCSfile: mri_dicom_hdr.h,v $
-** Revision:		$Revision: 1.9 $
-** Status:		$State: Exp $
+** Last Update:		$Author$, $Date$
+** Source File:		$RCSfile$
+** Revision:		$Revision$
+** Status:		$State$
 */
 
 #ifdef  __cplusplus
@@ -2559,10 +2559,10 @@ typedef union {
 ** Author, Date:	Stephen M. Moore, 2-Jun-93
 ** Intent:		This include file defines constants for all of
 **			the standard UIDs defined in the DICOM standard.
-** Last Update:		$Author: rickr $, $Date: 2005/11/10 19:05:04 $
-** Source File:		$RCSfile: mri_dicom_hdr.h,v $
-** Revision:		$Revision: 1.9 $
-** Status:		$State: Exp $
+** Last Update:		$Author$, $Date$
+** Source File:		$RCSfile$
+** Revision:		$Revision$
+** Status:		$State$
 */
 
 #ifndef DICOM_UIDS_IS_IN
@@ -2821,10 +2821,10 @@ int UID_IsStorageClass(const char* sopClassUID);
 ** Intent:		Define typedefs and function prototypes for
 **			Utility (UTL) facility (for functions which may
 **			generally useful in a number of areas).
-** Last Update:		$Author: rickr $, $Date: 2005/11/10 19:05:04 $
-** Source File:		$RCSfile: mri_dicom_hdr.h,v $
-** Revision:		$Revision: 1.9 $
-** Status:		$State: Exp $
+** Last Update:		$Author$, $Date$
+** Source File:		$RCSfile$
+** Revision:		$Revision$
+** Status:		$State$
 */
 
 

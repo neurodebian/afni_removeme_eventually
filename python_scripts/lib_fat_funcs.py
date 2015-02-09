@@ -58,6 +58,254 @@ OldFash_parnames = ['NT', 'fNT', 'FA', 'sFA', 'MD',         \
                         'NV']
 
 
+#class MVM_rev:
+#    def __init__(self, var, par):
+#        self.var = var
+#        self.par = par
+#        self.isquant = 1
+#        self.mean_tstat = 0
+#        self.minp_ROI = ''
+
+
+###------------------------------------------------------------------
+###------------------------------------------------------------------
+###---------------- START: review functions and output --------------
+###------------------------------------------------------------------
+###------------------------------------------------------------------
+
+def BreakLineList(x):
+
+    y = []
+    for line in x:
+        y.append(line.split())
+
+
+    return y
+
+###------------------------------------------------------------------
+
+def Find_ANOVAE(x):
+    ''' input is a line list broken into lines of words.'''
+
+    Nline = len(x)
+
+    RESULTS = []
+    list_par = []
+    list_var = []
+
+    for i in range(Nline):
+        if len(x[i]) > 0 :
+            if (x[i][1] == 'RESULTS:') and (x[i][2] == 'ANOVA') :
+                par = x[i][-1]      # name of DTI/FMRI par
+                nval = int(x[i+1][0])    # where the num of vars is stored
+                values = []
+                names = []
+                for j in range( nval ):
+                    ii = i + 3 + j  # skip to vars
+                    if x[ii][-1] != '(Intercept)' :
+                        values.append(x[ii][-3])
+                        names.append(x[ii][-1])
+                RESULTS.append(values)
+                list_par.append(par)
+                list_var.append(names)
+
+
+    npar = len(RESULTS)
+    if npar <1:
+        print "ERROR! No ANOVA results?!?"
+        sys.exit(33)
+
+    nvar = len( RESULTS[0] )
+    if nvar < 1 :
+        print "ERROR! No ANOVA variables?!?"
+        sys.exit(34)
+
+    z = np.array(RESULTS, dtype = float)
+
+    # return the array, and it's two lists of labels
+    return z, list_par, list_var[0]
+
+
+###------------------------------------------------------------------
+
+
+
+
+
+def Find_POSTHOC(x):
+    ''' input is a line list broken into lines of words.'''
+
+    Nline = len(x)
+
+    RESULTS = []
+    list_par = []
+#    list_var = []
+
+    for i in range(Nline):
+        if len(x[i]) > 0 :
+            if (x[i][1] == 'RESULTS:') and (x[i][2] == 'Post') :
+                par = x[i][-1]           # name of DTI/FMRI par
+                nval = int(x[i+1][0])    # where the num of vars is stored
+                values = []
+                names = []
+                ii = i + 3               # jump ahead to data
+                phrois, phvars = Find_PosthocVars_and_NROI( x[ii:ii+nval] )
+                Nphrois = len(phrois)
+                Nphvars = len(phvars)
+                tmpv = np.zeros( Nphvars )
+                for j in range( Nphvars ):
+                    for k in range( Nphrois ):
+                        ll = ii + j + k*Nphvars
+                        tmpv[j]+= np.float(x[ll][-5]) # t-stat
+                    tmpv[j]/= Nphrois
+                    values.append(tmpv[j])
+                RESULTS.append(values)
+                list_par.append(par)
+#                list_var.append(names)
+
+    npar = len(RESULTS)
+    if npar <1:
+        print "No post hoc results-- guess you didn't want any?"
+        return [],[],[]
+    else:
+        nvar = len( RESULTS[0] )
+        if nvar < 1 :
+            print "ERROR! No post hoc variables?!?"
+            sys.exit(35)
+
+        z = np.array(RESULTS, dtype = float)
+
+        # return the array, and it's two lists of labels
+        return z, list_par, phvars
+
+###------------------------------------------------------------------
+
+def Find_PosthocVars_and_NROI( x ):
+
+    nvals = len(x)
+    
+    phrois = []
+    phvars = []
+
+    for y in x:
+        twopiece = y[-1].split('-')
+        if not(phrois.__contains__(twopiece[0])):
+            phrois.append(twopiece[0])
+
+        if not(phvars.__contains__(twopiece[1])):
+            phvars.append(twopiece[1])
+
+    if len(phvars)*len(phrois) != nvals:
+        print "Problem! number of posthoc vars, ROIs and tests not matching!"
+        sys.exit(189)
+    
+    return phrois, phvars
+
+###------------------------------------------------------------------
+
+# ref mat allows us to use group pvalue mat to censor
+def ScreenAndFileOutput(PO, TO, FI_mat, FI_par, FI_var, FI_indi, TS,
+                        REF_mat):
+
+    STARTER = 0
+    if not(TS):
+        STARTER = 1
+
+    nvar = len(FI_var)
+    npar = len(FI_par)
+
+    calc_indent = 14*nvar+1
+
+    if  (npar, nvar) != np.shape(FI_mat) :
+        print "Weird error in numbers not matching internally!"
+        sys.exit(35)
+
+    # first lining ...
+    if STARTER: TS.append('# %12s' % (FI_var[0]))
+    for j in range(nvar):
+        print "%14s" % (FI_var[j]),
+        if (j>0):
+            if STARTER: TS.append("%14s" % FI_var[j])
+    print ""
+    if STARTER: TS.append("\n")
+
+    TS.append('#%s#   %s\n' % ('-'*calc_indent, FI_indi))
+    
+
+
+
+    # ... the rest.
+    # use of 'REF_mat' to allow censoring by ANOVA values
+    for i in range(npar):
+        for j in range(nvar):
+            #if FI_mat[i,j] < TO :
+            if REF_mat[i,j] < TO :
+                out = "%.4e" % (FI_mat[i,j])
+                fout = out
+            else:
+                out = '-'
+                fout = '0'
+            print "%14s" % (out),
+            TS.append("%14s" % (fout))
+        print "  %s" % FI_par[i]
+        TS.append("  # %s\n" % FI_par[i])
+
+
+    if not(TS):
+        print "**ERROR! Empty file?"
+        sys.exit(12)
+
+    return TS
+
+''' OLD version
+
+def ScreenAndFileOutput(PO, TO, FI_mat, FI_par, FI_var):
+
+    nvar = len(FI_var)
+    npar = len(FI_par)
+
+    if  (npar, nvar) != np.shape(FI_mat) :
+        print "Weird error in numbers not matching internally!"
+        sys.exit(35)
+
+    if PO: 
+        outname = PO + '_REV.txt'
+        f = open(outname, 'w')
+
+    # first lining ...
+    if PO: f.write('# %12s' % (FI_var[0]))
+    for j in range(nvar):
+        print "%14s" % (FI_var[j]),
+        if (j>0) and PO:
+            f.write("%14s" % FI_var[j])
+    print ""
+    if PO: f.write("\n")
+
+    # ... the rest.
+    for i in range(npar):
+        for j in range(nvar):
+            if FI_mat[i,j] < TO:
+                out = "%.4e" % (FI_mat[i,j])
+                fout = out
+            else:
+                out = '-'
+                fout = '0'
+            print "%14s" % (out),
+            if PO: f.write("%14s" % (fout))
+        print "  %s" % FI_par[i]
+        if PO: f.write("  # %s\n" % FI_par[i])
+    if PO: f.close()
+
+    return 1
+'''
+
+
+
+###------------------------------------------------------------------
+###------------------------------------------------------------------
+###----------------- sTOP: review functions and output --------------
+###------------------------------------------------------------------
+###------------------------------------------------------------------
 
 ###------------------------------------------------------------------
 ###------------------------------------------------------------------
@@ -150,6 +398,77 @@ def Pars_CatVars_in_Listfile( file_listvars,
 ###------------------------------------------------------------------
 ###------------------------------------------------------------------
 
+def VarLists_to_Strings_for_MVM(var_list, 
+                                var_isinterac, 
+                                var_iscateg, 
+                                CAT_PAIR_COMP ):
+    '''Get counts and things from varlists, interaction and category
+    info.'''
+
+    Nvar = len(var_list)
+
+    # calc number of GLTs/ROI (= Nvartout) and number of Quant var
+    Nvartout = Nvar
+    var_list_quant = []
+    varQ_str = ''
+    var_list_inter = []
+    varI_str = ''
+    extra_qVar = '' # Jan,2015 -- added to pick up qvar in interac term
+    varC_str = ''
+    for i in range(Nvar):
+        x = var_list[i]
+        
+        if not(var_isinterac[i][0][0]):
+            if var_list.__contains__(x):
+                if not( var_iscateg[i] ):
+                    var_list_quant.append(x)
+                    varQ_str+= "  %s" % x
+                else:
+                    nc = len(var_iscateg[i])
+                    Nvartout+= nc-1              # individual ttests
+                    if CAT_PAIR_COMP :
+                        Nvartout+= (nc*(nc-1))/2 # pairwise combinatorial
+        else:
+            varI_str = "  "
+            ncombo = 1
+            for j in range( 2 ):
+                varI_str+= var_isinterac[i][1][j]
+                if var_isinterac[i][2][j] :
+                    # binomial-type comparisons for each
+                    nc = len(var_isinterac[i][2][j])
+                    ncombo*= (nc*(nc-1))/2
+                    varI_str+= "("
+                    for ii in var_isinterac[i][2][j]:
+                        varI_str+= " %s" % ii
+                    varI_str+= " )"
+                else: # Jan,2015
+                    extra_qVar = "%s" % var_isinterac[i][1][j]
+                if j == 0 :
+                    varI_str+= " %s " % var_isinterac[i][0][0]
+            Nvartout+= ncombo-1
+                    
+    for i in range(Nvar):
+        if var_iscateg[i]:
+            varC_str+= "  %s(" % var_list[i]
+            for y in var_iscateg[i]:
+                varC_str+= " %s" % y
+            varC_str+= " )"
+
+
+
+
+    return Nvartout, var_list_quant, varQ_str, var_list_inter, \
+        varI_str, varC_str, extra_qVar
+
+
+
+
+
+
+
+
+###------------------------------------------------------------------
+
 def CheckFor_Cats_and_Inters( tab_data,
                               tab_colvars,
                               tab_coltypes,
@@ -169,10 +488,10 @@ def CheckFor_Cats_and_Inters( tab_data,
         inter_names = []    # default if no interacs
         Ncats = 0
 
-        print "TEST1 for var:",x
+        #print "TEST1 for var:",x
         check, inter_type = IsEntry_interaction(x)
 
-        print "\t->has check:", check,", and intertype:", inter_type
+        #print "\t->has check:", check,", and intertype:", inter_type
 
         #interac_terms = [inter_type]
 
@@ -210,7 +529,7 @@ def CheckFor_Cats_and_Inters( tab_data,
                                                   tab_coltypes, \
                                                   [x] )
             cats = list(cats[0])
-        print "\t\> has cat:", cats
+        #print "\t\> has cat:", cats
         simple_cat.append(cats)
         interac_terms.append( [ [inter_type, Ncats], check, inter_names] )
     return simple_cat, interac_terms, count_interac
@@ -221,7 +540,7 @@ def IsEntry_interaction(str_var):
     '''Return an empty list if there is no interaction, or return a
     list of the interacting terms if there be/were one.'''
 
-    type_col = ':'
+    type_col = ':' # this was a mistake to include!  Ooops.
     type_ast = '*'
 
     num_colon = str_var.count(type_col)
@@ -232,7 +551,9 @@ def IsEntry_interaction(str_var):
         sys.exit(14)
 
     if num_colon :
-        return str_var.split(type_col), type_col
+        print "**ERROR! The ':' does not exist as a usable interaction call!"
+        sys.exit(156)
+        #return str_var.split(type_col), type_col
     elif num_aster :
         return str_var.split(type_ast), type_ast
     else:
@@ -1121,7 +1442,27 @@ def ConvertCSVfromStr(dat1, head1, NA_WARN):
 
     # careful copying...  need to recursively copy each list
     # unattachedly
-    dat2 = [list(x) for x in dat1]
+
+    # Jan,2015 !!!!
+    #    dat2 = [list(x) for x in dat1] # OLD method
+    # ---> new method: skip empty lines
+    FOUND_WS = 0
+    FOUND_EL = 0
+    dat2 = []
+    for x in dat1:
+        if x:                      # check if empty line
+            if x[0].split() :      # check if just whitespace
+                dat2.append(x)
+            else:
+                FOUND_WS = 1
+        else:
+            FOUND_EL = 1
+
+    if FOUND_WS:
+        print "\t FYI: removed at least one whitespace line from CSV file."
+    if FOUND_EL:
+        print "\t FYI: removed at least one empty line from CSV file."
+
     head2 = list(head1)
     
     Lx,Ly = np.shape(dat2)
@@ -1302,6 +1643,7 @@ def HeaderInfo(RawX):
 
     # Sept 2014: might have labels here.
     # defaults
+    #HAVE_LABS = 0
     listreadline = 2
     ReadNext = 3
     ROI_str_labs = []
@@ -1309,7 +1651,7 @@ def HeaderInfo(RawX):
     temp = RawX[2].split()
     if len(temp) > 1:
         if temp[1] == HEADER_Labels:
-            print "++ Have ROI LABELS: reading."
+            #HAVE_LABS = 1
             listreadline = 4
             ReadNext = 5
             ROI_str_labs = RawX[3].split()
@@ -1319,6 +1661,9 @@ def HeaderInfo(RawX):
                 print "  Number of ROIs (%d) doesn't match stringnames (%d)" % \
                  (Nroi,ll)
                 sys.exit(55)
+
+    #if HAVE_LABS :
+    #    print "++ Have ROI LABELS: reading."
 
     ListLabels=RawX[listreadline].split()
     ll = len(ListLabels)

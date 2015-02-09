@@ -8,7 +8,7 @@
  *
  *  plug_hemisub.c      - AFNI plugin to subtract hemispheres
  *
- *  $Log: plug_hemisub.c,v $
+ *  $Log$
  *  Revision 1.6  2005/04/19 21:07:17  rwcox
  *  Cput
  *

@@ -1636,8 +1636,9 @@ SUMA_PARSED_NAME * SUMA_ModifyParsedName (SUMA_PARSED_NAME *pn,
       char vval[6]={""};
       if (!val) SUMA_RETURN(NULL);
       if (val[0] != '+') sprintf(vval,"+%c%c%c%c",val[0],val[1],val[2],val[3]);
-      else sprintf(vval,"%c%c%c%c",val[0],val[1],val[2],val[3]);
-      if (pn->StorageMode ==  STORAGE_BY_BRICK) {
+      else sprintf(vval,"%c%c%c%c%c",val[0],val[1],val[2],val[3], val[4]);
+      if (pn->StorageMode ==  STORAGE_BY_BRICK ||
+          pn->StorageMode ==  STORAGE_UNDEFINED) {
          fullname=NULL;
          if(strstr(pn->NameAsParsed,"/")) 
             fullname = SUMA_append_replace_string(fullname, 
@@ -1645,7 +1646,7 @@ SUMA_PARSED_NAME * SUMA_ModifyParsedName (SUMA_PARSED_NAME *pn,
          fullname = SUMA_append_replace_string(fullname, 
                                              pn->Prefix, "", 1);
          fullname = SUMA_append_replace_string(fullname, 
-                                             pn->View, vval,1);
+                                              vval,"",1);
          fullname = SUMA_append_replace_string(fullname, 
                                              pn->TypeExt, "",1);
          fullname = SUMA_append_replace_string(fullname,  
@@ -3382,7 +3383,7 @@ static ENV_SPEC envlist[] = {
       "NO" },
    {  "Turn on verbose mode for function count_procs() that checks for \n"
       "recursive calls to a program. Do not keep this env set to YES unless\n"
-      "you are debugging.\n"
+      "you are debugging.\n",
       "SUMA_CountProcs_Verb",
       "NO" },
    {  NULL, NULL, NULL  }
@@ -3509,7 +3510,8 @@ char * SUMA_env_list_help(int DEFAULT_values, TFORM targ){
       if (!eee) userval = SUMA_copy_string(se.envval);
       else userval = SUMA_copy_string(eee);
       switch (targ) {
-         case 0: /* default */
+         default:
+         case TXT: /* default */
             sli = SUMA_ReplaceChars(se.envhelp, "\n","\n//      ");
             sli = SUMA_Sphinx_String_Edit(&sli, targ, 0);
             SS = SUMA_StringAppend_va(SS,
@@ -3525,8 +3527,8 @@ char * SUMA_env_list_help(int DEFAULT_values, TFORM targ){
                            userval);
             SUMA_free(sli); sli = NULL;
             break;
-         default:
-         case 1: /* Sphinxy */
+         case ASPX:
+         case SPX: /* Sphinxy */
             sli = SUMA_copy_string(se.envhelp);
             sli = SUMA_Sphinx_String_Edit(&sli, targ, 0);
             SS = SUMA_StringAppend_va(SS,
