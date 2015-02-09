@@ -129,6 +129,8 @@ override_dh_auto_install:
 	# remove @update.afni.* (e.g. .binaries) so it doesn't interfer
 	# with packaged installation
 	find debian/ -iname @update.afni.\* -delete
+    # some permissions fixes
+    chmod a+rx /usr/lib/afni/bin/afni_util.py
 
 
 override_dh_auto_clean:
