@@ -1,16 +1,16 @@
 --- a/thd_xwebber.c
 +++ b/thd_xwebber.c
-@@ -183,6 +183,9 @@ ENTRY("htmlize") ;
+@@ -190,6 +190,9 @@ ENTRY("htmlize") ;
     RETURN(mmm) ;
  }
  
 +#if 0
 +/* All uses of RefreshHTML_AtEvent were commented out anyways so
 +   no need to drag/rely on having XmHTMLRefresh */
+ /*----------------------------------------------------------------------------*/
  /* This is a callback to deal with some refresh problems
     that should have been handled by the XmHTML library.
-    For now this call is not needed. It looks like the patching
-@@ -192,6 +195,7 @@ void RefreshHTML_AtEvent( Widget w , XtP
+@@ -201,6 +204,7 @@ void RefreshHTML_AtEvent( Widget w , XtP
  {
      XmHTMLRefresh(client_data);
  }
