@@ -7,6 +7,7 @@
 #include "xutil.h"
 #include "afni_environ.h"
 #include "debugtrace.h"    /* 12 Mar 2001 */
+#include <time.h>
 
 #undef  SYNC
 #define SYNC(w) XSync(XtDisplay(w),False)
@@ -108,8 +109,9 @@ void MCW_set_colormap( Widget w , Colormap cmap )
    swap the fg and bg colors of a widget
    (the shadow colors are altered to fit the new bg)
 ----------------------------------------------------------------------*/
+void MCW_invert_widget( Widget w ) { return(MCW_invert_widget_sync(w,1)); }
 
-void MCW_invert_widget( Widget w )
+void MCW_invert_widget_sync( Widget w , int sync)
 {
    Pixel bg_pix=0 , topsh_pix=0 , botsh_pix=0 , fg_pix=0 , sel_pix=0 ;
    Colormap cmap ;
@@ -117,7 +119,7 @@ void MCW_invert_widget( Widget w )
    memset(&cmap, 0, sizeof(cmap));
 
    if( ! XtIsWidget(w) ) return ;
-   SYNC(w) ;
+   if (sync) { SYNC(w) ; }
 
    XtVaGetValues( w , XmNforeground , &bg_pix ,  /* foreground -> bg */
                       XmNbackground , &fg_pix ,  /* background -> fg */
@@ -137,8 +139,10 @@ void MCW_invert_widget( Widget w )
                     XmNbackground        , bg_pix    ,
                   NULL ) ;
 
-   XSync( XtDisplay(w) , False ) ;  /* make it happen NOW */
-   XmUpdateDisplay( w ) ;
+   if (sync) {
+      XSync( XtDisplay(w) , False ) ;  /* make it happen NOW */
+      XmUpdateDisplay( w ) ;
+   }
    return ;
 }
 
@@ -392,6 +396,21 @@ char * MCW_hotcolor(Widget w)
      redcolor = (xdef != NULL) ? (xdef) : ("red4") ;
    }
    return redcolor ;
+}
+
+/*--------------------------------------------------------------------------*/
+
+char * MCW_buthighlight(Widget w)
+{
+   static char *buthighlight = NULL ;
+
+   if( buthighlight == NULL ){
+     char *xdef = RWC_getname( (w!=NULL) ? XtDisplay(w) : NULL,
+                                                "buthighlight" ) ;
+
+     buthighlight = (xdef != NULL) ? (xdef) : ("blue2") ;
+   }
+   return buthighlight ;
 }
 
 /*--------------------------------------------------------------------------
@@ -674,6 +693,110 @@ void MCW_message_timer_CB( XtPointer client_data , XtIntervalId *id )
 {
    XtDestroyWidget( (Widget) client_data ) ;
    RWC_sleep(1) ;
+}
+
+/*------------------------------------------------------------------------------*/
+/* This function is intended to popup the given message only once
+   (for each user).  The 'w' and 'msg' arguments are self-explanatory, I hope.
+
+   'expiry', if not NULL, is a data after which the message should not be shown.
+
+   'codestring' is a short string to encode that the message has been seen,
+   in the ${HOME)/.afni.recordings file -- if codestring is NULL, then the
+   MD5 hashstring of the message will be used for this hideous purpose.
+
+   Example:
+     MCW_popup_message_once( w, "Hi, this is Bob", "01 Jan 2099", "Bob#001" ) ;
+*//*----------------------------------------------------------------------------*/
+
+void MCW_popup_message_once( Widget w, char *msg, char *expiry, char *codestring )
+{
+   char *home = getenv("HOME") , mname[1024]="file:" ;
+   NI_stream ns ; NI_element *nel ;
+   int seen=0 ;
+
+   time_t tt=time(NULL) ; struct tm *lt=localtime(&tt) ;
+
+   static char *monthlist[12] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" } ;
+
+   if( w == (Widget)NULL ) return ;
+   if( msg == NULL || *msg == '\0' ) return ;
+   if( AFNI_yesenv("AFNI_SKIP_ONETIME_POPUPS") ) return ;
+
+   /* check expiry date vs today */
+
+   if( expiry != NULL && *expiry != '\0' ){
+     char da[16],db[16],dc[16] ;  int emon=-1,eday=-1,eyear=-1 , ii ;
+     da[0] = db[0] = dc[0] = '\0' ;
+     sscanf( expiry , "%5s%5s%5s" , da,db,dc ) ;
+     if( da[0] != '\0' && db[0] != '\0' && dc != '\0' ){ /* got 3 sub-strings */
+       if( isalpha(da[0]) ){ /* month is first */
+         for( ii=0; ii < 12 && strcasecmp(da,monthlist[ii]); ii++ ) ; /*nada*/
+         emon = ii ;
+         eday = (int)strtol(db,NULL,10) ;
+       } else if( isalpha(db[0]) ){ /* month is second */
+         for( ii=0; ii < 12 && strcasecmp(db,monthlist[ii]); ii++ ) ; /*nada*/
+         emon = ii ;
+         eday = (int)strtol(da,NULL,10) ;
+       }
+       eyear = (int)strtol(dc,NULL,10)-1900 ;
+       if( emon >= 0 && emon < 12 && eday > 0 && eday < 32 && eyear > 0 ){
+         if( lt->tm_year >  eyear ) return ;  /* past the expiry year == DONE */
+         if( lt->tm_year == eyear ){          /* in expiry year */
+           if( lt->tm_mon >  emon ) return ;  /* past expiry month    == DONE */
+           if( lt->tm_mon == emon ){          /* in expiry month */
+             if( lt->tm_mday >= eday ) return ; /* past expiry day    == DONE */
+           }
+         }
+       }
+     }
+   }
+
+   if( codestring == NULL    ||
+       codestring[0] == '\0' || strlen(codestring) > 66 ) /* backup for luser */
+     codestring = MD5_static_string(msg) ;
+
+   if( home != NULL ) strcat(mname,home) ;
+   else               strcat(mname,"." ) ;
+   strcat(mname,"/.afni.recordings") ;
+
+   /* check if we saw this already */
+
+   ns = NI_stream_open(mname,"r") ;
+   if( ns != NULL ){
+     while( !seen ){
+       nel = NI_read_element_header(ns,11) ;
+       if( nel == NULL ) break ;
+       if( strcmp(nel->name,"AFNI_saw_message") == 0 ){
+         char *rhs = NI_get_attribute(nel,"codestring") ;
+         if( rhs != NULL & strcmp(rhs,codestring) == 0 ) seen = 1 ;
+       }
+       NI_free_element(nel) ;
+     }
+     NI_stream_close(ns) ;
+   }
+   if( seen ) return ;  /* it was recorded! */
+
+   /* popup the actual message now */
+
+   (void)MCW_popup_message( w , msg , MCW_USER_KILL ) ;
+
+   /* recordation of seeing */
+
+   ns = NI_stream_open(mname,"a") ;
+   if( ns != NULL ){
+     char rhs[32] ;
+     nel = NI_new_data_element("AFNI_saw_message",0) ;
+     NI_set_attribute(nel,"codestring",codestring) ;
+     sprintf(rhs,"%02d %s %4d",lt->tm_mday,monthlist[lt->tm_mon],lt->tm_year+1900) ;
+     NI_set_attribute(nel,"seendate",rhs) ;
+     NI_write_element(ns,nel,NI_TEXT_MODE) ;
+     NI_free_element(nel) ;
+     NI_stream_close(ns) ;
+   }
+
+   return ;
 }
 
 /*------------------------------------------------------------------

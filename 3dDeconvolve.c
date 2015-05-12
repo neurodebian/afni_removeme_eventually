@@ -6827,7 +6827,8 @@ ENTRY("calculate_results") ;
       WARNING_message("Problems with the X matrix columns, listed below:") ;
       for( k=0 ; iar[2*k] >= 0 ; k++ ){
         if( iar[2*k+1] >= 0 ){
-          WARNING_message("!! * Columns %d [%s] and %d [%s] are nearly collinear!",
+          WARNING_message(
+             "!! * Columns %d [%s] and %d [%s] are (nearly?) collinear!",
                   iar[2*k]  ,COLUMN_LABEL(iar[2*k]  ),
                   iar[2*k+1],COLUMN_LABEL(iar[2*k+1]) ) ;
           nerr++ ; badlev++ ;
@@ -9028,8 +9029,16 @@ MRI_IMAGE * PLOT_matrix_gray( matrix X )
    if( nts < 1 || npt < 2 ) return NULL ;
 
    xar = (float **)malloc( sizeof(float *)*nts ) ;
+   if( !xar ) {
+     ERROR_message("PLOT_mg: failed to alloc %d float ptrs", nts);
+     return NULL;
+   }
    for( jj=0 ; jj < nts ; jj++ ){
-     xar[jj] = (float *)malloc( sizeof(float *)*npt ) ;
+     xar[jj] = (float *)malloc( sizeof(float)*npt ) ;
+     if( !xar[jj] ) {
+       ERROR_message("PLOT_mg: failed to alloc %d floats @jj=%d", npt, jj);
+       return NULL;
+     }
      for( ii=0 ; ii < npt ; ii++ ) xar[jj][ii] = X.elts[ii][jj] ;
    }
 
@@ -9058,15 +9067,24 @@ MRI_IMAGE * PLOT_matrix_gray( matrix X )
 
 /*-----------------------------------------------------------------*/
 
+#undef  PLOT_MAX
+#define PLOT_MAX 3333
+
 void JPEG_matrix_gray( matrix X , char *fname )
 {
    MRI_IMAGE *im ;
 
    if( fname == NULL || *fname == '\0' ) return ;
 
+   if( X.cols > PLOT_MAX || X.rows > PLOT_MAX ){  /* 30 Apr 2015 */
+     WARNING_message("Can't plot %s -- matrix size %dx%d exceeds max=%d",
+                     fname , X.rows , X.cols , PLOT_MAX ) ;
+     return ;
+   }
+
    im = PLOT_matrix_gray( X ) ;
    if( im == NULL ){
-     WARNING_message("Can't save %s because of internal error!",fname) ;
+     WARNING_message("Can't plot %s -- internal error!",fname) ;
      return ;
    }
 

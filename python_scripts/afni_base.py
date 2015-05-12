@@ -8,9 +8,11 @@ SAVE_SHELL_HISTORY = 400
 MAX_SHELL_HISTORY  = 600
 
 class afni_name:
-   def __init__(self, name=""):
+   def __init__(self, name="", do_sel=1):
+      """do_sel : apply selectors (col, row, range)"""
       self.initname = name
-      res = parse_afni_name(name)
+      self.do_sel = do_sel
+      res = parse_afni_name(name, do_sel=self.do_sel)
       self.path = res['path']
       self.prefix = res['prefix']
       self.view = res['view']
@@ -49,13 +51,25 @@ class afni_name:
                          self.view, self.extension)
       return s
 
-   def ppves(self):
+   def ppves(self, quotes=1):
       """show path, prefix, view, extension and all selectors
          (colsel, rowsel, nodesel, rangesel)"""
-      s = "%s%s%s%s'%s%s%s%s'" % (self.p(), self.prefix, \
-                         self.view, self.extension,\
-                         self.colsel, self.rowsel,\
-                         self.nodesel, self.rangesel)
+
+      # if no selectors, do not incude quotes    7 Apr 2015 [rickr]
+      pstuff = "%s%s%s%s" % (self.p(), self.prefix, self.view, self.extension)
+      sstuff = '%s%s%s%s' % (self.colsel, self.rowsel, self.nodesel,
+                             self.rangesel)
+
+      if sstuff == '': return pstuff
+    
+      if quotes: return "%s'%s'" % (pstuff, sstuff)
+      else:      return "%s%s" % (pstuff, sstuff)
+
+      # s = "%s%s%s%s'%s%s%s%s'" % (self.p(), self.prefix, \
+      #                    self.view, self.extension,\
+      #                    self.colsel, self.rowsel,\
+      #                    self.nodesel, self.rangesel)
+
       return s
       
    def input(self):
@@ -77,21 +91,27 @@ class afni_name:
       else:
          return self.rppve() 
 
-   def rel_input(self):
+   def rel_input(self, head=0):
       """relative path to dataset in 'input' format
          e.g. +orig, but no .HEAD
          e.g. would include .nii"""
       if self.type == 'BRIK':
-         return self.rpv()
+         name = self.rpv()
+         if head: return '%s%s' % (name, '.HEAD')
+         else:    return name
       else:
          return self.rpve() 
 
-   def shortinput(self):
+   def shortinput(self, head=0):
       """dataset name in 'input' format
          - no directory prefix
-         - include extension if non-BRIK format"""
+         - include extension if non-BRIK format
+         - if head: include .HEAD suffix
+      """
       if self.type == 'BRIK':
-         return self.pv()
+         name = self.pv()
+         if head: return '%s%s' % (name, '.HEAD')
+         else:    return name
       else:
          return self.pve() 
 
@@ -135,9 +155,9 @@ class afni_name:
    def pve(self):
       """return prefix, view, extension formatted name"""
       return "%s%s%s" % (self.prefix, self.view, self.extension)
-   def dims(self):
+   def dims(self, quotes=1):
       """return xyzt dimensions, as a list of ints"""
-      return dset_dims(self.ppves())
+      return dset_dims(self.ppves(quotes=quotes))
    def exist(self):
       """return whether the dataset seems to exist on disk"""
       if (self.type == 'NIFTI'):
@@ -299,7 +319,7 @@ class afni_name:
       if len(new_pref):
          # maybe parse prefix as afni_name
          if parse_pref:
-            ant = parse_afni_name(new_pref)
+            ant = parse_afni_name(new_pref, do_sel=self.do_sel)
             an.prefix = ant['prefix']
          else: an.prefix = new_pref
       else:
@@ -314,7 +334,7 @@ class afni_name:
 
    def initial_view(self):
       """return any initial view (e.g. +tlrc) from self.initial"""
-      pdict = parse_afni_name(self.initname)
+      pdict = parse_afni_name(self.initname, do_sel=self.do_sel)
       view = pdict['view']
       if view in ['+orig', '+acpc', '+tlrc']: return view
       return ''
@@ -546,7 +566,8 @@ def read_attribute(dset, atr, verb=1):
 
 # return dimensions of dset, 4th dimension included
 def dset_dims(dset):
-   dl = [-1 -1 -1 -1]
+   # always return 4 values, trap some errors    7 Apr 2015 [rickr]
+   dl = [-1, -1, -1, -1]
    if 0: #This approach fails with selectors!
       ld = read_attribute(dset, 'DATASET_DIMENSIONS')
       lr = read_attribute(dset, 'DATASET_RANK')
@@ -555,12 +576,29 @@ def dset_dims(dset):
          dl.append(int(dd))
       dl.append(int(lr[1]))
    else:
-      com = shell_com('3dnvals -all %s' % dset, capture=1);
-      if (com.run()):
-         print '** failed to get dimensions.'
-         return []
-      dl = [int(com.val(0,0)), int(com.val(0,1)),
-            int(com.val(0,2)), int(com.val(0,3))]   
+      cstr = '3dnvals -all %s' % dset
+      com = shell_com(cstr, capture=1);
+      rv = com.run()
+      if rv:
+         print '** Failed "%s"' % cstr
+         return dl
+      if len(com.so) < 1:
+         print '** no stdout from "%s"' % cstr
+         return dl
+      vlist = com.so[0].split()
+      if len(vlist) != 4:
+         print '** failed "%s"' % cstr
+         return dl
+      try:
+         vl = [int(val) for val in vlist]
+         # so only if success
+         dl = vl
+      except:
+         print '** could not convert output to int:\n'  \
+               '   command: %s\n'                       \
+               '   output: %s' % (cstr, com.so)
+      # dl = [int(com.val(0,0)), int(com.val(0,1)),
+      #       int(com.val(0,2)), int(com.val(0,3))]   
    return dl
    
 
@@ -727,14 +765,18 @@ def strip_extension(name, extlist):
 
 
 #parse an afni name
-def parse_afni_name(name):
+def parse_afni_name(name, aname=None, do_sel=1):
+   """do_sel : apply afni_selectors"""
    res = {}
    #get the path  #Can also use os.path.split
    rp = os.path.dirname(name) #relative path
    ap = os.path.abspath(rp) #absolute path
    fn = os.path.basename(name)
    #Get selectors out of the way:
-   res['col'], res['row'], res['node'], res['range'], fn = afni_selectors(fn)
+   if do_sel:
+      res['col'], res['row'], res['node'], res['range'], fn = afni_selectors(fn)
+   else:
+      res['col'] = res['row'] = res['node'] = res['range'] = ''
    
    #is this a .nii volume?
    rni = strip_extension(fn,['.nii', '.nii.gz'])
@@ -744,8 +786,8 @@ def parse_afni_name(name):
       pr = rni[0]
       tp = 'NIFTI'
    else: 
-      rni = strip_extension(fn,['.HEAD','.BRIK','.BRIK.gz','.BRIK.bz2','.BRIK.Z','.1D', '.',  \
-                                '.1D.dset', '.niml.dset'])
+      rni = strip_extension(fn,['.HEAD','.BRIK','.BRIK.gz','.BRIK.bz2',
+                            '.BRIK.Z','.1D', '.',  '.1D.dset', '.niml.dset'])
       ex = rni[1]
       if (ex == '.1D' or ex == '.1D.dset'):
          tp = "1D"
@@ -844,13 +886,32 @@ def shell_exec2(s, capture=0):
          se = []
       else:
          i,o,e = os.popen3(s) #captures stdout in o,  stderr in e and stdin in i      
-         #The readlines seems to hang below despite all the attempts at limiting the size
-         #and flushing, etc. The hangup happens when a program spews out a lot to stdout
-         #So when that is expected, redirect output to a file at the command.
-         #Or use the "script" execution mode
-         so = o.readlines(64)  #default is to read till EOF but that might make python hang 
-         se = e.readlines(64)  # output to stdout and stderr is too large.
-         o.close             #Have tried readlines(1024) and (256) to little effect 
+         # The readlines seems to hang below despite all the attempts at
+         # limiting the size and flushing, etc. The hangup happens when a
+         # program spews out a lot to stdout.  So when that is expected,
+         # redirect output to a file at the command.
+         # Or use the "script" execution mode
+
+         # Forget readlines() and just use readline().  From that,
+         # construct the desired lists.        12 Mar 2015 [rickr]
+
+         so = []
+         ll = o.readline()
+         while len(ll) > 0:
+            so.append(ll)
+            ll = o.readline()
+
+         se = []
+         ll = e.readline()
+         while len(ll) > 0:
+            se.append(ll)
+            ll = e.readline()
+
+         #so = o.readlines(64)  - read till EOF, but python might hang 
+         #se = e.readlines(64)  - if output to stdout and stderr is too large.
+         #Have tried readlines(1024) and (256) to little effect 
+
+         o.close
          e.close             #
          status = 0; #Don't got status here 
    else:

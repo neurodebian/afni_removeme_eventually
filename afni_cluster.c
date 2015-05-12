@@ -25,6 +25,8 @@ static Widget wtemp ;
 
 static char *wherprog = NULL ;
 
+static char *yesno[2] = { "No" , "Yes" } ;
+
 char * get_alpha_string( int csiz  , float pval , Three_D_View *im3d    ) ;
 int find_cluster_thresh( float athr, float pval , CLU_threshtable *ctab ) ;
 CLU_threshtable * CLU_get_thresh_table( Three_D_View *im3d ) ;
@@ -138,36 +140,27 @@ ENTRY("AFNI_clus_save_as_mask_CB") ;
 }
 
 /*---------------------------------------------------------------*/
-/* Callback from the clusterize parameter chooser.               */
+/* Callback from the clusterize parameter chooser.
+   [30 Jan 2015 - changed from 'vector' to 'stuff' chooser]
+*//*-------------------------------------------------------------*/
 
-static void AFNI_cluster_choose_CB( Widget wc, XtPointer cd, MCW_choose_cbs *cbs )
+static void AFNI_cluster_choose_CB( Widget wc, XtPointer cd, int nval, void **val )
 {
    Three_D_View *im3d = (Three_D_View *)cd ;
-   float *vec = (float *)(cbs->cval) , rmm,vmul ;
+   int rmm,vmul,bsid ; char *cpt ;
 
 ENTRY("AFNI_cluster_choose_CB") ;
 
-   if( ! IM3D_OPEN(im3d) ) EXRETURN ;
+   if( ! IM3D_OPEN(im3d) || nval != 3 || val == NULL ) EXRETURN ; /* bad bad */
 
-   rmm = -rintf(vec[0]) ;
-        if( rmm >= -1.0f ) rmm = -1.0f ;
-   else if( rmm >= -2.0f ) rmm = -2.0f ;
-   else                    rmm = -3.0f ;
-   vmul = vec[1] ;
-   if( vmul < 2.0f ){
-     static int first=1 ;
-     vmul = 2.0f ;
-     if( first ){
-       MCW_popup_message( im3d->vwid->func->clu_cluster_pb ,
-                           "** ---- WARNING ---- **\n"
-                           "** Voxels is reset to 2\n " ,
-                          MCW_USER_KILL | MCW_TIMER_KILL ) ;
-       first = 0 ;
-     }
-   }
+   rmm  = - (int)(intptr_t)val[0] ;                   /* NN */
+   vmul =   (int)(intptr_t)val[1] ;                   /* Voxels */
+   bsid = strcmp( (char *)val[2] , yesno[1] ) == 0 ;  /* Bi-sided? */
+
    im3d->vedset.code     = VEDIT_CLUST ;
    im3d->vedset.param[2] = rmm ;   /* is -1, -2, or -3 [Jul 2010] */
    im3d->vedset.param[3] = vmul ;  /* other params set in afni.c */
+   im3d->vedset.param[6] = bsid ;
    set_vedit_cluster_label(im3d,1) ;
    if( ISVALID_3DIM_DATASET(im3d->fim_now) && !im3d->vinfo->func_visible ){
      MCW_set_bbox( im3d->vwid->view->see_func_bbox , 1 ) ;
@@ -229,7 +222,7 @@ ENTRY("AFNI_clu_CB") ;
 
    if( w == im3d->vwid->func->clu_cluster_pb ){
      char *lvec[2] = { "NN level " , "Voxels   " } ;
-     float fvec[2] ;
+     int nnlev=1 , ccsiz=20 ;
      MCW_arrowval **vav ; int nav ;
 
 #if 0
@@ -245,31 +238,30 @@ ENTRY("AFNI_clu_CB") ;
 #endif
 
      if( im3d->vedset.code == VEDIT_CLUST ){
-       fvec[0] = -im3d->vedset.param[2];
-       fvec[1] =  im3d->vedset.param[3]; if( fvec[1] < 2.0f ) fvec[1] = 20.0f;
-     } else {
-       fvec[0] =  1.0f ;  /* NN1 */
-       fvec[1] = 20.0f ;
+       nnlev = -im3d->vedset.param[2];
+       ccsiz =  im3d->vedset.param[3]; if( ccsiz < 2 ) ccsiz = 20 ;
      }
-     MCW_choose_vector( im3d->vwid->func->thr_label ,
-                       "------ Set Clusterize Parameter -------\n"
-                       "* NN level => NN clustering method\n"
-                       "        1 = faces must touch\n"
-                       "        2 = faces or edges touch\n"
-                       "        3 = faces or edges or corners\n"
-                       "* Voxels   => minimum cluster size that\n"
-                       "              will be kept [at least 2]\n"
-                       "---------------------------------------\n"
-                       "* Click on the 'Rpt' button to open\n"
-                       "  a complete cluster report panel.\n"
-                       "---------------------------------------"
-                       , 2 , lvec,fvec ,
-                        AFNI_cluster_choose_CB , (XtPointer)im3d ) ;
-     vav = MCW_choose_vector_avarray(&nav) ;
-     if( nav > 1 && vav != NULL ){
-       vav[0]->imin = vav[0]->fmin = 1 ; vav[0]->imax = vav[0]->fmax = 3 ;
-       vav[1]->imin = vav[1]->fmin = 2 ;
-     }
+     MCW_choose_stuff( im3d->vwid->func->thr_label ,
+                        "------ Set Clusterize Parameters ------\n"
+                        "* NN level => NN clustering method\n"
+                        "       1 : faces must touch\n"
+                        "       2 : faces or edges touch\n"
+                        "       3 : faces or edges or corners\n"
+                        "* Voxels   => minimum cluster size that\n"
+                        "              will be kept [at least 2]\n"
+                        "* Bi-sided => positively and negatively\n"
+                        "              thresholded voxels get\n"
+                        "              clustered separately\n"
+                        "              (eg, thresh=t-statistic)\n"
+                        "---------------------------------------\n"
+                        "* Click on the 'Rpt' button to open\n"
+                        "  a complete cluster report panel.\n"     ,
+
+                      AFNI_cluster_choose_CB , (XtPointer)im3d ,
+                        MSTUF_INT     , "NN level " , 1 ,     3 , nnlev ,
+                        MSTUF_INT     , "Voxels   " , 2 , 99999 , ccsiz ,
+                        MSTUF_STRLIST , "Bi-sided?" , 2 ,     0 , yesno ,
+                      MSTUF_END ) ;
      EXRETURN ;
    }
 
@@ -1315,6 +1307,26 @@ ENTRY("AFNI_clus_update_widgets") ;
    pval = im3d->vinfo->func_pval ;
    ctab = CLU_get_thresh_table( im3d ) ;
    if( pval >= 0.0f && ctab != NULL ){
+     MCW_popup_message_once( im3d->vwid->func->clu_report_pb ,
+                               "--------------- ***** NOTICE ***** -----------------\n"
+                               "\n"
+                               " Cluster alpha calculations in 3dClustSim have been\n"
+                               " changed, which may change the significance of the\n"
+                               " reported clusters.\n"
+                               "\n"
+                               " The main change is that separate threshold tables\n"
+                               " are now produced for 1-sided, 2-sided, and bi-sided\n"
+                               " statistical thresholding.\n"
+                               "\n"
+                               " Previously, only 1-sided tables were created.\n"
+                               " That method was overly conservative for 2-sided\n"
+                               " tests, which are common in AFNI (eg, t-statistics).\n"
+                               "\n"
+                               " Please read the output of 3dClustSim -help for more\n"
+                               " information about the new tables.\n"
+                               "\n"
+                               "------------- ***** Feb 2015 ***** -----------------" ,
+                             "01 Jan 2016" , "Clusterize#A" ) ;
 #if 0
      int csiz ;
      csiz = find_cluster_thresh( 0.10f , pval , ctab ) ;
@@ -1455,7 +1467,7 @@ void AFNI_clus_popdown( Three_D_View *im3d )
 /*---------------------------------------------------------------------------*/
 /* Called when the user finally makes up his pitiful little mind. */
 
-static AFNI_dataset_choose_stuff cdds = { 0, NULL, NULL } ;
+static AFNI_dataset_choose_stuff cdds = { 0, NULL, NULL , NULL } ;
 
 static void AFNI_clus_finalize_dataset_CB( Widget w, XtPointer cd, MCW_choose_cbs *cbs )
 {
@@ -1517,14 +1529,18 @@ ENTRY("AFNI_clus_action_CB") ;
      int vv = im3d->vinfo->view_type ;
      THD_3dim_dataset *dset ;
 
-     if( cdds.dset != NULL ) free((void *)cdds.dset) ;
+     if( cdds.dset != NULL ){
+       STATUS("free(cdds.dset)") ; free((void *)cdds.dset) ;
+       if( getenv("AFNI_CLUSTERIZE_AUXCRASH") == NULL ) cdds.dset = NULL ;
+     }
      cdds.ndset = 0 ;
-     cdds.dset = (THD_3dim_dataset **)malloc(sizeof(THD_3dim_dataset *)
+     STATUS("realloc(cdds.dset)") ;
+     cdds.dset = (THD_3dim_dataset **)realloc(cdds.dset,
+                                              sizeof(THD_3dim_dataset *)
                                              *im3d->ss_now->num_dsset  ) ;
      cdds.cb = AFNI_clus_finalize_dataset_CB ;
      for( ii=0 ; ii < im3d->ss_now->num_dsset ; ii++ ){
        dset = GET_SESSION_DSET(im3d->ss_now, ii, vv) ;
-/*     dset = im3d->ss_now->dsset_xform_table[ii][vv] ;*/
        if( ISVALID_DSET(dset)                          &&  /* qualifications */
            DSET_NVOX(dset) == DSET_NVOX(im3d->fim_now) &&
            DSET_INMEMORY(dset)                           )
@@ -2200,7 +2216,9 @@ printf("wrote cluster table to %s\n", lb_fnam);
    fprintf(stderr,"** Unknown button? **\n\a") ; EXRETURN ;
 }
 
+/*----------------------------------------------------------------------------*/
 /* write coordinate table to file - used by itself and with linkrbrain output */
+
 char * AFNI_cluster_write_coord_table(Three_D_View *im3d)
 {
      char fnam[128+THD_MAX_NAME] , *ppp ; FILE *fp ; int ff ;
@@ -2596,10 +2614,17 @@ ENTRY("format_cluster_table") ;
 void CLU_setup_alpha_tables( Three_D_View *im3d )
 {
    THD_3dim_dataset *dset ;
-   NI_element *nel ;
+   NI_element *nel = NULL ;
+   char *mask_idc  = NULL ;
    CLU_threshtable *ctab ;
    ATR_string *atr ;
    char *msg=NULL ; int ntab=0,nmask=0 ; static int ntabold=-1 ;
+
+#define GET_MASK_IDC                                          \
+ do{ if( mask_idc == NULL && nel != NULL ){                   \
+      char *idc = NI_get_attribute(nel,"mask_dset_idcode") ;  \
+      if( idc != NULL ) mask_idc = strdup(idc) ;              \
+ } } while(0)
 
 ENTRY("CLU_setup_alpha_tables") ;
 
@@ -2607,13 +2632,22 @@ ENTRY("CLU_setup_alpha_tables") ;
 
    /* free anything we have now */
 
-   CLU_free_table( im3d->vwid->func->clu_tabNN1 ) ;
-    im3d->vwid->func->clu_tabNN1 = NULL ;
-   CLU_free_table( im3d->vwid->func->clu_tabNN2 ) ;
-    im3d->vwid->func->clu_tabNN2 = NULL ;
-   CLU_free_table( im3d->vwid->func->clu_tabNN3 ) ;
-    im3d->vwid->func->clu_tabNN3 = NULL ;
+   STATUS("free-ing old tables") ;
+
+   CLU_free_table( im3d->vwid->func->clu_tabNN1_1sid ) ; im3d->vwid->func->clu_tabNN1_1sid = NULL ;
+   CLU_free_table( im3d->vwid->func->clu_tabNN2_1sid ) ; im3d->vwid->func->clu_tabNN2_1sid = NULL ;
+   CLU_free_table( im3d->vwid->func->clu_tabNN3_1sid ) ; im3d->vwid->func->clu_tabNN3_1sid = NULL ;
+
+   CLU_free_table( im3d->vwid->func->clu_tabNN1_2sid ) ; im3d->vwid->func->clu_tabNN1_2sid = NULL ;
+   CLU_free_table( im3d->vwid->func->clu_tabNN2_2sid ) ; im3d->vwid->func->clu_tabNN2_2sid = NULL ;
+   CLU_free_table( im3d->vwid->func->clu_tabNN3_2sid ) ; im3d->vwid->func->clu_tabNN3_2sid = NULL ;
+
+   CLU_free_table( im3d->vwid->func->clu_tabNN1_bsid ) ; im3d->vwid->func->clu_tabNN1_bsid = NULL ;
+   CLU_free_table( im3d->vwid->func->clu_tabNN2_bsid ) ; im3d->vwid->func->clu_tabNN2_bsid = NULL ;
+   CLU_free_table( im3d->vwid->func->clu_tabNN3_bsid ) ; im3d->vwid->func->clu_tabNN3_bsid = NULL ;
+
    if( im3d->vwid->func->clu_mask != NULL ){
+     STATUS("free-ing old mask") ;
      free(im3d->vwid->func->clu_mask) ; im3d->vwid->func->clu_mask = NULL ;
    }
 
@@ -2621,60 +2655,176 @@ ENTRY("CLU_setup_alpha_tables") ;
 
    dset = im3d->fim_now ; if( !ISVALID_DSET(dset) ) EXRETURN ;
 
-   /* NN1 cluster C(p,alpha) table */
+   /* NN1 cluster C(p,alpha) tables */
 
-   atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_NN1" ) ;
+   STATUS("look for _NN1_1sided") ;
+   atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_NN1_1sided" ) ;
+   if( atr == NULL ){
+     STATUS("  instead look for _NN1") ;
+     atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_NN1" ) ;  /* ye olde way */
+   }
    if( atr != NULL ){
+     STATUS("  read NIML element from NN1 attribute") ;
      nel = NI_read_element_fromstring(atr->ch) ;  /* attribute string => NIML */
+     STATUS("  format cluster table from element") ;
      ctab = format_cluster_table(nel) ;           /* NIML => C(p,alpha) table */
-     im3d->vwid->func->clu_tabNN1 = ctab ;
-     msg = THD_zzprintf(msg," NN=1") ; ntab += 1 ;
+     GET_MASK_IDC ;
+     NI_free_element(nel) ;         /* get rid of the C(p,alpha) NIML element */
+     im3d->vwid->func->clu_tabNN1_1sid = ctab ;
+     msg = THD_zzprintf(msg," NN=1:1sid") ; ntab += 1 ;
+   }
 
-     /*  search for ASCII mask string */
+   STATUS("look for _NN1_2sided") ;
+   atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_NN1_2sided" ) ;
+   if( atr != NULL ){
+     STATUS("  read NIML element from NN1 attribute") ;
+     nel = NI_read_element_fromstring(atr->ch) ;  /* attribute string => NIML */
+     STATUS("  format cluster table from element") ;
+     ctab = format_cluster_table(nel) ;           /* NIML => C(p,alpha) table */
+     GET_MASK_IDC ;
+     NI_free_element(nel) ;         /* get rid of the C(p,alpha) NIML element */
+     im3d->vwid->func->clu_tabNN1_2sid = ctab ;
+     msg = THD_zzprintf(msg," NN=1:2sid") ; ntab += 1 << 1 ;
+   }
 
+   STATUS("look for _NN1_bisided") ;
+   atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_NN1_bisided" ) ;
+   if( atr != NULL ){
+     STATUS("  read NIML element from NN1 attribute") ;
+     nel = NI_read_element_fromstring(atr->ch) ;  /* attribute string => NIML */
+     STATUS("  format cluster table from element") ;
+     ctab = format_cluster_table(nel) ;           /* NIML => C(p,alpha) table */
+     GET_MASK_IDC ;
+     NI_free_element(nel) ;         /* get rid of the C(p,alpha) NIML element */
+     im3d->vwid->func->clu_tabNN1_bsid = ctab ;
+     msg = THD_zzprintf(msg," NN=1:bsid") ; ntab += 1 << 2 ;
+   }
+
+   /* NN2 cluster C(p,alpha) tables */
+
+   STATUS("look for _NN2_1sided") ;
+   atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_NN2_1sided" ) ;
+   if( atr == NULL ){
+     STATUS("  instead look for _NN2") ;
+     atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_NN2" ) ;  /* ye olde way */
+   }
+   if( atr != NULL ){
+     STATUS("  read NIML element from NN2 attribute") ;
+     nel = NI_read_element_fromstring(atr->ch) ;  /* attribute string => NIML */
+     STATUS("  format cluster table from element") ;
+     ctab = format_cluster_table(nel) ;           /* NIML => C(p,alpha) table */
+     GET_MASK_IDC ;
+     NI_free_element(nel) ;         /* get rid of the C(p,alpha) NIML element */
+     im3d->vwid->func->clu_tabNN2_1sid = ctab ;
+     msg = THD_zzprintf(msg," NN=1:1sid") ; ntab += 1 << 3 ;
+   }
+
+   STATUS("look for _NN2_2sided") ;
+   atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_NN2_2sided" ) ;
+   if( atr != NULL ){
+     STATUS("  read NIML element from NN2 attribute") ;
+     nel = NI_read_element_fromstring(atr->ch) ;  /* attribute string => NIML */
+     STATUS("  format cluster table from element") ;
+     ctab = format_cluster_table(nel) ;           /* NIML => C(p,alpha) table */
+     GET_MASK_IDC ;
+     NI_free_element(nel) ;         /* get rid of the C(p,alpha) NIML element */
+     im3d->vwid->func->clu_tabNN2_2sid = ctab ;
+     msg = THD_zzprintf(msg," NN=1:2sid") ; ntab += 1 << 4 ;
+   }
+
+   STATUS("look for _NN2_bisided") ;
+   atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_NN2_bisided" ) ;
+   if( atr != NULL ){
+     STATUS("  read NIML element from NN2 attribute") ;
+     nel = NI_read_element_fromstring(atr->ch) ;  /* attribute string => NIML */
+     STATUS("  format cluster table from element") ;
+     ctab = format_cluster_table(nel) ;           /* NIML => C(p,alpha) table */
+     GET_MASK_IDC ;
+     NI_free_element(nel) ;         /* get rid of the C(p,alpha) NIML element */
+     im3d->vwid->func->clu_tabNN2_bsid = ctab ;
+     msg = THD_zzprintf(msg," NN=1:bsid") ; ntab += 1 << 5 ;
+   }
+
+   /* NN3 cluster C(p,alpha) tables */
+
+   STATUS("look for _NN3_1sided") ;
+   atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_NN3_1sided" ) ;
+   if( atr == NULL ){
+     STATUS("  instead look for _NN3") ;
+     atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_NN3" ) ;  /* ye olde way */
+   }
+   if( atr != NULL ){
+     STATUS("  read NIML element from NN3 attribute") ;
+     nel = NI_read_element_fromstring(atr->ch) ;  /* attribute string => NIML */
+     STATUS("  format cluster table from element") ;
+     ctab = format_cluster_table(nel) ;           /* NIML => C(p,alpha) table */
+     GET_MASK_IDC ;
+     NI_free_element(nel) ;         /* get rid of the C(p,alpha) NIML element */
+     im3d->vwid->func->clu_tabNN3_1sid = ctab ;
+     msg = THD_zzprintf(msg," NN=1:1sid") ; ntab += 1 << 6 ;
+   }
+
+   STATUS("look for _NN3_2sided") ;
+   atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_NN3_2sided" ) ;
+   if( atr != NULL ){
+     STATUS("  read NIML element from NN3 attribute") ;
+     nel = NI_read_element_fromstring(atr->ch) ;  /* attribute string => NIML */
+     STATUS("  format cluster table from element") ;
+     ctab = format_cluster_table(nel) ;           /* NIML => C(p,alpha) table */
+     GET_MASK_IDC ;
+     NI_free_element(nel) ;         /* get rid of the C(p,alpha) NIML element */
+     im3d->vwid->func->clu_tabNN3_2sid = ctab ;
+     msg = THD_zzprintf(msg," NN=1:2sid") ; ntab += 1 << 7 ;
+   }
+
+   STATUS("look for _NN3_bisided") ;
+   atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_NN3_bisided" ) ;
+   if( atr != NULL ){
+     STATUS("  read NIML element from NN3 attribute") ;
+     nel = NI_read_element_fromstring(atr->ch) ;  /* attribute string => NIML */
+     STATUS("  format cluster table from element") ;
+     ctab = format_cluster_table(nel) ;           /* NIML => C(p,alpha) table */
+     GET_MASK_IDC ;
+     NI_free_element(nel) ;         /* get rid of the C(p,alpha) NIML element */
+     im3d->vwid->func->clu_tabNN3_bsid = ctab ;
+     msg = THD_zzprintf(msg," NN=1:bsid") ; ntab += 1 << 8 ;
+   }
+
+   /* search for ASCII mask string, if needed */
+
+   if( ntab ){
+     STATUS("look for _MASK") ;
      atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_MASK" ) ;
      if( atr != NULL ){
-       int nvox = mask_b64string_nvox(atr->ch) ;  /* length of mask */
+       int nvox ;
+       STATUS("  count mask from string attribute") ;
+       nvox = mask_b64string_nvox(atr->ch) ;  /* length of mask */
        if( nvox == DSET_NVOX(dset) ){         /* must match dataset */
+         STATUS(" make mask from string attribute") ;
          im3d->vwid->func->clu_mask = mask_from_b64string(atr->ch,&nvox) ;
        }
-     } else {   /* search for original mask dataset via its idcode */
-       char *idc = NI_get_attribute(nel,"mask_dset_idcode") ;
-       THD_3dim_dataset *mset = PLUTO_find_dset_idc(idc) ;
+     } else if( mask_idc != NULL ){ /* search for original mask dataset via its idcode */
+       THD_3dim_dataset *mset ;
+       STATUS("  instead look via mask_dset_idcode") ;
+       mset = PLUTO_find_dset_idc(mask_idc) ;
        if( mset != NULL && DSET_NVOX(mset) == DSET_NVOX(dset) ){
+         STATUS("  instead read mask from external dataset") ;
          im3d->vwid->func->clu_mask = THD_makemask(mset,0,1.0,0.0) ;
          DSET_unload(mset) ;
        }
      }
-     NI_free_element(nel) ;  /* get rid of the C(p,alpha) NIML element */
      if( im3d->vwid->func->clu_mask != NULL )
        nmask = THD_countmask( DSET_NVOX(dset) , im3d->vwid->func->clu_mask ) ;
    }
 
-   /* NN2 and NN3 C(p,alpha) tables */
+   if( mask_idc != NULL ) free(mask_idc) ;
 
-   atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_NN2" ) ;
-   if( atr != NULL ){
-     nel = NI_read_element_fromstring(atr->ch) ;
-     ctab = format_cluster_table(nel) ; NI_free_element(nel) ;
-     im3d->vwid->func->clu_tabNN2 = ctab ;
-     msg = THD_zzprintf(msg," NN=2") ; ntab += 2 ;
-   }
-
-   atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_NN3" ) ;
-   if( atr != NULL ){
-     nel = NI_read_element_fromstring(atr->ch) ;
-     ctab = format_cluster_table(nel) ; NI_free_element(nel) ;
-     im3d->vwid->func->clu_tabNN3 = ctab ;
-     msg = THD_zzprintf(msg," NN=3") ; ntab += 4 ;
-   }
+   /* messages */
 
    if( ntab != ntabold ){
      if( msg != NULL ){
        INFO_message("%s3dClustSim tables found:%s" ,
                     AFNI_controller_label(im3d) , msg ) ;
-       if( ntab < 7 )
-         ININFO_message(" [if you require a missing NN table, will use%.5s]",msg);
        free(msg) ;
        if( nmask > 0 )
          ININFO_message(" %d voxels in 3dClustSim mask",nmask) ;
@@ -2800,16 +2950,41 @@ char * get_alpha_string( int csiz , float pval , Three_D_View *im3d )
 
 CLU_threshtable * CLU_get_thresh_table( Three_D_View *im3d )
 {
-   CLU_threshtable *ctab ;
+   CLU_threshtable *ctab ; int sig , scod , bsid , pfun ;
 
    if( !IM3D_VALID(im3d) ) return NULL ;
-   switch( im3d->vwid->func->clu_nnlev ){
-     default: ctab = im3d->vwid->func->clu_tabNN1 ; break ;
-     case 2:  ctab = im3d->vwid->func->clu_tabNN2 ; break ;
-     case 3:  ctab = im3d->vwid->func->clu_tabNN3 ; break ;
+
+   scod = DSET_BRICK_STATCODE(im3d->fim_now,im3d->vinfo->thr_index) ;
+   sig  = THD_stat_is_2sided( scod , im3d->vinfo->thr_sign ) ;
+   if( sig < 0 ) return NULL ;  /* should never transpire */
+
+   pfun = (int)im3d->vedset.param[5] ; if( pfun ) sig = 0 ;
+   bsid = (int)im3d->vedset.param[6] ;
+   if( sig && bsid ){
+     switch( im3d->vwid->func->clu_nnlev ){
+       default: ctab = im3d->vwid->func->clu_tabNN1_bsid ; /* INFO_message("b-sid NN=1"); */ break ;
+       case 2:  ctab = im3d->vwid->func->clu_tabNN2_bsid ; /* INFO_message("b-sid NN=2"); */ break ;
+       case 3:  ctab = im3d->vwid->func->clu_tabNN3_bsid ; /* INFO_message("b-sid NN=3"); */ break ;
+     }
+     return ctab ;
    }
-   if( ctab == NULL ) ctab = im3d->vwid->func->clu_tabNN1 ;
-   if( ctab == NULL ) ctab = im3d->vwid->func->clu_tabNN2 ;
-   if( ctab == NULL ) ctab = im3d->vwid->func->clu_tabNN3 ;
+
+   switch( sig ){
+     case 1: default:                          /* 2-sided */
+       switch( im3d->vwid->func->clu_nnlev ){
+         default: ctab = im3d->vwid->func->clu_tabNN1_2sid ; /* INFO_message("2-sid NN=1"); */ break ;
+         case 2:  ctab = im3d->vwid->func->clu_tabNN2_2sid ; /* INFO_message("2-sid NN=2"); */ break ;
+         case 3:  ctab = im3d->vwid->func->clu_tabNN3_2sid ; /* INFO_message("2-sid NN=3"); */ break ;
+       }
+     break ;
+
+     case 0:                                  /* 1-sided */
+       switch( im3d->vwid->func->clu_nnlev ){
+         default: ctab = im3d->vwid->func->clu_tabNN1_1sid ; /* INFO_message("1-sid NN=1"); */ break ;
+         case 2:  ctab = im3d->vwid->func->clu_tabNN2_1sid ; /* INFO_message("1-sid NN=2"); */ break ;
+         case 3:  ctab = im3d->vwid->func->clu_tabNN3_1sid ; /* INFO_message("1-sid NN=3"); */ break ;
+       }
+     break ;
+   }
    return ctab ;
 }

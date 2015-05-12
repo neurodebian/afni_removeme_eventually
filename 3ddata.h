@@ -328,7 +328,7 @@ typedef struct {
 /*************************  help utilities    *************************/
 
 /* Flags & macros for shpinx string formatting */
-typedef enum { TFORM_NOT_SET, NO_FORMAT, TXT, SPX , ASPX } TFORM;
+typedef enum { TFORM_NOT_SET, NO_FORMAT, TXT, SPX , ASPX, WEB } TFORM;
 
 #define CHECK_HELP(opt,fun) {\
    if( strcmp(argv[iarg],"-h_spx") == 0 ){   \
@@ -1143,7 +1143,7 @@ typedef struct {
 } VEDIT_settings ;
 
 #define VEDIT_CLUST    1   /* param= ithr,thr,rmm,vmul  exinfo=NULL */
-#define VEDIT_LASTCODE 1
+#define VEDIT_LASTCODE 1   /* no other options besides clustering!? */
 
 #define VEDIT_IVAL(vv)      ((vv).ival)
 #define DBLK_VEDIT_IVAL(db) VEDIT_IVAL((db)->vedset)
@@ -4807,7 +4807,7 @@ typedef struct FD_brick {
  do{ if( fdb != NULL ) STATUSp(sss,fdb->tmask) ; } while(0)
 
 #define DESTROY_FD_BRICK(fdb) \
- do{ if( fdb != NULL ){ mri_free(fdb->tmask); myXtFree(fdb); } } while(0)
+ do{ FD_brick *_jj=fdb; if( _jj != NULL ){ mri_free(_jj->tmask); myXtFree(_jj); } } while(0)
 
 /*! rotate the three numbers (a,b,c) to (b,c,a) into (na,nb,nc) */
 
@@ -5153,8 +5153,8 @@ extern int    thd_mask_from_brick(THD_3dim_dataset *, int, float, byte **, int);
 extern int    thd_multi_mask_from_brick(THD_3dim_dataset *, int, byte **);
 
 
-extern void THD_autobbox( THD_3dim_dataset * ,             /* 06 Jun 2002 */
-                          int *, int * , int *, int * , int *, int * ) ;
+extern THD_3dim_dataset * THD_autobbox( THD_3dim_dataset * ,  /* 06 Jun 2002 */
+                          int *, int * , int *, int * , int *, int *, char *) ;
 extern void MRI_autobbox( MRI_IMAGE * ,
                           int *, int * , int *, int * , int *, int * ) ;
 extern void MRI_autobbox_clust( int ) ;                    /* 20 Sep 2006 */
@@ -5346,6 +5346,8 @@ extern int THD_bandpass_vectors( int nlen, int nvec, float **vec, /* 30 Apr 2009
                                  float dt, float fbot, float ftop,
                                  int qdet, int nort, float **ort ) ;
 extern int THD_bandpass_OK( int nx, float dt, float fbot, float ftop, int verb ) ;
+extern int THD_bandpass_remain_dim(int nx, float dt, float fbot, float ftop, int verb) ;  /* 18 Mar 2015 [rickr] */
+
 extern int THD_bandpass_set_nfft( int n ) ;
 
 extern int THD_bandpass_vectim( MRI_vectim *mrv ,
@@ -5469,6 +5471,7 @@ extern float THD_thresh_to_pval( float thr , THD_3dim_dataset * dset ) ;
 extern float THD_stat_to_pval  ( float thr , int statcode , float * stataux ) ;
 extern float THD_pval_to_stat  ( float pval, int statcode , float * stataux ) ;
 extern float THD_stat_to_zscore( float thr , int statcode , float * stataux ) ;
+extern int   THD_stat_is_2sided( int statcode , int thrsign ) ;  /* Jan 2015 */
 
 extern int THD_filename_ok( char * ) ;   /* 24 Apr 1997 */
 extern int THD_filename_pure( char * ) ; /* 28 Feb 2001 */

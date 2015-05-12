@@ -10,6 +10,7 @@ from afni_base import *
 from afni_util import *
 from option_list import *
 from db_mod import *
+import lib_vars_object as VO
 import ask_me
 
 # ----------------------------------------------------------------------
@@ -434,18 +435,81 @@ g_history = """
     4.25 Jan 02, 2015: small help change
     4.26 Jan 12, 2015: compute global correlation volume (similar to GCOR)
     4.27 Jan 15, 2015: use 3ddot -demean for correlation of masks
+    4.28 Feb 06, 2015: apply updates to 3dClustSim
+    4.29 Feb 11, 2015: added -regress_anaticor_fast and -regress_anaticor_fwhm
+    4.30 Feb 13, 2015:
+        - make WMeLocal for fast anaticor a float dataset
+        - generate WMeL_corr as a diagnostic volume (corr w/WMeLocal)
+        - todo: add ability to make WMeL_corr without fast anaticor
+    4.31 Feb 27, 2015: added -regress_WMeL_corr option (forgot that)
+    4.32 Mar  2, 2015:
+        - fixed 3dTproject call for resting state on surface
+        - small change to get 3dSeg results using wildcard
+    4.33 Mar  3, 2015:
+        - allow MIN_OUTLIER as a parameter in -volreg_align_to
+        - update requirement date (Feb 9 -> Nov 9)
+    4.34 Apr  1, 2015: anat followers and ROI_PC
+        - added ability to warp anat followers
+           - anat is default if skull and align or tlrc blocks
+        - added -regress_ROI_PC, -regress_ROI_maskave (for external masks)
+        - added -regress_ROI_erode
+        - warp anat w/skull for QC
+    4.35 Apr  1, 2015:
+        -tcat_remove_first_trs can take a list
+        - done for P Hamilton
+    4.36 Apr  2, 2015: added -tlrc_NL_warped_dsets to import 3dQwarp result
+    4.37 Apr  9, 2015: fix for NIFTI NL anat; add a little help
+    4.38 Apr 22, 2015:
+        - help update for -regress_ROI_*
+        - verify erode list use
+        - added -todo to show current list
+    4.39 Apr 22, 2015: add missed cat_matvec to create warp.all.anat.aff12.1D
+    4.40 Apr 30, 2015: allow AM2 centering param via basis backdoor
+        - e.g. use basis "BLOCK(2) :x:0.176"
+    4.41 May 05, 2015:
+        - added -anat_follower, -anat_follower_ROI, -regress_anaticor_label
+        - followers are copied to copy_af_LABEL
+        - added Example 11 - a more modern resting state example
+        - added local WMe correlation diagnostic using -ort X-matrix
+    4.42 May 07, 2015: replaced slow 3dTfitter with 3dTproject in anaticor
+    4.43 May 08, 2015: added -regress_make_corr_vols
 """
 
-g_version = "version 4.27, January 15, 2015"
+g_version = "version 4.43, May 8, 2015"
 
 # version of AFNI required for script execution
-g_requires_afni = "7 Nov 2014" # 3dNwarpApply
+g_requires_afni = "1 Apr 2015" # 1d_tool.py uncensor from 1D
+
+g_todo_str = """todo:
+  - add option to block anat from anat followers?
+  - add AP test for varying remove_first_trs
+  - add -4095_check and -4095_ok options?
+     - maybe check means the 3dToutcount would fail, and ok would continue
+     - or have 3dToc just report, maybe write a volume?
+  - add warnings from and bad GLTsymtest output
+
+  - warn of missing input dsets?  (-dsets, -copy_anat, any 3dcopy)
+  - use anaticor_fast method to produce QC volume from WMe of VR data
+     - WMe mask and blur volreg, correlate with same volreg (detrend)
+  - add -volreg_align_base_to_ext_dset (probably a small displacement)
+    (to match volreg_base to -align_epi_ext_dset)
+  - if no align/tlrc blocks, but -mask_segment_anat, run 3dSkullStrip
+    see http://afni.nimh.nih.gov/afni/community/board/read.php?1,145004
+  - add anaticor in surface analysis
+  - update surface examples to use standard mesh surfaces
+
+  - motsim regression: per voxel; PCs; combined with mot params?
+     - is this extra useful in the case of no censoring?  e.g. PPI
+  - add -regress_basis_AM2_offsets or _basis_multi_params (now hidden in basis)
+     for something like -stim_times_AM2 'BLOCK(2)' :x:0.176
+"""
 
 # ----------------------------------------------------------------------
 # dictionary of block types and modification functions
 
 BlockLabels  = ['tcat', 'postdata', 'despike', 'ricor', 'tshift', 'align',
-                'volreg', 'surf', 'blur', 'mask', 'scale', 'regress', 'tlrc', 'empty']
+                'volreg', 'surf', 'blur', 'mask', 'scale', 'regress', 'tlrc',
+                'empty']
 BlockModFunc  = {'tcat'   : db_mod_tcat,     'postdata' : db_mod_postdata,
                  'despike': db_mod_despike,
                  'ricor'  : db_mod_ricor,    'tshift' : db_mod_tshift,
@@ -539,8 +603,10 @@ class SubjProcSream:
         self.anat_unif_meth = 'default' # unifize method
         self.anat_unifized = 0          # has the anat been unifized
         self.anat_final = None          # anat assumed aligned with stats
+        self.anat_warps = []            # array of anat warp matrices
         self.nlw_aff_mat= ''
         self.nlw_NL_mat = ''
+        self.nlw_priors = []            # afni_name list of 3 warped_dsets
         self.tlrcanat   = None          # expected name of tlrc dataset
         self.tlrc_base  = None          # afni_name dataset used in -tlrc_base
         self.tlrc_nlw   = 0             # are we using non-linear registration
@@ -549,20 +615,26 @@ class SubjProcSream:
         self.a2e_mat    = None          # anat2epi transform matrix file
         self.e2final_mv = []            # matvec list takes epi base to final
         self.e2final    = ''            # aff12.1D file for e2final_mv
+        self.regress_inset = None       # afni_name: first input to regression
         self.errts_pre  = ''            # possibly changing errts prefix
         self.errts_reml = ''            # prefix for any REML errts
-        self.errts_cen  = 0             # flag: current errts has censored TRs removed
+        self.errts_cen  = 0             # flag: current errts has censored
+                                        #       TRs removed
         self.align_ebase= None          # external EPI for align_epi_anat.py
         self.align_epre = 'ext_align_epi' # copied align epi base prefix
         self.rm_rm      = 1             # remove rm.* files (user option)
         self.have_rm    = 0             # have rm.* files (such files exist)
         self.rm_dirs    = 0             # do we have dirs to remove?
         self.rm_list    = ['rm.*']      # array of items to nuke
+        self.have_3dd_stats = 1         # do we have 3dDeconvolve stats
+        self.have_reml_stats = 0        # do we have 3dREMLfit stats
         self.epi_review = '@epi_review.$subj' # filename for gen_epi_review.py
         self.made_ssr_scr = 0           # did we make subj review scripts
         self.ssr_basic    = '@ss_review_basic' # basic review script
         self.test_stims   = 1           # test stim_files for appropriateness
         self.test_dsets   = 1           # test datasets for existence
+
+        self.afollowers   = []          # anat follower dataset VOs
 
         self.ricor_apply  = 'no'        # apply ricor regs in 3dDeconvolve
         self.ricor_reg    = None        # ricor reg to apply in regress block
@@ -601,6 +673,7 @@ class SubjProcSream:
         self.tcsh_cmd   = ''            # tcsh formatted exec_cmd
         self.regmask    = 0             # apply any full_mask in regression
         self.regress_orts = []          # list of ortvec [file, label] pairs
+        self.regress_polort = 0         # applied polort
         self.origview   = '+orig'       # view could also be '+tlrc'
         self.view       = '+orig'       # (starting and 'current' views)
         self.xmat       = 'X.xmat.1D'   # X-matrix file (might go uncensored)
@@ -669,6 +742,8 @@ class SubjProcSream:
                         helpstr='show which date is required of AFNI')
         self.valid_opts.add_opt('-show_valid_opts', 0, [],
                         helpstr="show all valid options")
+        self.valid_opts.add_opt('-todo', 0, [],
+                        helpstr="show current todo list")
         self.valid_opts.add_opt('-ver', 0, [],
                         helpstr="show module version")
 
@@ -693,6 +768,10 @@ class SubjProcSream:
         self.valid_opts.add_opt('-subj_id', 1, [],
                         helpstr='subject ID, used in most filenames')
 
+        self.valid_opts.add_opt('-anat_follower', 3, [],
+                        helpstr='specify label and anat follower dataset')
+        self.valid_opts.add_opt('-anat_follower_ROI', 3, [],
+                        helpstr='specify label and anat follower ROI dataset')
         self.valid_opts.add_opt('-anat_has_skull', 1, [],
                         acplist=['yes','no'],
                         helpstr='does the anat have a skull (to be stripped)')
@@ -763,7 +842,7 @@ class SubjProcSream:
         # block options
         self.valid_opts.add_opt('-tcat_preSS_warn_limit', 1, [],
                         helpstr='set limit where TR #0 outliers suggest pre-SS')
-        self.valid_opts.add_opt('-tcat_remove_first_trs', 1, [],
+        self.valid_opts.add_opt('-tcat_remove_first_trs', -1, [],
                         helpstr='num TRs to remove from start of each run')
         self.valid_opts.add_opt('-tcat_remove_last_trs', 1, [],
                         helpstr='num TRs to remove from end of each run')
@@ -819,6 +898,8 @@ class SubjProcSream:
                         helpstr='use non-linear warping to template')
         self.valid_opts.add_opt('-tlrc_NL_warp', 0, [],
                         helpstr='use non-linear warping to template')
+        self.valid_opts.add_opt('-tlrc_NL_warped_dsets', 3, [],
+                        helpstr='pass dsets that have already been NLwarped')
         self.valid_opts.add_opt('-tlrc_no_ss', 0, [],
                         helpstr='do not skull-strip during @auto_tlrc')
         self.valid_opts.add_opt('-tlrc_rmode', 1, [],
@@ -829,8 +910,8 @@ class SubjProcSream:
         self.valid_opts.add_opt('-volreg_align_e2a', 0, [],
                         helpstr="align EPI to anatomy (via align block)")
         self.valid_opts.add_opt('-volreg_align_to', 1, [],
-                        acplist=['first','third', 'last'],
-                        helpstr="align to 'first', 'third' or 'last' TR")
+                        acplist=['first','third', 'last', 'MIN_OUTLIER'],
+                        helpstr="align to first, third, last or MIN_OUTILER TR")
         self.valid_opts.add_opt('-volreg_base_dset', 1, [],
                         helpstr='external dataset to use as volreg base')
         self.valid_opts.add_opt('-volreg_base_ind', 2, [],
@@ -907,8 +988,16 @@ class SubjProcSream:
                         helpstr="stop 3dDeconvolve after matrix generation")
         self.valid_opts.add_opt('-regress_anaticor', 0, [],
                         helpstr="apply ANATICOR: regress WMeLocal time series")
+        self.valid_opts.add_opt('-regress_anaticor_fast', 0, [],
+                        helpstr="fast ANATICOR: regress WMeLocal time series")
+        self.valid_opts.add_opt('-regress_anaticor_fwhm', 1, [],
+                        helpstr="specify FWHM for fast WMeLocal extraction")
         self.valid_opts.add_opt('-regress_anaticor_radius', 1, [],
                         helpstr="specify radius for WMeLocal extraction")
+        self.valid_opts.add_opt('-regress_anaticor_label', 1, [],
+                        helpstr="specify ROI label for anaticor (default=WMe)")
+        self.valid_opts.add_opt('-regress_WMeL_corr', 0, [],
+                        helpstr="if WMeLocal, compute correlation volume")
         self.valid_opts.add_opt('-regress_apply_mask', 0, [],
                         helpstr="apply the mask in regression")
         self.valid_opts.add_opt('-regress_apply_ricor', 1, [],
@@ -1008,6 +1097,8 @@ class SubjProcSream:
                         helpstr="apply -local_times option to 3dDeconvolve")
         self.valid_opts.add_opt('-regress_make_ideal_sum', 1, [],
                         helpstr="filename for sum of ideal regressors")
+        self.valid_opts.add_opt('-regress_make_corr_vols', -1, [],
+                        helpstr="get correlation volumes for given ROIs")
         self.valid_opts.add_opt('-regress_no_ideal_sum', 0, [],
                         helpstr="do not compute the sum of regressors")
         self.valid_opts.add_opt('-regress_no_fitts', 0, [],
@@ -1028,6 +1119,12 @@ class SubjProcSream:
                         helpstr="execute 3dREMLfit command script")
         self.valid_opts.add_opt('-regress_ROI', -1, [], okdash=0,
                         helpstr="regress out known ROIs")
+        self.valid_opts.add_opt('-regress_ROI_PC', 3, [], okdash=0,
+                        helpstr="regress PCs from ROI (label #pc dset)")
+        self.valid_opts.add_opt('-regress_ROI_maskave', 2, [], okdash=0,
+                        helpstr="regress average over ROI (label dset)")
+        self.valid_opts.add_opt('-regress_ROI_erode', -1, [], okdash=0,
+                        helpstr="erode ROI masks for given labels")
         self.valid_opts.add_opt('-regress_RONI', -1, [], okdash=0,
                         helpstr="1-based list of regressors of no interest")
         self.valid_opts.add_opt('-regress_RSFC', 0, [],
@@ -1110,6 +1207,10 @@ class SubjProcSream:
             print g_requires_afni
             return 0  # gentle termination
         
+        if opt_list.find_opt('-todo'):     # print "todo" list
+            print g_todo_str
+            return 0
+        
         if opt_list.find_opt('-ver'):      # show the version string
             print g_version
             return 0  # gentle termination
@@ -1123,14 +1224,18 @@ class SubjProcSream:
 
         # end terminal options
 
-        # options that imply other options
-        if opt_list.find_opt('-regress_anaticor'):
-           opt_list.add_opt("-mask_segment_anat", 1, ["yes"], setpar=1)
-           opt_list.add_opt("-mask_segment_erode", 1, ["yes"], setpar=1)
+        # --------------------------------------------------
+        # options that imply options in _prior_ blocks
+
+        # anaticor implies segment, unless a label is specified
+        if opt_list.find_opt('-regress_anaticor') \
+           or opt_list.find_opt('-regress_anaticor_fast'):
+           if not opt_list.find_opt('-regress_anaticor_label'):
+              opt_list.add_opt("-mask_segment_anat", 1, ["yes"], setpar=1)
+              opt_list.add_opt("-mask_segment_erode", 1, ["yes"], setpar=1)
 
         # end options that imply other options
-
-        # end terminal options
+        # --------------------------------------------------
 
         opt = opt_list.find_opt('-check_results_dir')
         if opt_is_no(opt): self.check_rdir = 'no'
@@ -1593,7 +1698,7 @@ class SubjProcSream:
         
         block = self.find_block('volreg')
         if not block:
-            if verb > 0: print "** cannot get vr_base_indices: no volreg block"
+            if verb>0: print "** warning: no volreg block for vr_base_indices"
             return -1, -1
         opt = block.opts.find_opt('-volreg_base_ind')
 
@@ -1887,6 +1992,39 @@ class SubjProcSream:
             if self.verb > 1:
                 print '++ copying external censor file to %s'%self.censor_file
 
+        # copy any -regress_ROI_* datasets; possibly convert to AFNI
+        if len(self.afollowers) > 0:
+           tstr = '# copy anatomical follower datasets into the results dir\n'
+           for af in self.afollowers:
+              tstr += '3dcopy %s %s/%s\n' % \
+                   (af.aname.rel_input(), self.od_var, af.cpname.out_prefix())
+              # update current name, in case we switch to AFNI format
+              af.cname = af.cpname
+              if af.cname.view == '': af.cname.new_view(self.view)
+           self.write_text(add_line_wrappers(tstr))
+           self.write_text("%s\n" % stat_inc)
+
+        # copy and -tlrc_NL_warped_dsets files (self.nlw_priors dsets)
+        if len(self.nlw_priors) == 3:
+           tstr = '# copy external -tlrc_NL_warped_dsets datasets\n'
+
+           # if priors[0].type == NIFTI, convert to AFNI   9 Apr 2015
+           an = self.nlw_priors[0]
+           tstr += '3dcopy %s %s/%s\n'%(an.rel_input(), self.od_var, an.prefix)
+
+           for an in self.nlw_priors[1:]:
+              tstr += '3dcopy %s %s/%s\n' % \
+                      (an.rel_input(), self.od_var, an.out_prefix())
+
+           # if priors[0].type == NIFTI, convert to AFNI   9 Apr 2015
+           if self.nlw_priors[0].type == 'NIFTI':
+              an = self.nlw_priors[0]
+              an = afni_name('%s+tlrc' % an.prefix)
+              self.nlw_priors[0] = an
+
+           self.write_text(add_line_wrappers(tstr))
+           self.write_text("%s\n" % stat_inc)
+
         opt = self.user_opts.find_opt('-copy_files')
         if opt and len(opt.parlist) > 0:
             tstr = '# copy extra files into results dir\n' \
@@ -2065,6 +2203,169 @@ class SubjProcSream:
           print '** invalid index for block label: %d' % index
           return 'NO_LABEL'
        return self.pblabels[index]
+
+
+    def anat_follower(self, name='', aname=None, dgrid='epi', label='',
+                      NN=0, num_pc=0, mave=0):
+        """provide either a name/prefix or an afni_name,
+           dgrid : 'anat','epi','orig', the destination grid
+           label : applied for any regression ort
+           NN    : 0/1, should apply NN interpolation
+           num_pc: if > 0, use 3dpc to generate regressors
+           mave  : if set, use 3dmaskave
+        """
+
+        # force an aname element
+        if aname == None:
+           if name == '':
+              print '** new_anat_follower requires name or aname'
+              return None 
+           aname = afni_name(name)
+
+        if label:
+           lname = afni_name(label)
+           if lname.exist():
+              print "** ERROR: anat_follower label exists as dataset: '%s'" \
+                    % label
+              return None
+
+        if dgrid not in ['epi', 'anat', 'self']:
+           print '** invalid dgrid %s for %s' % (dgrid, aname.rel_input())
+           return None
+
+        vo = VO.VarsObject()
+
+        # set_var is not needed, but is a reminder
+        vo.set_var('aname',  aname)
+        vo.set_var('cname',  aname)     # cname is current name
+        if label: cppre = 'copy_af_%s' % label
+        else:     cppre = aname.prefix
+        vo.set_var('cpname', afni_name(cppre))
+        vo.set_var('dgrid',  dgrid)
+        vo.set_var('label',  label)
+        vo.set_var('erode',  0)         # 0=no, 1=pre, 2=post
+        vo.set_var('NN',     NN)
+        vo.set_var('num_pc', num_pc)
+        vo.set_var('mave',   mave)
+        vo.set_var('final_prefix', '')
+        vo.set_var('is_warped', 0)      # has it been warped?
+
+        return vo
+
+    # ======================================================================
+    # notes regarding anat followers:
+    #    - assume they start out in register with anatomy
+    #    - apply any warps that are applied to anat
+    #    - erode? global PC option? per ROI?
+    # *     - IF ERODE (pre-erode), use 3dmask_tool instead of 3dcopy?
+    #          - ponder post-erode separately?
+    #
+    # warp cases (3 in volreg, 3 in align, 1 in postdata):
+    #    1. volreg: affine (align and/or tlrc) (standard case)
+    #    2. volreg: NL     (align and/or tlrc)
+    #    3. volreg: none   (no tlrc, no a2e (either no align or e2a))
+    #
+    #    4. align (no vr): affine
+    #    5. align (no vr): NL
+    #    6. align (no vr): none:  e2a -> identity warp
+    #
+    #    7. postdata (no vr, no align): just resample
+    #
+    # warp options:
+    #    - erode (before or after warps)
+    #       -regress_ROI_PC_pre_erode Label1 Label2 ...
+    #          - process in postdata block
+    #       -regress_ROI_PC_post_erode Label1 Label2 ...
+    #          - process in warp_anat_followers()
+    #    - dgrid (warp to grid: anat, epi, self)
+    #    - NN (interpolation: NN or default=wsinc5)
+    #
+    # test (esp, check anat/ROI align before and after):
+    #    - no anat included, else always include anat for reference
+    #    - all 7 warp cases
+    #    - erode option (require -regress_ROI_PC_erode LABEL1 LABEL2 ...)
+    #       - let LABEL = ALL be a special option
+    #       - apply in post block, where 3dresample/3dmask_calc would be done
+    # 
+    # warps:
+    #    volreg dowarp:   -tlrc_anat or -copy_anat w/tlrc
+    #           doe2a:    epi -> anat
+    #           doadwarp: adwarp on anat
+    #       a. anat -> EPI
+    #       b. anat -> EPI and tlrc
+    #       c. e2a and tlrc
+    #       d. tlrc (adwarp or follow)
+    #
+    # PC option:   -regress_ROI_PC LABEL NUM_PCs dataset
+    # dset option: -regress_ROI_maskave LABEL dataset
+    #
+    # checks:
+    #  - labels must be unique (and cannot match those in -regress_ROI)
+    #
+    # steps:
+    #  - 3dcopy into results directory (3dmask_tool if pre-erode?)
+    #  - if volreg block, warp them there
+    #    else if align block, do it there
+    #    else resample?
+    #     - if no volreg, dest grid is via run1 dset from prior block
+    #        - proc.volreg_prefix would not be set, so get prior prefix
+    #          from proc.prefix_form_run(prior block)
+    #  - if maskave, just add label to proc.roi_dict
+    #  - generate orts (follow db_cmd_regress_ROI())
+    #     - follow db_cmd_regress_ROI():
+    #     - detrend volreg data at 3dD polort, per run
+    #         3dDetrend -polort 2 -prefix t.3.det pb02.FT.ospace.r03.volreg
+    #     - catenate runs
+    #         3dTcat -prefix rm.vr.det.all.runs t.?.det*.HEAD
+    #     - create censored time series via $keep_trs
+    #         keep = 1d_tool.py -infile $mfile -show_trs_uncensored encoded
+    #         3dpc -mask $mset -pcsave 3 -prefix P3_ det.all.runs+orig"[$keep]"
+    #
+    #     - use 3dpc or 3dmaskave to extract time series
+    #     - uncensor: 1d_tool.py -censor_fill_parent
+    #
+    # to do:
+    #  - basic
+    #  - 3dROIstats?
+    #  - use -stim_file instead of -ortvec to get betas and stats
+    #     - start by extracting each column as file under stimuli/
+    #     - then it would be less special to insert
+    # ======================================================================
+
+
+    # track datasets that should follow anat transformations
+    # (e.g. anat w/skull or ROIs)
+    # anat follows if: -copy_anat, -anat_has_skull, align2epi OR tlrc
+    def add_anat_follower(self, name='', aname=None, dgrid='epi', label='',
+                          NN=0, num_pc=0, mave=0):
+        """add object only if shortinput does not match any existing one 
+
+           return follower object, even if already existing
+        """
+
+        if aname == None and name == '':
+           print '** new_anat_follower requires name or aname'
+           return None
+
+        if aname == None: aname = afni_name(name)
+        si = aname.shortinput()
+
+        # warn user if dupe is seen
+        for af in self.afollowers:
+           if af.aname.shortinput() == si:
+              print '** warning: have duplicate anat follower: %s' % si
+
+        # not yet in list
+        af = self.anat_follower(aname=aname, dgrid=dgrid, label=label,
+                                NN=NN, num_pc=num_pc, mave=mave)
+        self.afollowers.append(af)
+
+        return af
+
+    def get_anat_follower(self, label):
+       for af in self.afollowers:
+          if af.label == label: return af
+       return None
 
     # given a block, run, return a prefix of the form: pNN.SUBJ.rMM.BLABEL
     #    NN = block index, SUBJ = subj label, MM = run, BLABEL = block label

@@ -421,8 +421,11 @@ typedef struct {
    MRI_IMAGE *cen_tsim ;
    MRI_IMAGE *xax_tsim ;  /* 09 Jan 1998 */
    MRI_IMAGE *ave_tsim ;  /* 26 Jan 2004 */
+   void      *xax_dset ;  /* 09 Feb 2015 */
+   void      *xax_fdbr ;
+   MRI_IMAGE *xax_cen  ;  /* 12 Feb 2015 */
 
-   int xx_text_1 , xx_text_2 , xx_text_2p , xx_text_3 ;
+   int xx_text_1 , xx_text_2 , xx_text_2p , xx_text_3 , xx_text_igf ;
 
    /* external time-series stuff */
 
@@ -473,7 +476,7 @@ typedef struct {
 
    Widget opt_xaxis_menu , opt_xaxis_cbut ,        /* 09 Jan 1998 */
           opt_xaxis_pick_pb , opt_xaxis_center_pb ,
-          opt_xaxis_clear_pb ;
+          opt_xaxis_clear_pb , opt_xaxis_dset_pb ;
 
    Widget opt_baseline_menu , opt_baseline_cbut ,   /* 07 Aug 2001 */
           opt_baseline_setglobal_pb ,
@@ -520,6 +523,8 @@ typedef struct {
    float tmed[MAT_MAX][MAT_MAX] , tmad[MAT_MAX][MAT_MAX] ;    /* 08 Mar 2001 */
    int   sbot[MAT_MAX][MAT_MAX] , stop[MAT_MAX][MAT_MAX] ;    /* 19 Mar 2004 */
    float tbmv[MAT_MAX][MAT_MAX] ;                             /* 16 Oct 2009 */
+
+   float xax_bot[MAT_MAX][MAT_MAX], xax_top[MAT_MAX][MAT_MAX] ; /* 12 Feb 2015 */
 
    XtIntervalId timer_id ;                          /* 04 Dec 2003 */
    int          timer_func, timer_param, timer_delay ;
@@ -717,7 +722,7 @@ extern void GRA_winaver_setref ( MCW_grapher * ) ;
 extern void GRA_saver_CB( Widget , XtPointer , MCW_choose_cbs * ) ;
 extern void GRA_file_pixmap( MCW_grapher * , char * ) ;
 
-extern void GRA_fixup_xaxis( MCW_grapher * ) ;
+extern void GRA_fixup_xaxis( MCW_grapher * , MRI_IMAGE * ) ;
 extern void GRA_pick_xaxis_CB( Widget , XtPointer , MCW_choose_cbs * ) ;
 
 extern void GRA_mapmenu_CB( Widget , XtPointer , XtPointer ) ;

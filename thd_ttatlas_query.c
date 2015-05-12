@@ -1276,7 +1276,7 @@ char * genx_Atlas_Query_to_String (ATLAS_QUERY *wami,
                if(strcmp(clab[i],"{Unknown}")!=0){
                   sprintf(tmps, "%s   %s, %s, %s %s%s%c",
                       histart, xlab[i], ylab[i], zlab[i], clab[i], hiend, lsep);
-                  strncat(lbuf, tmps, 1023*sizeof(char));
+                  strncat(lbuf, tmps, (1023-strlen(lbuf))*sizeof(char));
                }
             }
             ADDTO_SARR(sar,lbuf);
@@ -4929,7 +4929,7 @@ char **approx_str_sort_readmes(char *str, int *N_r)
    if (strstr(str,strn)) str += strlen(strn);
    else if (str[0] == '.') str += 1;
    
-   strncat(strn, str, 200*sizeof(char));
+   strncat(strn, str, (200-strlen(strn))*sizeof(char));
    if (!(progs = THD_get_all_afni_readmes())) {
       RETURN(ws);
    }              
@@ -8756,6 +8756,48 @@ char *deblank_allname(char *name, char fill)
    return(name);
 }
 
+char *deslash_allname(char *name, char fill)
+{
+   int bb=0;
+   
+   if (!name) return(name);
+   
+      bb=0; 
+   while (name[bb] != '\0') {
+      if (name[bb] == '\\' || name[bb] == '/') name[bb]=fill;
+      ++bb;
+   }
+   
+   return(name);
+}
+
+
+/* deblank and compress (reduce successive blanks to
+   just one blank */
+char *cdeblank_allname(char *name, char fill)
+{
+   int bb=0, block=0, bbo=0;
+   
+   if (!name) return(name);
+   
+   name = deblank_name(name);
+   
+/*   nch = strlen(name);*/
+   bb=0; bbo=0; 
+   while (name[bb] != '\0') {
+      if (isspace(name[bb])) {
+         if (!block) name[bbo++]=fill;
+         block=1;
+      } else {
+         name[bbo++]=name[bb];
+         block=0;
+      }
+      ++bb;
+   }
+   name[bbo]='\0';
+   return(name);
+}
+
 char *depunct_name (char *name) {
    int nch = 0, bb=0, ibb=0, BB=0;
    
@@ -9469,25 +9511,34 @@ int whereami_browser(char *url)
 {
    char cmd[2345] ;
    static int icall=0;
-   
-   if (!GLOBAL_browser && !icall) {
-      if (!(GLOBAL_browser = GetAfniWebBrowser())) {
-         ERROR_message("Have no browser set. "
-           "Specify one by adding the environment variable AFNI_WEB_BROWSER to\n"
-           "your ~/.afnirc. For example:  AFNI_WEB_BROWSER firefox\n"
-           "On a MAC you can also do: AFNI_WEB_BROWSER open\n"); 
-      }
-      icall = 1;
-   }
-   if (!GLOBAL_browser) return(0);
 
-   sprintf(cmd ,
-          "%s '%s' &" ,
-          GLOBAL_browser, url ) ;
-   if(wami_verb())
-      printf("system command to send to browser is:\n%s\n",cmd);
-   
-   return(system(cmd));
+   if( (url==NULL) || (strlen(url)==0)) return(-1);
+
+   /* open a webpage using selenium webdriver */
+   if( afni_uses_selenium() ) {
+      selenium_open_webpage(url);
+      return(0);
+   }
+   else{  /* open a webpage with regular system browser call */
+      if (!GLOBAL_browser && !icall) {
+         if (!(GLOBAL_browser = GetAfniWebBrowser())) {
+            ERROR_message("Have no browser set. "
+              "Specify one by adding the environment variable AFNI_WEB_BROWSER to\n"
+              "your ~/.afnirc. For example:  AFNI_WEB_BROWSER firefox\n"
+              "On a MAC you can also do: AFNI_WEB_BROWSER open\n"); 
+         }
+         icall = 1;
+      }
+      if (!GLOBAL_browser) return(0);
+
+      sprintf(cmd ,
+             "%s '%s' &" ,
+             GLOBAL_browser, url ) ;
+      if(wami_verb())
+         printf("system command to send to browser is:\n%s\n",cmd);
+
+      return(system(cmd));
+  }
 }
 
 /* return copy of input url with special characters escaped */

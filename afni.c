@@ -1,6 +1,6 @@
 
 /*-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
-/*   This is the mother goddess of all FMRI programs, so bow down before it.  */
+/*   This is the mother goddess of all FMRI programs, so bow down before it!  */
 /*-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 
 /*****************************************************************************
@@ -1265,8 +1265,8 @@ static char *FALLback[] =
       "AFNI*font8*fontList:        8x13bold=charset1"    , /* smaller fonts */
       "AFNI*font7*fontList:        7x13=charset1"        ,  /* for various */
       "AFNI*font6*fontList:        6x10=charset1"        ,  /* usages */
-      "AFNI*background:            gray19"               , /* background clr */
-      "AFNI*menu*background:       gray5"                , /* bkgd in menus */
+      "AFNI*background:            gray21"               , /* background clr */
+      "AFNI*menu*background:       gray4"                , /* bkgd in menus */
       "AFNI*menu*foreground:       #ffdd22"              , /* menu text color */
       "AFNI*borderColor:           gray19"               , /* same as bkgd! */
       "AFNI*foreground:            yellow"               , /* normal text */
@@ -1323,11 +1323,32 @@ void AFNI_sigfunc(int sig)
 #ifdef SHSTRING
    fprintf(stderr,"** [[Precompiled binary " SHSTRING ": " __DATE__ "]]\n") ;
 #endif
-   fprintf(stderr,"** Program Abort **\n") ;
-   if( sig != SIGINT && sig != SIGTERM )
-   fprintf(stderr,"** If you report this crash to the AFNI message\n"
-                  "** board, please copy the error messages EXACTLY.\n") ;
+   fprintf(stderr,"** AFNI Program Is Dead :-( **\n") ;
    fflush(stderr) ;
+   if( sig != SIGINT && sig != SIGTERM ){  /* add crashlog [13 Apr 2015] */
+     FILE *dfp ; char *home , fname[1024] ;
+     fprintf(stderr,"** If you report this crash to the AFNI message\n"
+                    "** board, please copy the error messages EXACTLY.\n") ;
+     home = getenv("HOME") ;
+     if( home != NULL ){
+       strcpy(fname,home) ; strcat(fname,"/.afni.crashlog") ;
+     } else {
+       strcpy(fname,".afni.crashlog") ;
+     }
+     dfp = fopen( fname , "a" ) ;
+     if( dfp != NULL ){
+       fprintf(dfp,"\n*********-----------------------------------------------*********") ;
+       fprintf(dfp,"\nFatal Signal %d (%s) received\n",sig,sname); fflush(stderr);
+       DBG_tfp = dfp ; DBG_traceback() ; DBG_tfp = stderr ;
+       fprintf(dfp,"** AFNI version = " AVERZHN "  Compile date = " __DATE__ "\n" );
+#ifdef SHSTRING
+       fprintf(dfp,"** [[Precompiled binary " SHSTRING ": " __DATE__ "]]\n") ;
+#endif
+       fprintf(dfp,"** AFNI Program Hideous Death **\n") ;
+       fclose(dfp) ;
+       fprintf(stderr,"** Crash log appended to file %s\n",fname) ;
+     }
+   }
    exit(1) ;
 }
 
@@ -1480,6 +1501,8 @@ void AFNI_sigfunc_alrm(int sig)
      "Did I mention that we're doomed? Horribly horribly doomed?"    ,
      "I could go for some momos right now, how about you?"           ,
      "I really like woh for a filling dinner, don't you?"            ,
+     "Dal bhat power, 24 hour"                                       ,
+     "Hodor Hodor Hodor Hodor"                                       ,
      "I wake and feel the fell of dark, not day"                     ,
      "Love all, trust a few, do wrong to none"                       ,
      "The wheel is come full circle"                                 ,
@@ -1501,6 +1524,7 @@ void AFNI_sigfunc_alrm(int sig)
      "Remember -- Aquaman cares"                                     ,
      "Remember -- She who laughs, lasts"                             ,
      "Remember -- He who laughs, lasts"                              ,
+     "Do not scorn pity that is the gift of a gentle heart"          ,
      "The best laid statistics of mice and men gang aft agley"       ,
      "A thousand farewells pass in one moment"                       ,
      "Did you see hyperconnectivity in the disconnected fibers?"     ,
@@ -1557,11 +1581,14 @@ void AFNI_sigfunc_alrm(int sig)
      "What do you do all day? I do very little, and do it slowly"    ,
      "Did you find a paradigm shift today?"                          ,
      "Was it the silver bullet you were hoping for?"                 ,
-     "Did find the Holy Grail of neuroimaging yet?"                  ,
+     "Did you find the Holy Grail of neuroimaging yet?"              ,
      "Shedding new light on the brain since 1994!"                   ,
      "Brain-ology at the cutting edge since 1994!"                   ,
      "Don't you wish it had a 'Write Nature Paper' button?"          ,
+     "Coming REAL soon: the 'Write Science Paper' interface"         ,
+     "And flights of angels sing thee to thy rest"                   ,
 
+     "Have you made your long term (trillion year) research plan yet? Get busy"       ,
      "Why is 'Gold Standard' used in science? Gold is pretty but almost useless"      ,
      "Oh well, you can always end your paper with 'Further research needed'"          ,
      "It's not true my youth was wild and crazy -- only half of that is true"         ,
@@ -1624,8 +1651,11 @@ void AFNI_sigfunc_alrm(int sig)
      "\n  When someone says: I agree 100% with your concept,\n"
      "  They mean:         I am implacably opposed to your proposal"                          ,
 
-     "\n  If reasonable priors lead to different conclusions, then it's time to\n"
-     "  look for more data, think harder, mumble inaudibly, or take a wild guess"
+     "\n  If 2 reasonable priors lead to different conclusions, then it's time to\n"
+     "  look for more data, think harder, mumble inaudibly, or take a wild guess"             ,
+
+     "\n  To be stupid, selfish, and have good health are three requirements\n"
+     "   for happiness; though if stupidity is lacking, all is lost.\n"
    } ;
 #undef NTOP
 #ifdef USE_SONNETS
@@ -1671,7 +1701,7 @@ void AFNI_sigfunc_alrm(int sig)
        MCW_melt_widget( im3d->vwid->top_form ) ;
      }
    }
-
+   selenium_close(); /* close any selenium opened browser windows if open */
    exit(sig);
 }
 #undef NMSG
@@ -1863,7 +1893,7 @@ int main( int argc , char *argv[] )
                      "            fink install netpbm\n" ) ;
 #endif
 
-   /** Start the debug traceback stuff **/
+   /** Start the debug traceback stuff (also resets signal handler) **/
 
    mainENTRY("AFNI:main") ; /* 26 Jan 2001: replace ENTRY w/ mainENTRY */
 
@@ -1959,6 +1989,7 @@ int main( int argc , char *argv[] )
    PUTENV("AFNI_RESCAN_AT_SWITCH","YES") ; /* 16 Nov 2007 */
    PUTENV("AFNI_VIDEO_DELAY","66") ;       /* 20 Aug 2009 */
    PUTENV("AFNI_GRAPH_FADE","YES") ;          /* Apr 2013 */
+   PUTENV("AFNI_MPEG_DATASETS","NO") ;        /* Feb 2015 */
 #if 0
    PUTENV("AFNI_PBAR_FULLRANGE","YES") ;   /* 03 Jun 2014 */
 #endif
@@ -1979,6 +2010,18 @@ int main( int argc , char *argv[] )
      AFNI_process_environ(NULL) ;                         /* 07 Jun 1999 */
    } else {
      AFNI_mark_environ_done() ;                           /* 16 Apr 2000 */
+   }
+
+   /*-- 30 Apr 2015: some messages about obsolete environment variables --*/
+
+   if( getenv("AFNI_SLAVE_THRTIME") != NULL ){
+     WARNING_message("environment variable AFNI_SLAVE_THRTIME is no longer used!") ;
+     WARNING_message(" -- see AFNI_SLAVE_FUNCTIME and AFNI_SLAVE_THROLAY instead") ;
+   }
+
+   if( getenv("AFNI_SLAVE_BUCKETS_TOO") != NULL ){  /* 30 May 2015 */
+     WARNING_message("environment variable AFNI_SLAVE_BUCKETS_TOO is no longer used!") ;
+     WARNING_message(" -- see AFNI_SLAVE_FUNCTIME and AFNI_SLAVE_THROLAY instead") ;
    }
 
    /* set top exponent for threshold slider [04 Nov 2010] -- for Allison */
@@ -3015,6 +3058,10 @@ ENTRY("AFNI_brick_to_mri") ;
 
 if(PRINT_TRACING){ char str[256] ; sprintf(str,"n=%d type=%d",n,type) ; STATUS(str) ; }
 
+   if( br == NULL ){  /* should never happen */
+     ERROR_message("AFNI_brick_to_mri: bad FD_brick :-(") ; RETURN(NULL) ;
+   }
+
    /*-------------------------------------------------*/
    /*-------- May 1996: graph callbacks first --------*/
 
@@ -3047,7 +3094,8 @@ if(PRINT_TRACING){ char str[256] ; sprintf(str,"n=%d type=%d",n,type) ; STATUS(s
       Three_D_View *im3d = (Three_D_View *)br->parent ;
       MCW_grapher *grapher = UNDERLAY_TO_GRAPHER(im3d,br) ;
 
-      im = FD_brick_to_series( n , br ) ; im->flags = 1 ;
+      im = FD_brick_to_series( n , br ) ; if( im == NULL ) RETURN(NULL) ;
+      im->flags = 1 ;
 
       if( grapher->thresh_fade && im3d->vinfo->func_visible ){  /* Mar 2013 */
         int nsl = n / (br->n1 * br->n2) ;
@@ -3260,7 +3308,7 @@ STATUS("defining surface drawing parameters") ;
         DC_parse_color( im3d->dc , ag->line_color , &rr_lin,&gg_lin,&bb_lin ) ;
         DC_parse_color( im3d->dc , ag->box_color  , &rr_box,&gg_box,&bb_box ) ;
         linewidth = ag->line_width * 0.002f ;
-		  skip_boxes = 1 ; skip_lines = 0 ; skip_lcen = 0; skip_ledg = 1 ;
+        skip_boxes = 1 ; skip_lines = 0 ; skip_lcen = 0; skip_ledg = 1 ;
 
       } else {                                   /* the old way    */
                                                  /* to set colors:  */
@@ -3599,13 +3647,16 @@ STATUS("drawing triangle lines") ;
 
      if( do_xhar ){
       MCW_grapher *grapher = UNDERLAY_TO_GRAPHER(im3d,br) ;
+      float thth = (float)AFNI_numenv("AFNI_CROSSHAIR_THICKNESS") ;
 
       THD_ivec3 ib = THD_3dind_to_fdind( br ,
                                          TEMP_IVEC3( im3d->vinfo->i1 ,
                                                      im3d->vinfo->j2 ,
                                                      im3d->vinfo->k3  ) ) ;
 STATUS("drawing crosshairs") ;
-      set_thick_memplot(0.0) ;
+
+      if( thth < 0.0f || thth > 0.05f ) thth = 0.0f ;
+      set_thick_memplot(thth) ;
 
       if( n == ib.ijk[2] || im3d->vinfo->xhairs_all ){
          int jp,ip , jcen,icen , gappp , jj,ii ;
@@ -5875,8 +5926,7 @@ void AFNI_closedown_3dview( Three_D_View *im3d )
 ENTRY("AFNI_closedown_3dview") ;
 
    if( ! IM3D_VALID(im3d) ) EXRETURN ;
-
-   /* Mar 1999: shutoff receivers, if any */
+/* Mar 1999: shutoff receivers, if any */
 
    AFNI_receive_destroy( im3d ) ;
 
@@ -5917,9 +5967,18 @@ ENTRY("AFNI_closedown_3dview") ;
 
    /* Jul 2010 */
 
-   CLU_free_table(im3d->vwid->func->clu_tabNN1); im3d->vwid->func->clu_tabNN1 = NULL;
-   CLU_free_table(im3d->vwid->func->clu_tabNN2); im3d->vwid->func->clu_tabNN2 = NULL;
-   CLU_free_table(im3d->vwid->func->clu_tabNN3); im3d->vwid->func->clu_tabNN3 = NULL;
+   CLU_free_table(im3d->vwid->func->clu_tabNN1_1sid); im3d->vwid->func->clu_tabNN1_1sid = NULL;
+   CLU_free_table(im3d->vwid->func->clu_tabNN2_1sid); im3d->vwid->func->clu_tabNN2_1sid = NULL;
+   CLU_free_table(im3d->vwid->func->clu_tabNN3_1sid); im3d->vwid->func->clu_tabNN3_1sid = NULL;
+
+   CLU_free_table(im3d->vwid->func->clu_tabNN1_2sid); im3d->vwid->func->clu_tabNN1_2sid = NULL;
+   CLU_free_table(im3d->vwid->func->clu_tabNN2_2sid); im3d->vwid->func->clu_tabNN2_2sid = NULL;
+   CLU_free_table(im3d->vwid->func->clu_tabNN3_2sid); im3d->vwid->func->clu_tabNN3_2sid = NULL;
+
+   CLU_free_table(im3d->vwid->func->clu_tabNN1_bsid); im3d->vwid->func->clu_tabNN1_bsid = NULL;
+   CLU_free_table(im3d->vwid->func->clu_tabNN2_bsid); im3d->vwid->func->clu_tabNN2_bsid = NULL;
+   CLU_free_table(im3d->vwid->func->clu_tabNN3_bsid); im3d->vwid->func->clu_tabNN3_bsid = NULL;
+
    if( im3d->vwid->func->clu_mask != NULL ){
      free(im3d->vwid->func->clu_mask) ; im3d->vwid->func->clu_mask = NULL ;
    }
@@ -7204,7 +7263,7 @@ DUMP_IVEC3("  new_id",new_id) ;
      if( VEDIT_good(im3d->vedset) ){
        im3d->vedset.ival = im3d->vinfo->fim_index ;
        switch( VEDIT_CODE(im3d->vedset) ){
-         case VEDIT_CLUST:
+         case VEDIT_CLUST:  /* params 2,3,6 set in afni_cluster.c */
            im3d->vedset.param[0] = (float)im3d->vinfo->thr_index ;
            im3d->vedset.param[1] = get_3Dview_func_thresh(im3d,1);
            im3d->vedset.param[4] = im3d->vinfo->thr_sign ;
@@ -9409,7 +9468,6 @@ THD_fvec3 AFNI_transform_vector( THD_3dim_dataset *old_dset ,
 
    return old_fv ;
 }
-
 
 /*------------------------------------------------------------------------
   09 May 2001: fix a Solaris stupidity, where the scale is resized

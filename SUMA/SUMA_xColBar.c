@@ -665,21 +665,13 @@ void SUMA_cmap_wid_input(Widget w, XtPointer clientData, XtPointer callData)
             break;
          case XK_f:
             {
-               if (1) { /* needs work, don't feel like it for now */
+               if (1) { 
                   SUMA_LH("Flipping colormap");
                   SUMA_Flip_Color_Map(
                      SUMA_CmapOfPlane(curColPlane));
                   SUMA_LH("Switching colormap");
-                  SUMA_SwitchColPlaneCmap(ado,
-                     SUMA_CmapOfPlane(curColPlane));
-                  #if SUMA_SEPARATE_SURF_CONTROLLERS
-                     SUMA_LH("Updating shells");
-                     SUMA_UpdateColPlaneShellAsNeeded(ado);
-                  #endif
-
-                  /* update Lbl fields */
-                  SUMA_LH("Updating NodeLblFields");
-                  SUMA_UpdateNodeLblField(ado);
+                  SUMA_SwitchCmap(ado,
+                         SUMA_CmapOfPlane(curColPlane), 0);
                }
             }
             break;
@@ -767,15 +759,8 @@ void SUMA_cmap_wid_input(Widget w, XtPointer clientData, XtPointer callData)
             {
                SUMA_COLOR_MAP *CM = SUMA_CmapOfPlane(curColPlane);
                if (SUMA_Rotate_Color_Map(CM, 0) % CM->N_M[0]) { 
-                  SUMA_LH("Got color map modification to do");
-                  SUMA_SwitchColPlaneCmap(ado,
-                     SUMA_CmapOfPlane(curColPlane));
-                  #if SUMA_SEPARATE_SURF_CONTROLLERS
-                     SUMA_UpdateColPlaneShellAsNeeded(ado);
-                  #endif
-
-                  /* update Lbl fields */
-                  SUMA_UpdateNodeLblField(ado);
+                  SUMA_SwitchCmap(ado,
+                         SUMA_CmapOfPlane(curColPlane), 0);
                } else {
                   SUMA_cmap_wid_postRedisplay(w, (XtPointer)ado, NULL);
                }
@@ -814,16 +799,8 @@ void SUMA_cmap_wid_input(Widget w, XtPointer clientData, XtPointer callData)
                   SUMA_Rotate_Color_Map(
                      SUMA_CmapOfPlane(curColPlane), frac);
                   SUMA_LH("Switching colormap");
-                  SUMA_SwitchColPlaneCmap(ado,
-                     SUMA_CmapOfPlane(curColPlane));
-                  #if SUMA_SEPARATE_SURF_CONTROLLERS
-                     SUMA_LH("Updating shells");
-                     SUMA_UpdateColPlaneShellAsNeeded(ado);
-                  #endif
-
-                  /* update Lbl fields */
-                  SUMA_LH("Updating NodeLblFields");
-                  SUMA_UpdateNodeLblField(ado);
+                  SUMA_SwitchCmap(ado,
+                         SUMA_CmapOfPlane(curColPlane), 0);
                }
             }
             break;
@@ -852,14 +829,8 @@ void SUMA_cmap_wid_input(Widget w, XtPointer clientData, XtPointer callData)
                   }
                   SUMA_Rotate_Color_Map(
                      SUMA_CmapOfPlane(curColPlane), -frac);
-                  SUMA_SwitchColPlaneCmap(ado,
-                     SUMA_CmapOfPlane(curColPlane));
-                  #if SUMA_SEPARATE_SURF_CONTROLLERS
-                     SUMA_UpdateColPlaneShellAsNeeded(ado);
-                  #endif
-
-                  /* update Lbl fields */
-                  SUMA_UpdateNodeLblField(ado);
+                  SUMA_SwitchCmap(ado,
+                         SUMA_CmapOfPlane(curColPlane), 0);
                }
             }
             break;
@@ -957,7 +928,7 @@ void SUMA_cmap_wid_input(Widget w, XtPointer clientData, XtPointer callData)
   SUMA_RETURNe;
 }
 
-int SUMA_set_threshold_label(SUMA_ALL_DO *ado, float val)
+int SUMA_set_threshold_label(SUMA_ALL_DO *ado, float val, float val2)
 {
    static char FuncName[]={"SUMA_set_threshold_label"};
    char slabel[100];
@@ -974,13 +945,33 @@ int SUMA_set_threshold_label(SUMA_ALL_DO *ado, float val)
    SurfCont = SUMA_ADO_Cont(ado);
    curColPlane = SUMA_ADO_CurColPlane(ado);
    
-   if (curColPlane->OptScl->ThrMode != SUMA_ABS_LESS_THAN) 
-      sprintf(slabel, "%5s", MV_format_fval(val)); 
-   else {
-      /* used to use this:
-      sprintf(slabel, "|%5s|", .... 
-      but that does not work in the editable field ... */
-      sprintf(slabel, "%5s", MV_format_fval(val)); 
+   switch (curColPlane->OptScl->ThrMode) {
+      case SUMA_LESS_THAN: 
+         sprintf(slabel, "%5s", MV_format_fval(val));
+         break;
+      case SUMA_ABS_LESS_THAN:
+         /* used to use this:
+         sprintf(slabel, "|%5s|", .... 
+         but that does not work in the editable field ... */
+         sprintf(slabel, "%5s", MV_format_fval(val));
+         break;
+      case SUMA_THRESH_INSIDE_RANGE:
+         /* This is just a place holder for now */
+         sprintf(slabel, "<%5s..%5s>", 
+                       MV_format_fval(val), MV_format_fval(val2));
+         break;
+      case SUMA_THRESH_OUTSIDE_RANGE:
+         /* This is just a place holder for now */
+         sprintf(slabel, ">%5s..%5s<", 
+                       MV_format_fval(val), MV_format_fval(val2));
+         break;
+      case SUMA_NO_THRESH:
+         break;
+      default:
+         /* This is just a place holder for now */
+         sprintf(slabel, "?%5s??%5s?<", 
+                       MV_format_fval(val), MV_format_fval(val2));
+         break;
    }
    /* SUMA_SET_LABEL(SurfCont->thr_lb,  slabel);*/
       SUMA_INSERT_CELL_STRING(SurfCont->SetThrScaleTable, 0,0,slabel); 
@@ -993,6 +984,9 @@ int SUMA_set_threshold_label(SUMA_ALL_DO *ado, float val)
       SUMA_UpdateColPlaneShellAsNeeded(ado);
    #endif
    
+   /* Will need to ponder Pvalue field when I start using
+      SUMA_THRESH_INSIDE_RANGE and SUMA_THRESH_OUTSIDE_RANGE.
+      Also, should also consider one tail versus two tail...*/
    SUMA_UpdatePvalueField (ado, val); 
    
    SUMA_RETURN(1);  
@@ -1017,7 +1011,7 @@ void SUMA_cb_set_threshold_label(Widget w, XtPointer clientData, XtPointer call)
    XtVaGetValues(w, XmNuserData, &dec, NULL);
    fff = (float)cbs->value / pow(10.0, dec);
    
-   SUMA_set_threshold_label(ado, fff);
+   SUMA_set_threshold_label(ado, fff, 0.0);
    
    SUMA_RETURNe;
 }
@@ -1094,7 +1088,7 @@ int SUMA_set_threshold_one(SUMA_ALL_DO *ado, SUMA_OVERLAYS *colp,
    }
 
    /* call this one since it is not being called as the slider is dragged. */
-   SUMA_set_threshold_label(ado, val);   
+   SUMA_set_threshold_label(ado, val, 0.0);   
 
    /* sad as it is */
    SUMA_FORCE_SCALE_HEIGHT(SUMA_ADO_Cont(ado)); 
@@ -1972,18 +1966,52 @@ void SUMA_cb_AbsThresh_tb_toggled (Widget w, XtPointer data,
       SUMA_S_Warn("NULL input 2"); SUMA_RETURNe; 
    }
 
-   if (curColPlane->OptScl->ThrMode != SUMA_ABS_LESS_THAN) {
+   if (curColPlane->OptScl->ThrMode == SUMA_LESS_THAN) {
       curColPlane->OptScl->ThrMode = SUMA_ABS_LESS_THAN;
-      /* used to use this:
-      sprintf(slabel, "|%5s|", .... 
-      but that does not work in the editable field ... */
-      sprintf(slabel, "%5s", MV_format_fval(
-               fabs(curColPlane->OptScl->ThreshRange[0])));
-   } else {
+   } else if (curColPlane->OptScl->ThrMode == SUMA_ABS_LESS_THAN){
       curColPlane->OptScl->ThrMode = SUMA_LESS_THAN;
-      sprintf(slabel, "%5s", MV_format_fval(
-               curColPlane->OptScl->ThreshRange[0]));
+   } else if (curColPlane->OptScl->ThrMode == SUMA_THRESH_OUTSIDE_RANGE){
+      curColPlane->OptScl->ThrMode = SUMA_THRESH_INSIDE_RANGE;
+   } else if (curColPlane->OptScl->ThrMode == SUMA_THRESH_INSIDE_RANGE){
+      curColPlane->OptScl->ThrMode = SUMA_THRESH_OUTSIDE_RANGE;
+   } else {
+      SUMA_S_Err("Not ready for this situation %d...", 
+                 curColPlane->OptScl->ThrMode);
    }
+   switch (curColPlane->OptScl->ThrMode) {
+      case SUMA_LESS_THAN: 
+         sprintf(slabel, "%5s", 
+            MV_format_fval(curColPlane->OptScl->ThreshRange[0]));
+         break;
+      case SUMA_ABS_LESS_THAN:
+         /* used to use this:
+         sprintf(slabel, "|%5s|", .... 
+         but that does not work in the editable field ... */
+         sprintf(slabel, "%5s", 
+               MV_format_fval(fabs(curColPlane->OptScl->ThreshRange[0])));
+         break;
+      case SUMA_THRESH_INSIDE_RANGE:
+         /* This is just a place holder for now */
+         sprintf(slabel, "<%5s..%5s>", 
+                       MV_format_fval(curColPlane->OptScl->ThreshRange[0]), 
+                       MV_format_fval(curColPlane->OptScl->ThreshRange[1]));
+         break;
+      case SUMA_THRESH_OUTSIDE_RANGE:
+         /* This is just a place holder for now */
+         sprintf(slabel, ">%5s..%5s<", 
+                       MV_format_fval(curColPlane->OptScl->ThreshRange[0]), 
+                       MV_format_fval(curColPlane->OptScl->ThreshRange[1]));
+         break;
+      case SUMA_NO_THRESH:
+         break;
+      default:
+         /* This is just a place holder for now */
+         sprintf(slabel, "?%5s??%5s?<", 
+                       MV_format_fval(curColPlane->OptScl->ThreshRange[0]), 
+                       MV_format_fval(curColPlane->OptScl->ThreshRange[1]));
+         break;
+   }
+   
    /* SUMA_SET_LABEL(SurfCont->thr_lb,  slabel); */
    SUMA_INSERT_CELL_STRING(SurfCont->SetThrScaleTable, 0,0,slabel); 
    if (SUMA_GetDsetColRange(curColPlane->dset_link, 
@@ -2650,7 +2678,7 @@ SUMA_VR_FIELD * SUMA_AllocVRField(char *wname)
    VrF->NewValueCallbackData = NULL;
    VrF->N_slice_num_str = NULL;
    VrF->N_slice_units = SUMA_NO_NUM_UNITS;
-   VrF->N_slice_num = 150;
+   VrF->N_slice_num = -1;
    if (wname) snprintf(VrF->wname,63,"%s", wname);
    else snprintf(VrF->wname,63,"UNNAMED");
    SUMA_RETURN(VrF);
@@ -3561,6 +3589,10 @@ void SUMA_CreateTable(  Widget parent,
          XtVaSetValues (rcc, XmNpacking, XmPACK_TIGHT, NULL); 
       }
       
+      /* Create what would become a table URI in the html help */
+      snprintf(wname, 63, "%s", TF->wname);
+      SUMA_Register_Widget_Help(NULL, 2, wname, NULL, NULL);
+      
       for (j=0; j<TF->Nj; ++j) { /* for each column */
          n = j * TF->Ni + i;
          switch (SUMA_cellvariety(TF, n)) {
@@ -3607,8 +3639,15 @@ void SUMA_CreateTable(  Widget parent,
                      cd ,   /* client data */
                      XtListTail ) ; 
                }
-               snprintf(wname, 63, "%s.r%02d", TF->wname, i);
-               SUMA_Register_Widget_Help(TF->cells[n], wname, 
+               if (0 && TF->HasRowTit &&  row_tit[i]) { /* Much better name, but 
+                    Cannot use it before updating
+                    help generating functions which now call for help on .c00, 
+                    .c01, or .r00 .r01, etc. */
+                  snprintf(wname, 63, "%s.%s", TF->wname, row_tit[i]);
+               } else { 
+                  snprintf(wname, 63, "%s.r%02d", TF->wname, i);
+               }
+               SUMA_Register_Widget_Help(TF->cells[n], 1, wname, 
                                          row_hint?row_hint[i]:NULL, 
                                          row_help?row_help[i]:NULL ) ;
                break;
@@ -3701,8 +3740,15 @@ void SUMA_CreateTable(  Widget parent,
                      cd ,   /* client data */
                      XtListTail ) ; 
                }                 
-               snprintf(wname, 63, "%s.c%02d", TF->wname, j);
-               SUMA_Register_Widget_Help(TF->cells[n], wname,
+               if (0 && TF->HasColTit &&  col_tit[j]) {/* Much better name, but 
+                    Cannot use it before updating
+                    help generating functions which now call for help on .c00, 
+                    .c01, or .r00 .r01, etc. */
+                  snprintf(wname, 63, "%s.%s", TF->wname, col_tit[j]);
+               } else {
+                  snprintf(wname, 63, "%s.c%02d", TF->wname, j);
+               }
+               SUMA_Register_Widget_Help(TF->cells[n], 1, wname,
                                          col_hint?col_hint[j]:NULL, 
                                          col_help?col_help[j]:NULL ) ;  
                break;
@@ -3737,10 +3783,10 @@ void SUMA_CreateTable(  Widget parent,
                      if (col_hint) sii = col_hint[0] ;
                      else if (row_hint) sii =  row_hint[0] ;
                      if (shh || sii) {
-                        SUMA_Register_Widget_Help(TF->cells[n], wname, sii, shh);
+                        SUMA_Register_Widget_Help(TF->cells[n],1,wname,sii, shh);
                      }
                   } else {
-                     SUMA_Register_Widget_Help(TF->cells[n], wname, 
+                     SUMA_Register_Widget_Help(TF->cells[n], 1, wname, 
                                                       NULL,
                                     "Use BHelp on table's column and row titles"
                                     "for usage information.") ;
@@ -4217,7 +4263,7 @@ void SUMA_CreateSliceFields(  Widget parent,
                                      NULL);
    if (hint || help) {
       snprintf(wname,63, "%s->%s", SF->wname, tit);
-      SUMA_Register_Widget_Help( SF->lab, wname, hint, help);
+      SUMA_Register_Widget_Help( SF->lab, 1, wname, hint, help);
    }
    mult = ((int)(SF->Nslc/20.0)/5)*5; if (mult < 1) mult = 1;
    arglist = XtVaCreateArgsList( NULL,
@@ -4262,7 +4308,7 @@ void SUMA_CreateSliceFields(  Widget parent,
 
    if (hint || help) {
       snprintf(wname, 63, "%s->%s_text", SF->wname, tit);
-      SUMA_Register_Widget_Help( SF->text, wname, hint, help);
+      SUMA_Register_Widget_Help( SF->text, 1, wname, hint, help);
    }
    XtVaSetValues(SF->text, XmNcolumns, 3, NULL); 
    XtVaSetValues(SF->text, XmNeditable, True, 
@@ -4296,7 +4342,7 @@ void SUMA_CreateSliceFields(  Widget parent,
 
    if (hint || help) {
       snprintf(wname, 63, "%s->mont", SF->wname);
-      SUMA_Register_Widget_Help( SF->mont, wname, hint, help);
+      SUMA_Register_Widget_Help( SF->mont, 1, wname, hint, help);
    }
    XtVaSetValues(SF->mont, XmNcolumns, 5, NULL); 
    XtVaSetValues(SF->mont, XmNeditable, True, 
@@ -4321,7 +4367,7 @@ void SUMA_CreateSliceFields(  Widget parent,
    XtAddCallback (SF->tb, 
          XmNvalueChangedCallback, shwslccb, ado);
    snprintf(wname, 63, "%s->tb", SF->wname);
-   SUMA_Register_Widget_Help(SF->tb, wname, 
+   SUMA_Register_Widget_Help(SF->tb, 1, wname, 
                      "View (ON)/Hide Slice(s)",
                      SUMA_SurfContHelp_ShowSliceTgl);
 
@@ -6659,7 +6705,7 @@ void SUMA_set_cmap_options_SO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
                xmToggleButtonWidgetClass, SurfCont->rcsw_v2, NULL);
             XtAddCallback (SurfCont->Int_tb, 
                   XmNvalueChangedCallback, SUMA_cb_SwitchInt_toggled, ado);
-            SUMA_Register_Widget_Help(SurfCont->Int_tb, 
+            SUMA_Register_Widget_Help(SurfCont->Int_tb, 1,
                                    "SurfCont->Dset_Mapping->I->v",
                                    "View (ON)/Hide Dset node colors",
                                    SUMA_SurfContHelp_SelIntTgl);
@@ -6674,7 +6720,7 @@ void SUMA_set_cmap_options_SO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
             XtAddCallback (SurfCont->Thr_tb, 
                   XmNvalueChangedCallback, SUMA_cb_SwitchThr_toggled, ado);
             SUMA_SET_SELECT_COLOR(SurfCont->Thr_tb);
-            SUMA_Register_Widget_Help(SurfCont->Thr_tb,   
+            SUMA_Register_Widget_Help(SurfCont->Thr_tb, 1,
                                    "SurfCont->Dset_Mapping->T->v",  
                                    "Apply (ON)/Ignore thresholding",     
                                    SUMA_SurfContHelp_SelThrTgl);
@@ -6692,7 +6738,7 @@ void SUMA_set_cmap_options_SO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
             XtAddCallback (SurfCont->Brt_tb, 
                      XmNvalueChangedCallback, SUMA_cb_SwitchBrt_toggled, ado);
             SUMA_SET_SELECT_COLOR(SurfCont->Brt_tb);
-            SUMA_Register_Widget_Help(SurfCont->Brt_tb,
+            SUMA_Register_Widget_Help(SurfCont->Brt_tb, 1,
                                       "SurfCont->Dset_Mapping->B->v", 
                                       "View (ON)/Ignore brightness modulation",
                                       SUMA_SurfContHelp_SelBrtTgl);
@@ -6744,7 +6790,7 @@ void SUMA_set_cmap_options_SO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
       }
        
       if (NewMap) {/* new colormaps */
-         SUMA_Register_Widget_Help(NULL, 
+         SUMA_Register_Widget_Help(SurfCont->rccm, 0,
                         "SurfContCont->Dset_Mapping->SetRangeTable",
                         "Node colorization parameters",
                         "Set parameters for mapping node data onto color scale");
@@ -6832,7 +6878,7 @@ void SUMA_set_cmap_options_SO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
                                  NULL);
                XtAddCallback (SurfCont->CmapLoad_pb, XmNactivateCallback, 
                               SUMA_cb_Cmap_Load, (XtPointer) ado);
-               SUMA_Register_Widget_Help(SurfCont->CmapLoad_pb ,
+               SUMA_Register_Widget_Help(SurfCont->CmapLoad_pb , 1,
                                          "SurfCont->Dset_Mapping->Cmp->New",
                                          "Load new colormap",
                                          SUMA_SurfContHelp_CmpNew);
@@ -6854,14 +6900,14 @@ void SUMA_set_cmap_options_SO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
          SUMA_LH("   Do the Int");
          /* need to put things in sync */
          SurfCont->IntRangeLocked = !SurfCont->IntRangeLocked;
-         MCW_invert_widget(SurfCont->SetRangeTable->cells[1]);
+         MCW_invert_widget_sync(SurfCont->SetRangeTable->cells[1],0);
       }
       if ( SurfCont->BrtRangeLocked == 
                curColPlane->OptScl->AutoBrtRange) {
          SUMA_LH("   Do the Brt");
          /* need to put things in sync */
          SurfCont->BrtRangeLocked = !SurfCont->BrtRangeLocked;
-         MCW_invert_widget(SurfCont->SetRangeTable->cells[2]);
+         MCW_invert_widget_sync(SurfCont->SetRangeTable->cells[2],0);
       } 
 
       /* Set the CoordBias's menu history to reflect current setting */
@@ -6890,7 +6936,7 @@ void SUMA_set_cmap_options_SO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
                NULL);
          XtAddCallback (SurfCont->AbsThresh_tb, 
                XmNvalueChangedCallback, SUMA_cb_AbsThresh_tb_toggled, ado);
-         SUMA_Register_Widget_Help(SurfCont->AbsThresh_tb , 
+         SUMA_Register_Widget_Help(SurfCont->AbsThresh_tb , 1,
                                    "SurfCont->Dset_Mapping->abs_T",
                                    "Absolute threshold ON/OFF",
                                    SUMA_SurfContHelp_AbsThr );
@@ -6902,7 +6948,7 @@ void SUMA_set_cmap_options_SO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
                xmToggleButtonWidgetClass, rc, NULL);
          XtAddCallback (SurfCont->SymIrange_tb, 
                XmNvalueChangedCallback, SUMA_cb_SymIrange_tb_toggled, ado);
-         SUMA_Register_Widget_Help(SurfCont->SymIrange_tb,
+         SUMA_Register_Widget_Help(SurfCont->SymIrange_tb, 1,
                                    "SurfCont->Dset_Mapping->sym_I",
                                    "Intensity range symmetry about 0 ",
                                    SUMA_SurfContHelp_Isym);
@@ -6913,7 +6959,7 @@ void SUMA_set_cmap_options_SO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
                xmToggleButtonWidgetClass, rc, NULL);
          XtAddCallback (SurfCont->ShowZero_tb, 
                XmNvalueChangedCallback, SUMA_cb_ShowZero_tb_toggled, ado);
-         SUMA_Register_Widget_Help(SurfCont->ShowZero_tb,   
+         SUMA_Register_Widget_Help(SurfCont->ShowZero_tb, 1, 
                                    "SurfCont->Dset_Mapping->shw_0",
                                    "Color masking of nodes with intensity = 0 ",
                                    SUMA_SurfContHelp_Shw0);
@@ -6990,10 +7036,17 @@ void SUMA_set_cmap_options_SO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
       /* do the initialization */
       SUMA_InitClustTable(ado); /* init the clust table values*/
       
+      /* This button is NOT appropriate for anything other than 
+         SUMA_ABS_LESS_THAN and SUMA_LESS_THAN
+         Probably need separate button ormenu system for other
+         thresholding modes */
       if (curColPlane->OptScl->ThrMode == SUMA_ABS_LESS_THAN) {
          XmToggleButtonSetState( SurfCont->AbsThresh_tb, True, NOPE);
-      } else {
+      } else if (curColPlane->OptScl->ThrMode == SUMA_LESS_THAN) {
          XmToggleButtonSetState( SurfCont->AbsThresh_tb, False, NOPE);
+      } else {
+         SUMA_S_Err("Not ready to handle ThrModeR of %d yet", 
+                     curColPlane->OptScl->ThrMode);
       }
       if (!curColPlane->SymIrange) {
          XmToggleButtonSetState( SurfCont->SymIrange_tb, False, NOPE);
@@ -7283,7 +7336,7 @@ void SUMA_set_cmap_options_VO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
                xmToggleButtonWidgetClass, SurfCont->rcsw_v2, NULL);
             XtAddCallback (SurfCont->Int_tb, 
                   XmNvalueChangedCallback, SUMA_cb_SwitchInt_toggled, ado);
-            SUMA_Register_Widget_Help(SurfCont->Int_tb,
+            SUMA_Register_Widget_Help(SurfCont->Int_tb, 1,
                               "VolCont->Dset_Mapping->I->v",
                               "View (ON)/Hide volume voxel colors",
                               SUMA_VolContHelp_SelIntTgl);
@@ -7299,7 +7352,7 @@ void SUMA_set_cmap_options_VO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
             XtAddCallback (SurfCont->Thr_tb, 
                   XmNvalueChangedCallback, SUMA_cb_SwitchThr_toggled, ado);
             SUMA_SET_SELECT_COLOR(SurfCont->Thr_tb);
-            SUMA_Register_Widget_Help(SurfCont->Thr_tb, 
+            SUMA_Register_Widget_Help(SurfCont->Thr_tb, 1,
                               "VolCont->Dset_Mapping->T->v",  
                               "Apply (ON)/Ignore thresholding",
                               SUMA_SurfContHelp_SelThrTgl);
@@ -7317,7 +7370,7 @@ void SUMA_set_cmap_options_VO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
             XtAddCallback (SurfCont->Brt_tb, 
                      XmNvalueChangedCallback, SUMA_cb_SwitchBrt_toggled, ado);
             SUMA_SET_SELECT_COLOR(SurfCont->Brt_tb);
-            SUMA_Register_Widget_Help(SurfCont->Brt_tb, 
+            SUMA_Register_Widget_Help(SurfCont->Brt_tb, 1,
                      "VolCont->Dset_Mapping->B->v",   
                      "View (ON)/Ignore brightness modulation",
                      SUMA_SurfContHelp_SelBrtTgl);
@@ -7370,7 +7423,8 @@ void SUMA_set_cmap_options_VO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
        
       if (NewMap) {/* new colormaps */
          SUMA_LH("NewMap set");
-         SUMA_Register_Widget_Help(NULL, "VolCont->Dset_Mapping->SetRangeTable",
+         SUMA_Register_Widget_Help(SurfCont->rccm, 1, 
+                           "VolCont->Dset_Mapping->SetRangeTable",
                            "Voxel colorization parameters",
                            "Set parameters for mapping data onto color scale");
          if (!SurfCont->SetRangeTable->cells) {
@@ -7457,7 +7511,7 @@ void SUMA_set_cmap_options_VO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
                                  NULL);
                XtAddCallback (SurfCont->CmapLoad_pb, XmNactivateCallback, 
                               SUMA_cb_Cmap_Load, (XtPointer) ado);
-               SUMA_Register_Widget_Help(SurfCont->CmapLoad_pb , 
+               SUMA_Register_Widget_Help(SurfCont->CmapLoad_pb , 1,
                                  "VolCont->Dset_Mapping->Cmp->New",
                                  "Load new colormap",
                                  SUMA_SurfContHelp_CmpNew);
@@ -7479,14 +7533,14 @@ void SUMA_set_cmap_options_VO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
          SUMA_LH("   Do the Int");
          /* need to put things in sync */
          SurfCont->IntRangeLocked = !SurfCont->IntRangeLocked;
-         MCW_invert_widget(SurfCont->SetRangeTable->cells[1]);
+         MCW_invert_widget_sync(SurfCont->SetRangeTable->cells[1], 0);
       }
       if ( SurfCont->BrtRangeLocked == 
                curColPlane->OptScl->AutoBrtRange) {
          SUMA_LH("   Do the Brt");
          /* need to put things in sync */
          SurfCont->BrtRangeLocked = !SurfCont->BrtRangeLocked;
-         MCW_invert_widget(SurfCont->SetRangeTable->cells[2]);
+         MCW_invert_widget_sync(SurfCont->SetRangeTable->cells[2], 0);
       } 
 
       /* Set the CoordBias's menu history to reflect current setting */
@@ -7515,7 +7569,7 @@ void SUMA_set_cmap_options_VO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
                NULL);
          XtAddCallback (SurfCont->AbsThresh_tb, 
                XmNvalueChangedCallback, SUMA_cb_AbsThresh_tb_toggled, ado);
-         SUMA_Register_Widget_Help(SurfCont->AbsThresh_tb , 
+         SUMA_Register_Widget_Help(SurfCont->AbsThresh_tb , 1,
                            "VolCont->Dset_Mapping->abs_T",
                            "Absolute threshold ON/OFF",
                            SUMA_SurfContHelp_AbsThr );
@@ -7527,7 +7581,7 @@ void SUMA_set_cmap_options_VO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
                xmToggleButtonWidgetClass, rc, NULL);
          XtAddCallback (SurfCont->SymIrange_tb, 
                XmNvalueChangedCallback, SUMA_cb_SymIrange_tb_toggled, ado);
-         SUMA_Register_Widget_Help(SurfCont->SymIrange_tb, 
+         SUMA_Register_Widget_Help(SurfCont->SymIrange_tb, 1,
                            "VolCont->Dset_Mapping->sym_I",
                            "Intensity range symmetry about 0 ",
                            SUMA_SurfContHelp_Isym);
@@ -7538,7 +7592,7 @@ void SUMA_set_cmap_options_VO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
                xmToggleButtonWidgetClass, rc, NULL);
          XtAddCallback (SurfCont->ShowZero_tb, 
                XmNvalueChangedCallback, SUMA_cb_ShowZero_tb_toggled, ado);
-         SUMA_Register_Widget_Help(SurfCont->ShowZero_tb, 
+         SUMA_Register_Widget_Help(SurfCont->ShowZero_tb, 1,
                "VolCont->Dset_Mapping->shw_0",
                "Color masking of nodes with intensity = 0 ",
                SUMA_SurfContHelp_Shw0);
@@ -7618,8 +7672,11 @@ void SUMA_set_cmap_options_VO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
       
       if (curColPlane->OptScl->ThrMode == SUMA_ABS_LESS_THAN) {
          XmToggleButtonSetState( SurfCont->AbsThresh_tb, True, NOPE);
-      } else {
+      } else if (curColPlane->OptScl->ThrMode == SUMA_LESS_THAN){
          XmToggleButtonSetState( SurfCont->AbsThresh_tb, False, NOPE);
+      } else {
+         SUMA_S_Err("Not ready to handle ThrModeR of %d yet", 
+                     curColPlane->OptScl->ThrMode);
       }
       if (!curColPlane->SymIrange) {
          XmToggleButtonSetState( SurfCont->SymIrange_tb, False, NOPE);
@@ -7910,7 +7967,7 @@ void SUMA_set_cmap_options_GLDO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
                xmToggleButtonWidgetClass, SurfCont->rcsw_v2, NULL);
             XtAddCallback (SurfCont->Int_tb, 
                   XmNvalueChangedCallback, SUMA_cb_SwitchInt_toggled, ado);
-            SUMA_Register_Widget_Help(SurfCont->Int_tb, 
+            SUMA_Register_Widget_Help(SurfCont->Int_tb, 1,
                               "GraphCont->GDset_Mapping->I->v",
                               "View (ON)/Hide graph edge colors",
                               SUMA_GraphContHelp_SelIntTgl);
@@ -7925,7 +7982,7 @@ void SUMA_set_cmap_options_GLDO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
             XtAddCallback (SurfCont->Thr_tb, 
                   XmNvalueChangedCallback, SUMA_cb_SwitchThr_toggled, ado);
             SUMA_SET_SELECT_COLOR(SurfCont->Thr_tb);
-            SUMA_Register_Widget_Help(SurfCont->Thr_tb, 
+            SUMA_Register_Widget_Help(SurfCont->Thr_tb, 1,
                               "GraphCont->GDset_Mapping->T->v",
                               "Apply (ON)/Ignore thresholding",
                               SUMA_SurfContHelp_SelThrTgl);
@@ -7943,7 +8000,7 @@ void SUMA_set_cmap_options_GLDO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
             XtAddCallback (SurfCont->Brt_tb, 
                      XmNvalueChangedCallback, SUMA_cb_SwitchBrt_toggled, ado);
             SUMA_SET_SELECT_COLOR(SurfCont->Brt_tb);
-            SUMA_Register_Widget_Help(SurfCont->Brt_tb, 
+            SUMA_Register_Widget_Help(SurfCont->Brt_tb, 1,
                      "GraphCont->GDset_Mapping->B->v",
                      "View (ON)/Ignore brightness modulation",
                      SUMA_SurfContHelp_SelBrtTgl);
@@ -7996,7 +8053,7 @@ void SUMA_set_cmap_options_GLDO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
        
       if (NewMap) {/* new colormaps */
          SUMA_LH("NewMap set");
-         SUMA_Register_Widget_Help(NULL, 
+         SUMA_Register_Widget_Help(SurfCont->rccm, 0,
                         "GraphCont->GDset_Mapping->SetRangeTable",
                         "Edge colorization parameters",
                         "Set parameters for mapping edge data onto color scale");
@@ -8085,7 +8142,7 @@ void SUMA_set_cmap_options_GLDO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
                                  NULL);
                XtAddCallback (SurfCont->CmapLoad_pb, XmNactivateCallback, 
                               SUMA_cb_Cmap_Load, (XtPointer) ado);
-               SUMA_Register_Widget_Help(SurfCont->CmapLoad_pb , 
+               SUMA_Register_Widget_Help(SurfCont->CmapLoad_pb , 1,
                               "GraphCont->GDset_Mapping->Cmp->New",
                               "Load new colormap",
                               SUMA_SurfContHelp_CmpNew);
@@ -8107,14 +8164,14 @@ void SUMA_set_cmap_options_GLDO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
          SUMA_LH("   Do the Int");
          /* need to put things in sync */
          SurfCont->IntRangeLocked = !SurfCont->IntRangeLocked;
-         MCW_invert_widget(SurfCont->SetRangeTable->cells[1]);
+         MCW_invert_widget_sync(SurfCont->SetRangeTable->cells[1], 0);
       }
       if ( SurfCont->BrtRangeLocked == 
                curColPlane->OptScl->AutoBrtRange) {
          SUMA_LH("   Do the Brt");
          /* need to put things in sync */
          SurfCont->BrtRangeLocked = !SurfCont->BrtRangeLocked;
-         MCW_invert_widget(SurfCont->SetRangeTable->cells[2]);
+         MCW_invert_widget_sync(SurfCont->SetRangeTable->cells[2], 0);
       } 
 
       /* Set the CoordBias's menu history to reflect current setting */
@@ -8143,7 +8200,7 @@ void SUMA_set_cmap_options_GLDO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
                NULL);
          XtAddCallback (SurfCont->AbsThresh_tb, 
                XmNvalueChangedCallback, SUMA_cb_AbsThresh_tb_toggled, ado);
-         SUMA_Register_Widget_Help(SurfCont->AbsThresh_tb ,
+         SUMA_Register_Widget_Help(SurfCont->AbsThresh_tb , 1,
                            "GraphCont->GDset_Mapping->abs_T",
                            "Absolute threshold ON/OFF",
                            SUMA_SurfContHelp_AbsThr );
@@ -8155,7 +8212,7 @@ void SUMA_set_cmap_options_GLDO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
                xmToggleButtonWidgetClass, rc, NULL);
          XtAddCallback (SurfCont->SymIrange_tb, 
                XmNvalueChangedCallback, SUMA_cb_SymIrange_tb_toggled, ado);
-         SUMA_Register_Widget_Help(SurfCont->SymIrange_tb, 
+         SUMA_Register_Widget_Help(SurfCont->SymIrange_tb, 1,
                            "GraphCont->GDset_Mapping->sym_I",
                            "Intensity range symmetry about 0 ",
                            SUMA_SurfContHelp_Isym );
@@ -8166,7 +8223,7 @@ void SUMA_set_cmap_options_GLDO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
                xmToggleButtonWidgetClass, rc, NULL);
          XtAddCallback (SurfCont->ShowZero_tb, 
                XmNvalueChangedCallback, SUMA_cb_ShowZero_tb_toggled, ado);
-         SUMA_Register_Widget_Help(SurfCont->ShowZero_tb,   
+         SUMA_Register_Widget_Help(SurfCont->ShowZero_tb,  1, 
                      "GraphCont->GDset_Mapping->shw_0",
                      "Color masking of nodes with intensity = 0 ",
                      SUMA_SurfContHelp_Shw0);
@@ -8176,8 +8233,11 @@ void SUMA_set_cmap_options_GLDO(SUMA_ALL_DO *ado, SUMA_Boolean NewDset,
             
       if (curColPlane->OptScl->ThrMode == SUMA_ABS_LESS_THAN) {
          XmToggleButtonSetState( SurfCont->AbsThresh_tb, True, NOPE);
-      } else {
+      } else if (curColPlane->OptScl->ThrMode == SUMA_LESS_THAN) {
          XmToggleButtonSetState( SurfCont->AbsThresh_tb, False, NOPE);
+      } else {
+         SUMA_S_Err("Not ready to handle ThrModeR of %d yet", 
+                     curColPlane->OptScl->ThrMode);
       }
       if (!curColPlane->SymIrange) {
          XmToggleButtonSetState( SurfCont->SymIrange_tb, False, NOPE);
@@ -10503,7 +10563,7 @@ void SUMA_CreateCmapWidgets(Widget parent, SUMA_ALL_DO *ado)
                      (XtPointer) ado); 
       snprintf(wname, 63, "%s->%s->Cmap->scale", 
                SUMA_do_type_2_contwname(SurfCont->do_type), blk);
-      SUMA_Register_Widget_Help(SurfCont->thr_sc ,
+      SUMA_Register_Widget_Help(SurfCont->thr_sc , 1,
                                 wname,
                                 "Set the threshold for 'T' values",
                                 SUMA_SurfContHelp_ThrScale);
@@ -10520,7 +10580,7 @@ void SUMA_CreateCmapWidgets(Widget parent, SUMA_ALL_DO *ado)
       
       snprintf(wname, 63, "%s->%s->Cmap->pval", 
                SUMA_do_type_2_contwname(SurfCont->do_type), blk);
-      SUMA_Register_Widget_Help(SurfCont->thrstat_lb ,
+      SUMA_Register_Widget_Help(SurfCont->thrstat_lb , 1,
                                 wname,
                                 "Nominal p-value per node; FDR q-value",
                                 SUMA_SurfContHelp_ThreshStats);
@@ -10578,7 +10638,7 @@ void SUMA_CreateCmapWidgets(Widget parent, SUMA_ALL_DO *ado)
          #endif
          snprintf(wname, 63, "%s->%s->Cmap->bar", 
                   SUMA_do_type_2_contwname(SurfCont->do_type), blk);
-         SUMA_Register_Widget_Help(SurfCont->cmp_ren->cmap_wid ,
+         SUMA_Register_Widget_Help(SurfCont->cmp_ren->cmap_wid ,1,
                                    wname,
                                    "Colorbar for 'I' values",
                                    SUMA_SurfContHelp_ColorBar);
@@ -11008,7 +11068,8 @@ void SUMA_UpdatePvalueField (SUMA_ALL_DO *ado, float thresh)
         } else if( pval >= 0.0010 ){
           char qbuf[16] ;
           sprintf( qbuf , "%5.4f" , pval ) ;
-          strcpy(buf,"p=") ; strncat(buf , qbuf+1, 99);/*qbuf+1 skips leading 0*/
+          strcpy(buf,"p=");
+          SUMA_strncat(buf,qbuf+1,99);/*qbuf+1 skips leading 0*/
         } else {
           int dec = (int)(0.999 - log10(pval)) ;
           zval = pval * pow( 10.0 , (double) dec ) ;  /* between 1 and 10 */
@@ -11025,9 +11086,9 @@ void SUMA_UpdatePvalueField (SUMA_ALL_DO *ado, float thresh)
            if( dec < 10 ) sprintf( qbuf, " %3.1f-%1d",            zval, dec );
            else           sprintf( qbuf, " %1d.-%2d" , (int)rint(zval), dec );
          }
-         strcat(buf,"\nq=") ; strncat(buf,qbuf+1,99) ;
+         strcat(buf,"\nq=") ; SUMA_strncat(buf,qbuf+1,99) ;
       } else {
-         strncat(buf,"\nq=N/A",99) ;
+         SUMA_strncat(buf,"\nq=N/A",99) ;
       }
      
       MCW_set_widget_label( SurfCont->thrstat_lb, buf );
@@ -11074,6 +11135,10 @@ void SUMA_SetScaleRange(SUMA_ALL_DO *ado, double range[2])
       } else {
          range[1] = fabs((double)range[1]); range[0] = 0.0;
       }
+   } else if (curColPlane->OptScl->ThrMode == SUMA_LESS_THAN) {
+   
+   } else {
+      SUMA_S_Err("Not ready for ThrModeR == %d", curColPlane->OptScl->ThrMode);
    }
    if (range[1] - range[0] > pow(10.0,SUMAg_CF->SUMA_ThrScalePowerBias)) { 
       /* no need for power */
@@ -11196,13 +11261,16 @@ void SUMA_SetScaleRange(SUMA_ALL_DO *ado, double range[2])
             NULL);   
             
    /* set the label on top */
-   if (curColPlane->OptScl->ThrMode != SUMA_ABS_LESS_THAN) 
+   if (curColPlane->OptScl->ThrMode != SUMA_ABS_LESS_THAN) {
       sprintf(slabel, "%5s", MV_format_fval((float)cv / pow(10.0, dec))); 
-   else {
+   } else if (curColPlane->OptScl->ThrMode != SUMA_LESS_THAN){
       /* used to use this:
       sprintf(slabel, "|%5s|", .... 
       but that does not work in the editable field ... */
       sprintf(slabel, "%5s", MV_format_fval((float)cv / pow(10.0, dec))); 
+   } else {
+         SUMA_S_Err("Not ready to handle ThrModeR of %d yet", 
+                     curColPlane->OptScl->ThrMode);
    }
    /* SUMA_SET_LABEL(SurfCont->thr_lb,  slabel);*/
       SUMA_INSERT_CELL_STRING(SurfCont->SetThrScaleTable, 0,0,slabel); 
@@ -11599,9 +11667,9 @@ SUMA_Boolean SUMA_UpdateNodeNodeField(SUMA_ALL_DO *ado)
          fv = SUMA_ADO_DatumXYZ(ado,SelectedNode, NULL);
          sprintf(str, "%s, ", 
                      MV_format_fval2(fv[0], 7));
-         strncat(str, MV_format_fval2(fv[1], 7), 100);
-         strncat(str, ", ", 100);
-         strncat(str, MV_format_fval2(fv[2], 7), 100 );
+         SUMA_strncat(str, MV_format_fval2(fv[1], 7), 100);
+         SUMA_strncat(str, ", ", 100);
+         SUMA_strncat(str, MV_format_fval2(fv[2], 7), 100 );
          XtVaSetValues(SurfCont->NodeTable->cells[2], XmNvalue, str, NULL);
          break;
       case GRAPH_LINK_type: {
@@ -11641,10 +11709,35 @@ SUMA_Boolean SUMA_UpdateNodeNodeField(SUMA_ALL_DO *ado)
    SUMA_RETURN(YUP);
 }
 
+/* A lazy wrapper for SUMA_FormNodeValFieldStrings to return
+   values but not the strings.
+   This function is not very efficient, since all the strings
+   are formed and then discarded.
+*/
+SUMA_Boolean SUMA_GetNodeValsAtSelection(SUMA_ALL_DO *ado, 
+               SUMA_DSET *dset, int Node,
+               int find, int tind, int bind,
+               double *I, double *T, double *B) 
+{
+   static char FuncName[] = {"SUMA_GetNodeValsAtSelection"};
+   char **sar=NULL;
+   int i;
+   
+   SUMA_ENTRY;
+   
+   sar = SUMA_FormNodeValFieldStrings(ado, dset, Node, find, tind, bind,
+                                      1, I, T, B);
+   if (!sar) SUMA_RETURN(NOPE);
+   for (i=0; i<3; ++i) SUMA_ifree(sar[i]);
+   SUMA_ifree(sar);
+   
+   SUMA_RETURN(YUP);                  
+}
+
 char **SUMA_FormNodeValFieldStrings(SUMA_ALL_DO *ado, 
                                  SUMA_DSET *dset, int Node,
                                  int find, int tind, int bind,
-                                 int dec) 
+                                 int dec, double *I, double *T, double *B) 
 {
    static char FuncName[]={"SUMA_FormNodeValFieldStrings"};
    char **sar=NULL;
@@ -11657,7 +11750,9 @@ char **SUMA_FormNodeValFieldStrings(SUMA_ALL_DO *ado,
    SUMA_ENTRY;
    
    if (!ado || !dset) SUMA_RETURN(sar);
-   
+   if (I) *I=-1.0;
+   if (T) *T=-1.0;
+   if (B) *B=-1.0;
    Max_Node_Index = SUMA_ADO_Max_Datum_Index(ado);
    
    /* What datum level do we have here ? */
@@ -11702,6 +11797,7 @@ char **SUMA_FormNodeValFieldStrings(SUMA_ALL_DO *ado,
             sar[0] = SUMA_copy_string(MV_format_fval2(dval, dec));
          } 
          SUMA_LHv("str_int=%s, dval = %f\n",sar[0], dval);
+         if (I) *I = dval;
       } else {
          sar[0] = SUMA_copy_string("X");
          SUMA_SL_Err("Failed to get str_int");
@@ -11712,6 +11808,7 @@ char **SUMA_FormNodeValFieldStrings(SUMA_ALL_DO *ado,
             sar[1] = SUMA_copy_string(MV_format_fval2(dval, dec));
          }
          SUMA_LHv("str_thr=%s, dval = %f\n",sar[1], dval);
+         if (T) *T = dval;
       } else {
          sar[1] = SUMA_copy_string("X");
          SUMA_SL_Err("Failed to get str_thr");
@@ -11722,6 +11819,7 @@ char **SUMA_FormNodeValFieldStrings(SUMA_ALL_DO *ado,
             sar[2] = SUMA_copy_string(MV_format_fval2(dval, dec));
          }
          SUMA_LHv("str_brt=%s, dval = %f\n",sar[2], dval);
+         if (B) *B = dval;
       } else {
          SUMA_SL_Err("Failed to get str_brt");
          sar[2] = SUMA_copy_string("X");
@@ -11782,6 +11880,7 @@ SUMA_Boolean SUMA_UpdateNodeValField(SUMA_ALL_DO *ado)
 {
    static char FuncName[]={"SUMA_UpdateNodeValField"};
    char **sar=NULL;
+   double I, T, B;
    SUMA_OVERLAYS *Sover=NULL;
    SUMA_X_SurfCont *SurfCont=NULL;
    int SelectedNode = -1;
@@ -11808,7 +11907,7 @@ SUMA_Boolean SUMA_UpdateNodeValField(SUMA_ALL_DO *ado)
                            SelectedNode, 
                            Sover->OptScl->find, 
                            Sover->OptScl->tind,
-                           Sover->OptScl->bind, 0))) {
+                           Sover->OptScl->bind, 0, &I, &T, &B))) {
        SUMA_LH("Failed to get strings");
    } else {
       SUMA_LH("Got strings");
@@ -11819,20 +11918,99 @@ SUMA_Boolean SUMA_UpdateNodeValField(SUMA_ALL_DO *ado)
    } else {
       SUMA_INSERT_CELL_STRING(SurfCont->DataTable, 1, 1, "Err");
    }
+   /* Set the table num values too, otherwise you can't read out
+      the numerical values if you wish and that's just a shame 
+      for numerical tables such as this one. */
+   SUMA_SET_CELL_VALUE(SurfCont->DataTable, 1, 1, I);
    if (sar && sar[1]) {
       SUMA_INSERT_CELL_STRING(SurfCont->DataTable, 1, 2, sar[1]);
       SUMA_free(sar[1]); 
    } else {
       SUMA_INSERT_CELL_STRING(SurfCont->DataTable, 1, 2, "Err");
    }
+   SUMA_SET_CELL_VALUE(SurfCont->DataTable, 1, 1, T);
    if (sar && sar[2]) {
       SUMA_INSERT_CELL_STRING(SurfCont->DataTable, 1, 3, sar[2]);
       SUMA_free(sar[2]); 
    } else {
       SUMA_INSERT_CELL_STRING(SurfCont->DataTable, 1, 3, "Err");
    }
+   SUMA_SET_CELL_VALUE(SurfCont->DataTable, 1, 1, B);
    if (sar) SUMA_free(sar); sar = NULL;
 
+   SUMA_RETURN(YUP);
+}
+
+/*!< Get values at current selection on current plane
+     if (fromtable) then read the values from the 
+     displayed table structure.
+*/
+SUMA_Boolean SUMA_GetValuesAtSelection(SUMA_ALL_DO *ado, int fromtable,
+                                       float *I, float *T, float *B)
+{
+   static char FuncName[]={"SUMA_GetValuesAtSelection"};
+   SUMA_OVERLAYS *Sover=NULL;
+   SUMA_X_SurfCont *SurfCont=NULL;
+   int SelectedNode = -1;
+   double II=0.0, TT=0.0, BB=0.0;
+   SUMA_Boolean LocalHead = NOPE;
+   
+   SUMA_ENTRY;
+   
+   if (!ado) {
+      SUMA_LH("Null ado");
+      SUMA_RETURN(NOPE);
+   }
+
+   Sover = SUMA_ADO_CurColPlane(ado);
+   if (!Sover) {
+      SUMA_LH("Null Sover");
+      SUMA_RETURN(NOPE);
+   }
+   SurfCont = SUMA_ADO_Cont(ado);
+   if (!SurfCont) SUMA_RETURN(NOPE);
+   
+   SelectedNode = SUMA_ADO_ColPlane_SelectedDatum(ado, Sover);
+   
+   if (fromtable && (!SurfCont->DataTable || 
+          !SurfCont->DataTable->cells)) {
+          SUMA_LH("Controller not initialized, "
+                  "cannot retrieve values from table, trying without");
+      fromtable = 0;
+   }
+   if (fromtable) {
+      if (!SurfCont->DataTable || 
+          !SurfCont->DataTable->cells) {
+            SUMA_S_Err("Controller not initialized, "
+                       "cannot retrieve values from table");
+            SUMA_RETURN(NOPE);
+      }
+      /* Check that SelectedNode matches that in the node index table too */
+      if (SelectedNode != SurfCont->NodeTable->num_value[1]) { 
+         /* table not updated yet perhaps  */
+         SUMA_S_Note("Forced update of value fields (%d) (%f)to be safe", 
+                     SelectedNode, SurfCont->NodeTable->num_value[1]);
+         SUMA_UpdateNodeValField(ado);
+      }
+      SUMA_LH("Fetching from table");
+      if (I) SUMA_GET_CELL_VALUE(SurfCont->DataTable, 1, 1, *I);
+      if (T) SUMA_GET_CELL_VALUE(SurfCont->DataTable, 1, 2, *T);
+      if (B) SUMA_GET_CELL_VALUE(SurfCont->DataTable, 1, 3, *B);
+   } else {
+      if (!SUMA_GetNodeValsAtSelection(ado, Sover->dset_link, 
+                           SelectedNode, 
+                           Sover->OptScl->find, 
+                           Sover->OptScl->tind,
+                           Sover->OptScl->bind,
+                           &II, &TT, &BB)) {
+             
+         SUMA_S_Err("Failed to get sel values");
+         SUMA_RETURN(NOPE);
+      }
+      if (I) *I = II;
+      if (T) *T = TT;
+      if (B) *B = BB;
+   }
    SUMA_RETURN(YUP);
 }
 
@@ -11941,7 +12119,8 @@ char *SUMA_GetLabelsAtSelection_ADO(SUMA_ALL_DO *ado, int node, int sec)
                                  node, 
                                  Sover->OptScl->find, 
                                  Sover->OptScl->tind,
-                                 Sover->OptScl->bind, 5))) {
+                                 Sover->OptScl->bind, 5,
+                                 NULL, NULL, NULL))) {
             SUMA_LH("No Sar");
          } else if (1) { /* include sub-brick labels */
             SUMA_LH("Sar: %s %s %s", 
@@ -12399,10 +12578,12 @@ SUMA_Boolean SUMA_UpdateNodeLblField_ADO(SUMA_ALL_DO *ado)
                is in the overlay plane (and the data) */
             sprintf(str_col,"%s",              
                             MV_format_fval2(Sover->ColVec[3*Found],5));
-            strncat( str_col,", ", 100);
-            strncat( str_col, MV_format_fval2(Sover->ColVec[3*Found+1],5), 100); 
-            strncat( str_col,", ", 100);
-            strncat( str_col, MV_format_fval2(Sover->ColVec[3*Found+2],5), 100);
+            SUMA_strncat( str_col,", ", 100);
+            SUMA_strncat( str_col, 
+                           MV_format_fval2(Sover->ColVec[3*Found+1],5), 100); 
+            SUMA_strncat( str_col,", ", 100);
+            SUMA_strncat( str_col, 
+                           MV_format_fval2(Sover->ColVec[3*Found+2],5), 100);
             SUMA_LH("%s", str_col);
          }
       }

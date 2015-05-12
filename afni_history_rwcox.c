@@ -43,9 +43,108 @@
 
 afni_history_struct rwcox_history[] = {
 /*=====BELOW THIS LINE=====*/
-  { 5 , FEB , 2015 , RWC , "AFNI InstaCorr" , MINOR , TYPE_GENERAL ,
+ { 8 , MAY , 2015 , RWC , "InstaCorr" , MICRO , TYPE_BUG_FIX ,
+   "Change way index in 3D+time dataset is chosen from xyz" ,
+   "Instead of just converting from xyz (eg, crosshair) coordinates via the\n"
+   "standard grid transformation functions in thd_coords.c, what we want is\n"
+   "the voxel in the 3D+time dataset that is closest in 3D to the xyz\n"
+   "location AFTER it is transformed back to the underlay for display.  In\n"
+   "this way, the center of correlation will map to the clicked voxel.  This\n"
+   "selection is done in new function THD_find_closest_roundtrip() which\n"
+   "searches the 27 points in a cube around the thd_coords.c derived point,\n"
+   "in order to find the voxel in the 3D+time dataset that, when transformed\n"
+   "back to the underlay dataset, is closest.  Brute force, but that's what\n"
+   "you have to do when dealing with the Spanish Inquisition." } ,
+
+  { 7 , MAY , 2015 , RWC , "AFNI GUI" , MICRO , TYPE_MODIFY ,
+   "Change 'List of AFNI papers' to be in HTML, not plain text" ,
+   "So it appears in an htmlwin rather than a textwin, and there are links\n"
+   "to the papers.  Works by a new convert_text_to_html() function." } ,
+
+ { 4 , MAY , 2015 , RWC , "GLTsymtest" , MINOR , TYPE_NEW_PROG ,
+   "For testing symbolic GLTs in a script" ,
+   "So that the big boy (3dDeconvolve) doesn't have to be run just for this\n"
+   "purpose.  To help out with afni_proc.py" } ,
+
+ { 27 , APR , 2015 , RWC , "debug tracing" , MICRO , TYPE_GENERAL ,
+   "Added 'recent internal history' to .afni.crashlog" ,
+   "The last few ENTRY/EXIT/STATUS updates are saved, to help pinpoint the\n"
+   "sequence of events before the demise of the patient." } ,
+
+ { 23 , Apr , 2015 , RWC , "AFNI GUI"     , MICRO , TYPE_BUG_FIX ,
+    "Fix Aux.Dset button crash in Clusterize" ,
+    "Because Ziad Saad is trouble, that's why.\n"
+    "(Either that, or 'free(x)' should imply 'x=NULL'.)\n"
+    "Also, catch SIGABRT signal, so Mac malloc() errors are tracebacked." } ,
+
+  { 14 , Apr , 2015 , RWC , "AFNI GUI"     , MICRO , TYPE_BUG_FIX ,
+    "Fix index text overlay clash in graph window" ,
+    "Because Daniel Glen is trouble, that's why." } ,
+
+  { 13 , APR , 2015 , RWC , "all programs" , MICRO , TYPE_GENERAL ,
+    "AFNI programs now write crash logs to file ~/.afni.crashlog" ,
+    NULL } ,
+
+  { 13 , APR , 2015 , RWC , "AFNI itself" , MICRO , TYPE_BUG_FIX ,
+    "Fix crash when ClustSim info in dataset header is incomplete" ,
+    "Problem was if mask string was missing, it tried to read the\n"
+    "mask idcode from a now-deleleted NIML element -- bad news." } ,
+
+  { 27 , MAR , 2015 , RWC , "3dttest++" , MICRO , TYPE_BUG_FIX ,
+   "linux_xorg7_64 distribution gets argv[nopt] wrong?!" ,
+   "Fixed by putting in a debug printout statement for argv[nopt] at start\n"
+   "of loop over options.  Even when not used, this fixes the problem --\n"
+   "probably caused by the gcc optimizer." } ,
+
+ { 23 , MAR , 2015 , RWC , "3dttest++" , MAJOR , TYPE_NEW_OPT ,
+   "Add -singletonA option" ,
+   "For testing one subject vs a collection of 'normals'.  Works with\n"
+   "covariates." } ,
+
+ { 11 , MAR , 2015 , RWC , "afni GUI" , MICRO , TYPE_NEW_ENV ,
+   "AFNI_CROSSHAIR_THICKNESS" ,
+   "Lets user set thickness of image crosshair lines.  For someone named\n"
+   "Corianne, if that is a real name." } ,
+
+ { 12 , FEB , 2015 , RWC , "afni GUI graphs" , MICRO , TYPE_GENERAL ,
+   "Labels for x-axis range" ,
+   NULL } ,
+
+ { 10 , FEB , 2015 , RWC , "afni GUI" , MINOR , TYPE_GENERAL ,
+   "Ability to graph time series with x-axis from another dataset" ,
+   "Voxel-by-voxel x-axis selection.  Previously (Jan 1998) could only do\n"
+   "x-axis as a 1D file == fixed for all sub-graphs.  Now each voxel can get\n"
+   "its own x-axis.  God help you." } ,
+
+ { 5 , FEB , 2015 , RWC , "AFNI InstaCorr" , MINOR , TYPE_GENERAL ,
    "Add Iterate option" ,
    NULL } ,
+
+  { 2 , FEB , 2015 , RWC , "afni GUI" , MICRO , TYPE_GENERAL ,
+   "Add \"_once\" popup messages to AFNI GUI" ,
+   "So the message only pops up once for each user -- function\n"
+   "MCW_popup_message_once() in xutil.c -- first use is a popup message for\n"
+   "Clusterize alpha values, mentioning the new tables." } ,
+
+ { 30 , JAN , 2015 , RWC , "Clusterize" , MINOR , TYPE_GENERAL ,
+   "Add Bi-sided clustering" ,
+   "Goes along with the new 3dClustSim, which now generates tables for that\n"
+   "case as well. 'Bi-sided' means positive above-threshold voxels are\n"
+   "clustered separately from negative below-minus-threshold voxels.  Note\n"
+   "that bi-sided is turned off for 1-sided thresholding and/or Pos func,\n"
+   "even if the user turns bi-sided on in the Clusterize chooser." } ,
+
+ { 29 , JAN , 2015 , RWC , "afni GUI" , MAJOR , TYPE_GENERAL ,
+   "Use new 3dClustSim tables" ,
+   "Now Clusterize chooses the table to use based on the threshold type (t-\n"
+   "or F-stat, say), and if 1-sided thresholding was chosen by the user. \n"
+   "Also, the p-value below the slider now adjusts if the user chose to do\n"
+   "1-sided thresholding on a 2-sided statistic (t-stat, correlation,\n"
+   "z-score)." } ,
+
+ { 29 , JAN , 2015 , RWC , "3dClustSim" , MAJOR , TYPE_GENERAL ,
+   "Compute NN=1,2,3 and 1-sided, 2-sided, bi-sided tables" ,
+   "In sum, all 9 tables are ALWAYS computed now." } ,
 
  { 13 , JAN , 2015 , RWC , "3dQwarp" , MICRO , TYPE_NEW_OPT ,
    "Secret option '-ballopt'" ,

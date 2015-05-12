@@ -969,6 +969,8 @@ SUMA_Boolean SUMA_ShowParsedFname(SUMA_PARSED_NAME *pn, FILE *out)
       SS = SUMA_StringAppend_va(SS, "HeadName      :%s\n", pn->HeadName);
       SS = SUMA_StringAppend_va(SS, "BrikName      :%s\n", pn->BrikName);
       SS = SUMA_StringAppend_va(SS, "OnDisk        :%d\n", pn->OnDisk);
+      SS = SUMA_StringAppend_va(SS, "ExistsAs      :%s\n", 
+                                                pn->ExistsAs?pn->ExistsAs:"");
       SS = SUMA_StringAppend_va(SS, "Size          :%d\n", pn->Size);
       SS = SUMA_StringAppend_va(SS, "NameAsParsed  :%s\n", pn->NameAsParsed);
       SS = SUMA_StringAppend_va(SS, "cwdAsParsed   :%s\n", pn->cwdAsParsed);
@@ -1386,6 +1388,47 @@ SUMA_PARSED_NAME * SUMA_ParseFname_eng (char *FileName, char *ucwd,
       if (NewName->OnDisk) {
          SUMA_LH("Setting filesize for %s...",  NewName->HeadName);
          NewName->Size = THD_filesize(NewName->HeadName);
+      }
+      if (!NewName->OnDisk) {
+         NewName->ExistsAs = NULL;
+         if (NewName->View[0] == '\0') { 
+            char *sss = NULL;
+                                 /* See if anything is there with 
+                                 +orig, +acpc, +tlrc anything */
+            if (!NewName->ExistsAs) {
+               sss = SUMA_append_replace_string(NewName->Path,"+orig.HEAD",
+                                                     NewName->Prefix, 0);
+               if (THD_is_file(sss)) {
+                  NewName->ExistsAs = sss; sss = NULL;
+               } else {
+                  SUMA_ifree(sss); sss = NULL;
+               }
+            }
+            if (!NewName->ExistsAs) {
+               sss = SUMA_append_replace_string(NewName->Path,"+acpc.HEAD",
+                                                     NewName->Prefix, 0);
+               if (THD_is_file(sss)) {
+                  NewName->ExistsAs = sss; sss = NULL;
+               } else {
+                  SUMA_ifree(sss); sss = NULL;
+               }
+            }
+            if (!NewName->ExistsAs) {
+               sss = SUMA_append_replace_string(NewName->Path,"+tlrc.HEAD",
+                                                     NewName->Prefix, 0);
+               if (THD_is_file(sss)) {
+                  NewName->ExistsAs = sss; sss = NULL;
+               } else {
+                  SUMA_ifree(sss); sss = NULL;
+               }
+            }
+         }        
+      } else {
+         NewName->ExistsAs = SUMA_copy_string(NewName->HeadName);
+      }
+      if (!NewName->ExistsAs) { /* no nulls please */
+         NewName->ExistsAs = (char*)SUMA_malloc(1*sizeof(char));
+         NewName->ExistsAs[0] = '\0';
       }
    }
    if (LocalHead) {
@@ -1855,6 +1898,7 @@ void *SUMA_Free_Parsed_Name(SUMA_PARSED_NAME *Test)
    if (Test->RangeSelect) SUMA_free(Test->RangeSelect);
    if (Test->NameAsParsed) SUMA_free(Test->NameAsParsed);
    if (Test->cwdAsParsed) SUMA_free(Test->cwdAsParsed);
+   if (Test->ExistsAs) SUMA_free(Test->ExistsAs);
    
    SUMA_free(Test);
    
@@ -1979,9 +2023,9 @@ int SUMA_search_file(char **fnamep, char *epath)
              ename[ii]  = '/' ; ename[ii+1] = '\0' ;
          }
          strcpy(dname,ename) ;
-         strncat(dname,*fnamep, THD_MAX_NAME-1) ;       /* add dataset name */
+         SUMA_strncat(dname,*fnamep, THD_MAX_NAME-1) ;     /* add dataset name */
          if (imode == 2) {
-            strncat(dname,".gz", THD_MAX_NAME-1);    /* add compression flag */
+            SUMA_strncat(dname,".gz", THD_MAX_NAME-1); /* add compression flag */
          }
          if ( SUMA_filexists(dname) ) {
             SUMA_free(*fnamep); *fnamep = SUMA_copy_string(dname);
@@ -3364,9 +3408,9 @@ static ENV_SPEC envlist[] = {
       "Note that for Vr, there are no SL, MON, and INC qualifiers\n"
       "Also, SUMA will force the display of at least one plane because\n"
       "otherwise you have no way of opening a volume controller\n"
-      "Example: 'Ax:0.5:3:10 Co:123:2:50'",
+      "Example: 'Ax:0.5:3:10,Co:123:2:50,Vr'",
       "SUMA_VO_InitSlices",
-      "Ax:0.5 Sa:0.5:2:0.5 hCo:0.5" }, 
+      "Ax:0.5,Sa:0.5:2:0.5,hCo:0.5,Vr" }, 
    {  "Perform 'Home' call in SUMA after each prying.\n"
       "If YES, objects are repositioned to stay in the middle of the viewer\n"
       "as you pry the surfaces apart. This behavior is desired in general, \n"
@@ -3386,6 +3430,24 @@ static ENV_SPEC envlist[] = {
       "you are debugging.\n",
       "SUMA_CountProcs_Verb",
       "NO" },
+   {  "Number of transparency levels to jump with each 'o' key press\n"
+      "Choose one of 1, 2, 4, or 8\n",
+      "SUMA_Transparency_Step",
+      "4" },
+   {  "If YES, then automatically load datasets with names matching those \n"
+      "the surface just read.\n"
+      "For example, if you load a surface named PATH/TOY.gii, for instance,\n"
+      "and there exists a file called PATH/TOY.niml.dset then that file\n"
+      "is automatically loaded onto surface TOY.gii. This would work for\n"
+      "all surface types (e.g. TOY.ply) and dataset types (e.g. TOY.1D.dset)\n"
+      "Choose from YES or NO\n",
+      "SUMA_AutoLoad_Matching_Dset",
+      "YES" },
+   {  "Colorize labeled datasets without attempting to make colors match\n"
+      "what would be displayed in AFNI (YES or NO). Set to YES to match\n"
+      "old style colorization preceding the addition of this variable\n",
+      "SUMA_Classic_Label_Colors",
+      "NO" }, 
    {  NULL, NULL, NULL  }
 };
       
@@ -3533,10 +3595,10 @@ char * SUMA_env_list_help(int DEFAULT_values, TFORM targ){
             sli = SUMA_Sphinx_String_Edit(&sli, targ, 0);
             SS = SUMA_StringAppend_va(SS,
                            ".. _%s:\n\n"
-                           ":envvar:`%s`: %s\n\n"
+                           ":ref:`%s (env)<%s>`: %s\n\n"
                            "  default value:   %s = %s\n\n",
                            se.envname,
-                           se.envname, sli,
+                           se.envname, se.envname, sli,
                            se.envname, se.envval);
             SUMA_free(sli); sli = NULL;
             break;

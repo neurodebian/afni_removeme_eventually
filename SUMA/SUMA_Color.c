@@ -338,6 +338,61 @@ void SUMA_Free_ColorMap (SUMA_COLOR_MAP* SM)
    SUMA_RETURNe;
 }
 
+SUMA_COLOR_MAP* SUMA_DuplicateColorMap (SUMA_COLOR_MAP *cin, char *newname)
+{
+   static char FuncName[]={"SUMA_DuplicateColorMap"};
+   SUMA_COLOR_MAP *cmap=NULL;
+   int i, j;
+   
+   SUMA_ENTRY;
+   
+   if (!cin) SUMA_RETURN(cmap);
+
+   cmap = (SUMA_COLOR_MAP *)SUMA_calloc(1,sizeof(SUMA_COLOR_MAP));
+   if (cmap == NULL) {
+      fprintf (SUMA_STDERR,"Error %s: Failed to allocate for SM.\n", FuncName);
+      SUMA_RETURN (NULL);
+   }
+   
+   cmap->N_M[0] = cin->N_M[0];
+   cmap->N_M[1] = cin->N_M[1];
+   cmap->M = (float**)SUMA_allocate2D(cmap->N_M[0], cmap->N_M[1], sizeof(float));
+
+   for (i=0; i<cmap->N_M[0]; ++i) {
+   for (j=0; j<cmap->N_M[1]; ++j) {
+      cmap->M[i][j] = cin->M[i][j];
+   } }
+   for (j=0; j<4; ++j) { cmap->M0[j] = cin->M0[j]; }
+   cmap->flipped = cin->flipped;
+   
+   if (cin->frac) {
+      cmap->frac = (float *)SUMA_calloc(cmap->N_M[0], sizeof(float));
+      memcpy(cmap->frac, cin->frac, cmap->N_M[0]*sizeof(float));
+   } else cmap->frac = NULL;
+   cmap->top_frac = cin->top_frac;
+   cmap->Sgn = cin->Sgn;
+   if (newname) cmap->Name = SUMA_copy_string(newname);
+   else cmap->Name = SUMA_copy_string(cin->Name);
+   
+   if (cin->idvec) {
+      cmap->idvec = (int *)SUMA_calloc(cmap->N_M[0], sizeof(int));
+      memcpy(cmap->idvec, cin->idvec, cmap->N_M[0]*sizeof(int));
+   } else cmap->idvec = NULL;
+   cmap->chd = NULL;
+   
+   if (cin->cname) {
+      cmap->cname = (char **)SUMA_calloc(cmap->N_M[0], sizeof(char *));
+      for (j=0; j<cmap->N_M[0]; ++j) {
+         cmap->cname[j] = SUMA_copy_string(cin->cname[j]);
+      }
+   } else cmap->cname = NULL;
+   
+   cmap->SO = NULL; /* created when needed */
+
+   SUMA_RETURN(cmap);
+   
+}
+
 /* based on AFNI's PBAR_define_bigmap */
 SUMA_COLOR_MAP * SUMA_pbardef_to_CM(char *cmd)
 {
@@ -1950,6 +2005,107 @@ SUMA_Boolean SUMA_Write_Color_Map_NIML (SUMA_COLOR_MAP* SM, char *Name)
    
 }
 
+/*! 
+   Transform a set of strings, keys, and colors to a colormap
+   
+   \param str (char **): Array of region names
+   \param num (int): Number of regions
+   \param keys (int *): Array of keys
+   \param cols (float **): Array of color tuples (RGB, or RGBA) 
+   \param nc (int): Number of values per color (3 or 4)
+   \param Name (char *): Name assigned to colormap.
+   
+   \return a SUMA color map.
+         If str is NULL, names are automatically regenerated using the keys
+         if keys is NULL, the key is assumed to be the array index
+         if cols is NULL, colors are taken from SUMA's roi 256 colormap
+         if Name is NULL, the colormap is labeled by the function name
+*/ 
+SUMA_COLOR_MAP *SUMA_LabelsKeys2Cmap (char **str, int num, int *keys, 
+                                      float **cols, int nc, char *Name)
+{
+   static char FuncName[]={"SUMA_LabelsKeys2Cmap"};
+   int i=0, k=0;
+   char stmp[64];
+   SUMA_COLOR_MAP* SM = NULL, *roi256=NULL;
+
+   SUMA_Boolean LocalHead = NOPE;
+   
+   SUMA_ENTRY;
+
+   if (num < 1) {
+      SUMA_S_Err("NULL or empty input");
+      SUMA_RETURN(NULL);
+   }
+      
+   if (!cols) {
+      if (!(roi256 = SUMA_FindNamedColMap("ROI_i256"))) {
+         SUMA_S_Errv("Found no colmap %s in %p\n", "ROI_i256", SUMAg_CF->scm);
+         SUMA_Show_ColorMapVec (SUMAg_CF->scm->CMv, SUMAg_CF->scm->N_maps, 
+                                NULL, 1);
+         SUMA_RETURN(NULL);
+      }
+   }
+   /* allocate for SM */
+   SM = (SUMA_COLOR_MAP*) SUMA_calloc(1,sizeof(SUMA_COLOR_MAP));
+   SM->N_M[0] = num;
+   SM->N_M[1] = 4;
+   SM->idvec = (int *)SUMA_calloc(SM->N_M[0], sizeof(int));
+   SM->chd = NULL;
+   SM->top_frac = 0.0f;
+   SM->SO = NULL; 
+   SM->cname = (char **)SUMA_calloc(SM->N_M[0], sizeof(char *));;
+   if (!Name) Name = FuncName;
+   SM->Name = (char *)SUMA_calloc((strlen(Name)+1),sizeof(char));
+   sprintf(SM->Name, "%s", Name);
+   SM->frac = NULL;
+   
+   SM->M = (float**)SUMA_allocate2D (SM->N_M[0], 4, sizeof(float));
+   
+   
+   SM->Sgn = 1;
+   for (i=0; i<SM->N_M[0]; ++i) {
+      if (cols) {
+         for (k=0; k<nc; ++k) SM->M[i][k] = cols[i][k];
+         for (k=nc; k<4; ++k) SM->M[i][k] = 1.0;
+      } else { /* use from ROI256 */
+         for (k=0; k<4; ++k) SM->M[i][k] = roi256->M[i%256][k];
+      }
+      if (keys) {
+         SM->idvec[i] = keys[i];
+      } else {
+         SM->idvec[i] = i;
+      }
+      if (str && str[i]) {
+         SM->cname[i] = SUMA_copy_string(str[i]);
+      } else {
+        sprintf(stmp,"roi%03d", SM->idvec[i]);
+        SM->cname[i] = SUMA_copy_string(stmp);   
+      }     
+   }  
+   
+      
+   if (LocalHead) {
+      fprintf (SUMA_STDERR,"%s: Colormap read:\n", FuncName);
+      SUMA_disp_mat (SM->M, SM->N_M[0], SM->N_M[1], 1);
+   }
+   
+   SM->M0[0] = SM->M[0][0]; 
+   SM->M0[1] = SM->M[0][1]; 
+   SM->M0[2] = SM->M[0][2]; 
+   SM->M0[3] = SM->M[0][3]; 
+
+   /* create the hash */
+   if (!SUMA_CreateCmapHash(SM)) {
+      SUMA_S_Err("Cannot create hash!");
+      SUMA_Free_ColorMap(SM);
+      SUMA_RETURN(NULL);
+   }
+
+   SUMA_RETURN (SM);
+}
+
+
 /*! function that turns a non-linear color map into a linear one
 The larger the number of colors in the linear color map, the close the
 approximation to the non-linear map. 
@@ -2853,6 +3009,8 @@ SUMA_Boolean SUMA_ScaleToMap_Interactive (   SUMA_OVERLAYS *Sover )
          SUMA_RETURN(NOPE);
       }
       switch (Opt->ThrMode) {
+         case SUMA_NO_THRESH:
+            break;
          case SUMA_LESS_THAN:
             for (i=0; i<SDSET_VECFILLED(Sover->dset_link); ++i) {
                if (Sover->T[i] < Opt->ThreshRange[0]) {
@@ -2870,16 +3028,16 @@ SUMA_Boolean SUMA_ScaleToMap_Interactive (   SUMA_OVERLAYS *Sover )
             break;
          case SUMA_THRESH_OUTSIDE_RANGE:
             for (i=0; i<SDSET_VECFILLED(Sover->dset_link); ++i) {
-               if (Sover->T[i] < Opt->ThreshRange[0] || 
-                   Sover->T[i] > Opt->ThreshRange[1]) {
+               if (Sover->T[i] >= Opt->ThreshRange[0] && 
+                   Sover->T[i] <= Opt->ThreshRange[1]) {
                   SV->isMasked[i] = YUP; /* Mask */
                }
             }
             break;
          case SUMA_THRESH_INSIDE_RANGE:
             for (i=0; i<SDSET_VECFILLED(Sover->dset_link); ++i) {
-               if (Sover->T[i] > Opt->ThreshRange[0] && 
-                   Sover->T[i] < Opt->ThreshRange[1]) {
+               if (Sover->T[i] < Opt->ThreshRange[0] ||
+                   Sover->T[i] > Opt->ThreshRange[1]) {
                   SV->isMasked[i] = YUP; /* Mask */
                }
             }
@@ -2986,22 +3144,24 @@ SUMA_Boolean SUMA_ScaleToMap_Interactive (   SUMA_OVERLAYS *Sover )
                Opt->ClustOpt->labelcol = Opt->find;
                Opt->ClustOpt->in_name = SDSET_FILENAME(Sover->dset_link);
                Opt->ClustOpt->tind = Opt->tind;
+               Opt->ClustOpt->DoThreshold = Opt->ThrMode;
                switch(Opt->ThrMode) {
+                  case SUMA_NO_THRESH:
                   case SUMA_LESS_THAN:
-                     Opt->ClustOpt->Thresh = Opt->ThreshRange[0];
-                     Opt->ClustOpt->DoThreshold = 1;
+                     Opt->ClustOpt->ThreshR[0] = Opt->ThreshRange[0];
                      break;
                   case SUMA_ABS_LESS_THAN:
-                     Opt->ClustOpt->Thresh = Opt->ThreshRange[0];
-                     Opt->ClustOpt->DoThreshold = 2;
+                     Opt->ClustOpt->ThreshR[0] = Opt->ThreshRange[0];
                      break;
                   case SUMA_THRESH_OUTSIDE_RANGE:
+                     Opt->ClustOpt->ThreshR[0] = Opt->ThreshRange[0];
+                     Opt->ClustOpt->ThreshR[1] = Opt->ThreshRange[1];
                   case SUMA_THRESH_INSIDE_RANGE:
-                     SUMA_S_Warn("No such thresholding available for SurfClust");
-                     Opt->ClustOpt->DoThreshold = -1;
+                     Opt->ClustOpt->ThreshR[0] = Opt->ThreshRange[0];
+                     Opt->ClustOpt->ThreshR[1] = Opt->ThreshRange[1];
                      break;
                   default:
-                     Opt->ClustOpt->DoThreshold = 0;
+                     Opt->ClustOpt->DoThreshold = SUMA_NOT_SET;
                      break;
                }
                if ((s = SUMA_ClustCommandLineFromOpt("SurfClust",
@@ -3885,17 +4045,36 @@ NI_group *SUMA_CmapToNICmap(SUMA_COLOR_MAP *CM)
    
    The function returns the colormap in NI format. 
    But it is already stuck in dset.
+   
+   If alaafni == 1, then the mapping of colors is done so that
+   a volume (or labeled cortical areas) appear as they would 
+   when colored as an atlas in AFNI. In AFNI an atlas value
+   of 1 maps to the very first color (0) or the colormap, while
+   in SUMA, under direct mode, the very first color (0) maps to 
+   a value of 0. The problem with having alaafni always set to
+   1 is that the plan only works if the maximum value is 255.
+   Otherwise, you run out of colors, even if the number of 
+   unique values is less than 256
+   
+   If alaafni == 0, then the mapping is done as it used to be
+   before this option was added. This allows SUMA to displays 256 unique values
+   regardless of whether or not they are <= 255.
+   
+   If alaafni == -1, then try to match AFNI whenever possible
+   
 */
 NI_group * SUMA_CreateCmapForLabelDset(SUMA_DSET *dset, 
-                                       SUMA_COLOR_MAP *ThisCmap) 
+                                       SUMA_COLOR_MAP *ThisCmap, int alaafni) 
 {
    static char FuncName[]={"SUMA_CreateCmapForLabelDset"};
-   int *idvec_hold=NULL;
-   char **cname_hold=NULL, stmp[256];
-   int cnt=0, i, N_unq, *unq=NULL;
+   int *idvec_hold=NULL, iii;
+   char **cname_hold=NULL, stmp[256], *buf=NULL;
+   int cnt=0, i, N_unq, *unq=NULL, cc;
    NI_group *ngr = NULL, *NIcmap=NULL;
-   SUMA_COLOR_MAP *cmap=NULL;
+   NI_element *nel=NULL;
+   SUMA_COLOR_MAP *cmap=NULL, *cmapi=NULL;
    SUMA_Boolean LocalHead = NOPE;
+   ATLAS_POINT_LIST *apl=NULL;
    
    SUMA_ENTRY;
    
@@ -3905,19 +4084,56 @@ NI_group * SUMA_CreateCmapForLabelDset(SUMA_DSET *dset,
    
    if (!ThisCmap) {
       SUMA_LH("Producing uniques");
+      if ((nel = SUMA_FindDsetAttributeElement( dset, "ATLAS_LABEL_TABLE"))) {
+         SUMA_NEL_GET_STRING(nel, 0, 0, buf); 
+         if (LocalHead) SUMA_ShowNel(nel);
+         if (!(ngr = (NI_group *)NI_read_element_fromstring(buf))) {
+            fprintf(stderr,"** WARNING: Poorly formatted ATLAS_LABEL_TABLE\n");
+         } else {
+            apl = niml_atlas_label_table_to_atlas_list(ngr);
+            NI_free_element(ngr); ngr = NULL;
+         }
+      } else if ((nel = SUMA_FindDsetAttributeElement( 
+                                    dset, "VALUE_LABEL_DTABLE"))) {
+         Dtable *dtbl = NULL;
+         SUMA_NEL_GET_STRING(nel, 0, 0, buf);
+         if (!(dtbl = Dtable_from_nimlstring(buf))) {
+            fprintf(stderr,"** WARNING: Poorly formatted VALUE_LABEL_DTABLE");
+         } else {
+            apl = label_table_to_atlas_point_list(dtbl);
+            destroy_Dtable(dtbl); dtbl = NULL;
+         }
+
+      }
       unq = SUMA_UniqueValuesInLabelDset(dset, &N_unq);
-      if (!(cmap = SUMA_FindNamedColMap("ROI_i256"))) {
+      if (!(cmapi = SUMA_FindNamedColMap("ROI_i256"))) {
          SUMA_S_Errv("Found no colmap %s in %p\n", "ROI_i256", SUMAg_CF->scm);
          SUMA_Show_ColorMapVec (SUMAg_CF->scm->CMv, SUMAg_CF->scm->N_maps, 
                                 NULL, 1);
          SUMA_RETURN(NULL);
       }
-      if (!unq || N_unq > cmap->N_M[0]) {
+      if (!unq || N_unq > cmapi->N_M[0]) {
          SUMA_S_Errv("Either no unique values or too many of them:\n"
-                     "  %p, %d (%d)\n", unq, N_unq, cmap->N_M[0]); 
+                     "  %p, %d (%d)\n", unq, N_unq, cmapi->N_M[0]); 
          SUMA_RETURN(NULL);
       }
-   
+      
+      if (alaafni == -1) {
+         if (unq[N_unq-1]<255) alaafni = 1;
+         else alaafni = 0;
+      }
+      
+      /* override */
+      if (SUMA_isEnv("SUMA_Classic_Label_Colors","YES")) {
+          alaafni = 0;
+      }
+      
+      if (!alaafni) cmap = cmapi;
+      else {
+         snprintf(stmp, 254,"%s_%s",SDSET_LABEL(dset),cmapi->Name);
+         cmap = SUMA_DuplicateColorMap (cmapi, stmp);
+      }
+      
       /* add a new key, and names. But first preserve the past. */
       SUMA_LH("Doing the key stuff");
       idvec_hold = cmap->idvec;
@@ -3929,8 +4145,31 @@ NI_group * SUMA_CreateCmapForLabelDset(SUMA_DSET *dset,
       for (i=0; i<N_unq; ++i) {
          if (unq[i]) { 
             cmap->idvec[cnt] = unq[i]; 
-            sprintf(stmp, "ROI_%04d", cmap->idvec[cnt]);
-            cmap->cname[cnt] = SUMA_copy_string(stmp);
+            if (!apl) {
+               sprintf(stmp, "ROI_%04d", cmap->idvec[cnt]);
+               cmap->cname[cnt] = SUMA_copy_string(stmp);
+            } else {
+               for (iii=0; iii<apl->n_points; ++iii) {
+                  if (apl->at_point[iii].okey == unq[i]) {
+                     cmap->cname[cnt] = 
+                           SUMA_copy_string(apl->at_point[iii].name) ;
+                     SUMA_LH("Yeehaw %s", apl->at_point[iii].name);
+                     break;
+                  }
+               }
+               if (!cmap->cname[cnt]) {
+                  sprintf(stmp, "ROI_%04d", cmap->idvec[cnt]);
+                  cmap->cname[cnt] = SUMA_copy_string(stmp);
+               }
+            }
+            if (alaafni) {
+               cc = unq[i]-1; if (cc<0) cc=0; if (cc>255) cc=255;
+               cc = 255-cc;
+               cmap->M[cnt][0] = cmapi->M[cc][0];
+               cmap->M[cnt][1] = cmapi->M[cc][1];
+               cmap->M[cnt][2] = cmapi->M[cc][2];
+               cmap->M[cnt][3] = cmapi->M[cc][3];
+            }
             ++ cnt; 
          }
       }
@@ -3953,6 +4192,7 @@ NI_group * SUMA_CreateCmapForLabelDset(SUMA_DSET *dset,
       }
       SUMA_free(cmap->cname); cmap->cname = cname_hold; cname_hold=NULL;
       
+      if (cmapi != cmap) SUMA_Free_ColorMap(cmap); 
    } else {
       cmap = ThisCmap;
       SUMA_LH("Got cmap, checking it out");
@@ -3961,8 +4201,6 @@ NI_group * SUMA_CreateCmapForLabelDset(SUMA_DSET *dset,
          SUMA_S_Err("Provided cmap is no good ");
          SUMA_RETURN(NULL);
       } 
-      
-      
       NIcmap =  SUMA_CmapToNICmap (cmap);
    }
       
@@ -4032,7 +4270,7 @@ SUMA_Boolean SUMA_IsCmapOKForLabelDset(SUMA_DSET *dset, SUMA_COLOR_MAP *cmap)
    }
    for (i=0; i<N_unq; ++i) {
       if (SUMA_ColMapKeyIndex(unq[i], cmap) < 0) {
-         SUMA_S_Errv("Key %d has no entry in cmap %s\n", unq[i], cmap->Name);
+         SUMA_S_Errv("Key[%d] %d has no entry in cmap %s\n", i, unq[i], cmap->Name);
          SUMA_RETURN(NOPE);
       }
    }
@@ -4057,7 +4295,7 @@ int SUMA_dset_to_Label_dset_cmap(SUMA_DSET *dset, SUMA_COLOR_MAP *cmap)
          
    /* Prep the colormap. */
    {
-      if (!(ngr = SUMA_CreateCmapForLabelDset(dset, cmap))) {
+      if (!(ngr = SUMA_CreateCmapForLabelDset(dset, cmap, -1))) {
          SUMA_S_Err("Failed to add colormap");
          SUMA_RETURN(0);
       }
@@ -6106,17 +6344,34 @@ SUMA_OVERLAYS * SUMA_CreateOverlayPointer (
          Sover->OptScl = NULL;
       } else {
          if (SDSET_IS_VOL(dset)) {
-            char *eee=getenv("SUMA_VO_ColorMap");
-            if (eee) {
-               if (!SUMA_FindNamedColMap(eee)) {
-                  Sover->cmapname = SUMA_copy_string("bw20");
-                  SUMA_S_Errv( "Colormap %s not found.\n"
-                              "Using bw20 instead.\n", eee);
-               } else Sover->cmapname = SUMA_copy_string(eee);
+            if (SUMA_is_Label_dset(dset, &ncmap)) {
+               if (!ncmap) { /*  have no colormap, throw one in */
+                  if (!(ncmap = SUMA_CreateCmapForLabelDset(dset, NULL, -1))) {
+                     SUMA_S_Err("Failed to create new label dset cmap");
+                  }
+                  /* stick color map in database */
+                  if (!SUMA_Insert_Cmap_of_Dset(dset)) {
+                     SUMA_S_Err("Failed to insert Cmap");
+                     SUMA_FreeDset(dset); dset = NULL;
+                     SUMA_RETURN(NOPE);
+                  }
+                  Sover->cmapname = SUMA_copy_string(
+                                          NI_get_attribute(ncmap,"Name"));
+               }
+               Sover->SymIrange = 0; SymChosen = 1;
             } else {
-               Sover->cmapname = SUMA_copy_string("bw20");
+               char *eee=getenv("SUMA_VO_ColorMap");
+               if (eee) {
+                  if (!SUMA_FindNamedColMap(eee)) {
+                     Sover->cmapname = SUMA_copy_string("bw20");
+                     SUMA_S_Errv( "Colormap %s not found.\n"
+                                 "Using bw20 instead.\n", eee);
+                  } else Sover->cmapname = SUMA_copy_string(eee);
+               } else {
+                  Sover->cmapname = SUMA_copy_string("bw20");
+               }
+               Sover->SymIrange = 0; SymChosen = 1;
             }
-            Sover->SymIrange = 0; SymChosen = 1;
          } else if (SUMA_is_VFR_dset(dset)) {
             char *eee=getenv("SUMA_VFR_DsetColorMap");
             if (eee) {
@@ -6143,7 +6398,7 @@ SUMA_OVERLAYS * SUMA_CreateOverlayPointer (
          } else if (SUMA_is_Label_dset(dset, &ncmap)) {
             /* this is a label dset */
             if (!ncmap) { /*  have no colormap, throw one in */
-               if (!(ncmap = SUMA_CreateCmapForLabelDset(dset, NULL))) {
+               if (!(ncmap = SUMA_CreateCmapForLabelDset(dset, NULL, -1))) {
                   SUMA_S_Err("Failed to create new label dset cmap");
                }
                /* stick color map in database */
@@ -9777,7 +10032,7 @@ SUMA_Boolean SUMA_LoadDsetOntoSO_eng (char *filename, SUMA_SurfaceObject *SO,
          SUMA_SL_Note("dset has a mesh parent, Checking relationship");
          if (!SUMA_isDsetRelated(dset, SO)) {
             if (SUMA_isEnv("SUMA_AlwaysAssignSurface","Y")) {
-               SUMA_S_Note("Setting domain_parent_idcode to NULL!");
+               SUMA_LH("Setting domain_parent_idcode to NULL!");
                NI_set_attribute(dset->ngr, "domain_parent_idcode", NULL);
                np = NULL; lnp = 0; 
             } else {
@@ -9877,6 +10132,7 @@ SUMA_Boolean SUMA_LoadDsetOntoSO_eng (char *filename, SUMA_SurfaceObject *SO,
                   colplanepre->OptScl->RecomputeClust = 1;         
                OKdup = 1;
             } else { /* dset is considered new */
+               SUMA_LH("New");
                colplanepre = NULL;
                /* The overlay index for that plane is SO->N_Overlays */
                OverInd = SO->N_Overlays;
@@ -9897,6 +10153,7 @@ SUMA_Boolean SUMA_LoadDsetOntoSO_eng (char *filename, SUMA_SurfaceObject *SO,
 
 
             /* Add this plane to SO->Overlays */
+            SUMA_LH("Adding new plane to SO->Overlays");
             if (!SUMA_AddNewPlane ((SUMA_ALL_DO *)SO, NewColPlane, SUMAg_DOv, 
                                    SUMAg_N_DOv, OKdup)) {
                SUMA_SL_Err("Failed in SUMA_AddNewPlane");
@@ -9910,9 +10167,11 @@ SUMA_Boolean SUMA_LoadDsetOntoSO_eng (char *filename, SUMA_SurfaceObject *SO,
          } 
 
          /* Match the old settings? */
+         SUMA_LH("Settings");
          if (colplanepre == NewColPlane) { /* old col plane found for this dset*/
             /* Don't change settings. Before Aug 2012, it would reset as below */
-         } else if (SUMA_PreserveOverlaySettings(SO->SurfCont->curColPlane,
+         } else if (SO->SurfCont &&
+                    SUMA_PreserveOverlaySettings(SO->SurfCont->curColPlane,
                                                 NewColPlane)) {
                            /* attempt to preserve current situation */
             SUMA_OVERLAYS *settingPlane = NULL;
@@ -9954,6 +10213,7 @@ SUMA_Boolean SUMA_LoadDsetOntoSO_eng (char *filename, SUMA_SurfaceObject *SO,
             NewColPlane->OptScl->ClustOpt->DistLim = 
                settingPlane->OptScl->ClustOpt->DistLim;
          } else {
+            SUMA_LH("New settings");
             /* set the opacity, index column and the range */
             NewColPlane->GlobalOpacity = YUP;
             NewColPlane->ShowMode = SW_SurfCont_DsetViewCol;
@@ -9997,11 +10257,11 @@ SUMA_Boolean SUMA_LoadDsetOntoSO_eng (char *filename, SUMA_SurfaceObject *SO,
          NOTE: You can't call SUMA_InitializeColPlaneShell
          before remixing because colors are reported in Lbl block
           June 28 04*/
-         if (MakeOverlayCurrent) 
+         if (SO->SurfCont && MakeOverlayCurrent) 
             SO->SurfCont->curColPlane = SO->Overlays[OverInd]; 
       }
    
-      if (LaunchDisplay) {
+      if (SO->SurfCont && LaunchDisplay) {
          SUMA_LHv("Remix Redisplay %s\n", SO->Label);
          /* remix-redisplay  for surface */
          if (!SUMA_Remixedisplay ((SUMA_ALL_DO*)SO)) {

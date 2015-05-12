@@ -1114,7 +1114,7 @@ int SUMA_F12_Key(SUMA_SurfaceViewer *sv, char *key, char *callmode)
 
             /* Estimate how many nodes and triangles were rendered */
             Vis_IDs = (int *)SUMA_malloc(sizeof(int)*SUMAg_N_DOv);
-            N_vis = SUMA_VisibleSOs (sv, SUMAg_DOv, Vis_IDs);
+            N_vis = SUMA_VisibleSOs (sv, SUMAg_DOv, Vis_IDs, 0);
             NodeTot = 0;
             FaceTot = 0;
             for (i=0; i<N_vis;++i) {
@@ -1903,6 +1903,7 @@ int SUMA_L_Key(SUMA_SurfaceViewer *sv, char *key, char *callmode, char *strgval)
    switch (k) {
       case XK_l:
             if ((SUMA_CTRL_KEY(key))){
+               #if 0 /* Not of much use */
                if (SUMAg_CF->Dev) {
                   if (!list) list = SUMA_CreateList();
                   ED = SUMA_InitializeEngineListData (SE_ToggleLockAllCrossHair);
@@ -1920,7 +1921,51 @@ int SUMA_L_Key(SUMA_SurfaceViewer *sv, char *key, char *callmode, char *strgval)
                               "Error %s: SUMA_Engine call failed.\n", FuncName);
                   }
                }
-            } if ((SUMA_ALT_KEY(key) || SUMA_APPLE_KEY(key))){ /* alt + l */
+               #else
+               GLfloat light0_color[] = { SUMA_LIGHT0_COLOR_INIT};
+                  /* dim the lights */
+                  sv->dim_spe = sv->dim_spe * 0.8; 
+                     if (sv->dim_spe < 0.1) sv->dim_spe = 1.0;
+                  sv->dim_dif = sv->dim_dif * 0.8; 
+                     if (sv->dim_dif < 0.1) sv->dim_dif = 1.0;
+                  sv->dim_amb = sv->dim_amb * 0.8; 
+                     if (sv->dim_amb < 0.1) sv->dim_amb = 1.0;
+                  sv->dim_emi = sv->dim_emi * 0.8; 
+                     if (sv->dim_emi < 0.1) sv->dim_emi = 1.0;
+                  fprintf(SUMA_STDERR,
+                           "%s:  light dim factor now %.3f\n", 
+                           FuncName, sv->dim_spe);
+                  /*fprintf(SUMA_STDERR,"%s:  light dim factor now %.3f\n"
+                                        "%f %f %f %f\n", 
+                                        FuncName, sv->dim_spe,
+                           sv->light0_color[0], sv->light0_color[1], 
+                           sv->light0_color[2], sv->light0_color[3]);
+                                                      */
+                  light0_color[0] = sv->light0_color[0]*sv->dim_spe;
+                  light0_color[1] = sv->light0_color[1]*sv->dim_spe;
+                  light0_color[2] = sv->light0_color[2]*sv->dim_spe;
+                  light0_color[3] = sv->light0_color[3]*sv->dim_spe;
+                  glLightfv(GL_LIGHT0, GL_SPECULAR, light0_color);
+                  light0_color[0] = sv->light0_color[0]*sv->dim_dif;
+                  light0_color[1] = sv->light0_color[1]*sv->dim_dif;
+                  light0_color[2] = sv->light0_color[2]*sv->dim_dif;
+                  light0_color[3] = sv->light0_color[3]*sv->dim_dif;
+                  glLightfv(GL_LIGHT0, GL_DIFFUSE, light0_color);
+                  light0_color[0] = sv->lmodel_ambient[0]*sv->dim_amb;
+                  light0_color[1] = sv->lmodel_ambient[1]*sv->dim_amb;
+                  light0_color[2] = sv->lmodel_ambient[2]*sv->dim_amb;
+                  light0_color[3] = sv->lmodel_ambient[3]*sv->dim_amb;
+                  glLightModelfv(GL_LIGHT_MODEL_AMBIENT, sv->lmodel_ambient);
+                  if (!list) list = SUMA_CreateList(); 
+                  SUMA_REGISTER_HEAD_COMMAND_NO_DATA( list, SE_Redisplay, 
+                                                      SES_Suma, sv);
+
+                  if (!SUMA_Engine (&list)) {
+                     fprintf(stderr, 
+                             "Error SUMA_input: SUMA_Engine call failed.\n");
+                  }
+               #endif
+            } else if ((SUMA_AALT_KEY(key))){ /* alt + l */
                /* register cross hair XYZ with ED */
                if (!list) list = SUMA_CreateList();
                ED = SUMA_InitializeEngineListData (SE_SetLookAt);
@@ -1956,17 +2001,16 @@ int SUMA_L_Key(SUMA_SurfaceViewer *sv, char *key, char *callmode, char *strgval)
          break;
       case XK_L:
                if ((SUMA_CTRL_KEY(key))){
-                  if (SUMAg_CF->Dev) {
-                     GLfloat light0_color[] = { SUMA_LIGHT0_COLOR_INIT};
-                     sv->dim_spe = sv->dim_spe * 0.8; 
-                        if (sv->dim_spe < 0.1) sv->dim_spe = 1.0;
-                     sv->dim_dif = sv->dim_dif * 0.8; 
-                        if (sv->dim_dif < 0.1) sv->dim_dif = 1.0;
-                     sv->dim_amb = sv->dim_amb * 0.8; 
-                        if (sv->dim_amb < 0.1) sv->dim_amb = 1.0;
-                     sv->dim_emi = sv->dim_emi * 0.8; 
-                        if (sv->dim_emi < 0.1) sv->dim_emi = 1.0;
-                     /* dim the lights */
+                  GLfloat light0_color[] = { SUMA_LIGHT0_COLOR_INIT};
+                  /* brighten the lights */
+                  sv->dim_spe = sv->dim_spe / 0.8; 
+                  if (sv->dim_spe > 1) sv->dim_spe = 0.1;
+                  sv->dim_dif = sv->dim_dif / 0.8; 
+                     if (sv->dim_dif > 1) sv->dim_dif = 0.1;
+                  sv->dim_amb = sv->dim_amb / 0.8; 
+                     if (sv->dim_amb > 1) sv->dim_amb = 0.1;
+                  sv->dim_emi = sv->dim_emi / 0.8; 
+                     if (sv->dim_emi > 1) sv->dim_emi = 0.1;
                      fprintf(SUMA_STDERR,
                               "%s:  light dim factor now %.3f\n", 
                               FuncName, sv->dim_spe);
@@ -1999,7 +2043,8 @@ int SUMA_L_Key(SUMA_SurfaceViewer *sv, char *key, char *callmode, char *strgval)
                         fprintf(stderr, 
                                 "Error SUMA_input: SUMA_Engine call failed.\n");
                      }
-                  }
+               } else if ((SUMA_AALT_KEY(key))){
+               
                } else {
                   SUMA_PROMPT_DIALOG_STRUCT *prmpt;
                   prmpt = SUMA_CreatePromptDialogStruct (
@@ -2236,6 +2281,7 @@ int SUMA_O_Key(SUMA_SurfaceViewer *sv, char *key, char *callmode)
    char tk[]={"O"}, keyname[100];
    int k, nc;
    int N_SOlist, SOlist[SUMA_MAX_DISPLAYABLE_OBJECTS];
+   SUMA_ALL_DO *ado=NULL;
    SUMA_SurfaceObject *SO = NULL;
    
    SUMA_Boolean LocalHead = NOPE;
@@ -2247,17 +2293,24 @@ int SUMA_O_Key(SUMA_SurfaceViewer *sv, char *key, char *callmode)
    /* do the work */
    switch (k) {
       case XK_O:
-         if (SUMA_CTRL_KEY(key)) {
-         
+         if ((SUMA_APPLE_KEY(key) || SUMA_ALT_KEY(key))) {
+            
+         } else if (SUMA_CTRL_KEY(key)) {
+            if ((ado = SUMA_SV_Focus_ADO(sv))) {
+               SUMA_Set_ADO_TransMode(ado, sv->TransMode, 
+                                      SUMAg_CF->TransModeStep, 1);
+               SUMA_postRedisplay(sv->X->GLXAREA, NULL, NULL);
+            }
          } else {   
-            sv->TransMode = ((sv->TransMode-4) % (STM_N_TransModes-2));
+            sv->TransMode = ((sv->TransMode-SUMAg_CF->TransModeStep) % 
+                                                      (STM_N_TransModes-2));
             if (sv->TransMode <= STM_ViewerDefault) sv->TransMode = STM_16;
            
             SUMA_postRedisplay(sv->X->GLXAREA, NULL, NULL);
          }
          break;
       case XK_o:
-         if (SUMA_CTRL_KEY(key)) {
+         if ((SUMA_APPLE_KEY(key) || SUMA_ALT_KEY(key))) {
            sv->X->SetRot_prmpt = SUMA_CreatePromptDialogStruct (
                   SUMA_OK_APPLY_CLEAR_CANCEL, "Center of Rotation X,Y,Z:", 
                   "0,0,0",
@@ -2271,8 +2324,15 @@ int SUMA_O_Key(SUMA_SurfaceViewer *sv, char *key, char *callmode)
 
             sv->X->SetRot_prmpt = SUMA_CreatePromptDialog(sv->X->Title, 
                                                           sv->X->SetRot_prmpt);
+         } else if (SUMA_CTRL_KEY(key)) {
+            if ((ado = SUMA_SV_Focus_ADO(sv))) {
+               SUMA_Set_ADO_TransMode(ado, sv->TransMode, 
+                                      -SUMAg_CF->TransModeStep, 1);
+               SUMA_postRedisplay(sv->X->GLXAREA, NULL, NULL);
+            }
          } else {   
-            sv->TransMode = ((sv->TransMode+4) % (STM_N_TransModes-2));
+            sv->TransMode = ((sv->TransMode+SUMAg_CF->TransModeStep) % 
+                                                      (STM_N_TransModes-2));
             if (sv->TransMode <= STM_ViewerDefault) sv->TransMode = STM_0;
 
             SUMA_postRedisplay(sv->X->GLXAREA, NULL, NULL);
@@ -2297,7 +2357,7 @@ int SUMA_P_Key(SUMA_SurfaceViewer *sv, char *key, char *callmode)
    int k, nc;
    int N_SOlist, SOlist[SUMA_MAX_DISPLAYABLE_OBJECTS];
    SUMA_SurfaceObject *SO = NULL;
-   
+   SUMA_ALL_DO *ado=NULL;
    SUMA_Boolean LocalHead = NOPE;
    
    SUMA_ENTRY;
@@ -2307,25 +2367,34 @@ int SUMA_P_Key(SUMA_SurfaceViewer *sv, char *key, char *callmode)
    /* do the work */
    switch (k) {
       case XK_P:
-         sv->PolyMode = SRM_Fill;
-         N_SOlist = SUMA_RegisteredSOs(sv, SUMAg_DOv, SOlist);
-         for (k=0; k<N_SOlist; ++k) {
-            SO = (SUMA_SurfaceObject *)(SUMAg_DOv[SOlist[k]].OP);   
-            SO->PolyMode = SRM_ViewerDefault;
-            SO->Show = YUP;
+         if ((SUMA_APPLE_KEY(key) || SUMA_ALT_KEY(key))) {
+         } else if (SUMA_CTRL_KEY(key)) {
+         
+         } else {
+            sv->PolyMode = SRM_Fill;
+            N_SOlist = SUMA_RegisteredSOs(sv, SUMAg_DOv, SOlist);
+            for (k=0; k<N_SOlist; ++k) {
+               SO = (SUMA_SurfaceObject *)(SUMAg_DOv[SOlist[k]].OP);   
+               SO->PolyMode = SRM_ViewerDefault;
+               SO->Show = YUP;
+            }
+            SUMA_SET_GL_RENDER_MODE(sv->PolyMode);
+            SUMA_postRedisplay(sv->X->GLXAREA, NULL, NULL);
+            SUMA_SLP_Note("All surfaces displayed as solids");
          }
-         SUMA_SET_GL_RENDER_MODE(sv->PolyMode);
-         SUMA_postRedisplay(sv->X->GLXAREA, NULL, NULL);
-         SUMA_SLP_Note("All surfaces displayed as solids");
          break;
       case XK_p:
-         if (SUMA_CTRL_KEY(key)) {
+         if ((SUMA_APPLE_KEY(key) || SUMA_ALT_KEY(key))) {
             sv->DO_DrawMask = ((sv->DO_DrawMask+1) % SDODM_N_DO_DrawMasks);
             snprintf(msg,100*sizeof(char),"DO DrawMask now set to: %s", 
                         SUMA_DO_DrawMaskCode2Name_human(sv->DO_DrawMask));
             if (callmode && strcmp(callmode, "interactive") == 0) { 
                   SUMA_SLP_Note ("%s",msg); 
             } else { SUMA_S_Note ("%s",msg); }
+         } else if (SUMA_CTRL_KEY(key)) {
+            if ((ado = SUMA_SV_Focus_ADO(sv))) {
+               SUMA_Set_ADO_RenderMode(ado, sv->PolyMode, -1, 1);
+            }
          } else {
             sv->PolyMode = ((sv->PolyMode+1) % SRM_N_RenderModes);
             if (sv->PolyMode <= SRM_ViewerDefault) sv->PolyMode = SRM_Fill;
@@ -2939,7 +3008,7 @@ int SUMA_W_Key(SUMA_SurfaceViewer *sv, char *key, char *callmode)
                               SUMA_CreateTextShellStruct (  SUMA_Whereami_open, 
                                                       NULL, NULL,
                                                       SUMA_Whereami_destroyed,
-                                                      NULL))) {
+                                                      NULL, NULL))) {
                         SUMA_S_Err("Failed to create TextShellStruct.");
                         break;
                      }
@@ -4407,14 +4476,34 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
             break; 
               
          case XK_l:
-               if (!SUMA_L_Key(sv, "l", "interactive", NULL)) {
+               if (Kev.state & ControlMask){
+                  if (!SUMA_L_Key(sv, "ctrl+l", "interactive", NULL)) {
+                        SUMA_S_Err("Failed in key func.");
+                  }
+               } else if (SUMA_ALTHELL){
+                  if (!SUMA_L_Key(sv, "alt+l", "interactive", NULL)) {
                      SUMA_S_Err("Failed in key func.");
+                  }
+               } else {
+                  if (!SUMA_L_Key(sv, "l", "interactive", NULL)) {
+                        SUMA_S_Err("Failed in key func.");
+                  }
                }
             break;
 
          case XK_L:
-               if (!SUMA_L_Key(sv, "L", "interactive", NULL)) {
+               if (Kev.state & ControlMask){
+                  if (!SUMA_L_Key(sv, "ctrl+L", "interactive", NULL)) {
+                        SUMA_S_Err("Failed in key func.");
+                  }
+               } else if (SUMA_ALTHELL){
+                  if (!SUMA_L_Key(sv, "alt+L", "interactive", NULL)) {
                      SUMA_S_Err("Failed in key func.");
+                  }
+               } else {
+                  if (!SUMA_L_Key(sv, "L", "interactive", NULL)) {
+                        SUMA_S_Err("Failed in key func.");
+                  }
                }
             break;
          
@@ -4939,7 +5028,7 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
                int *Vis_IDs, N_vis;
                SUMA_SurfaceObject *SO=NULL;
                Vis_IDs = (int *)SUMA_malloc(sizeof(int)*SUMAg_N_DOv);
-               N_vis = SUMA_VisibleSOs (sv, SUMAg_DOv, Vis_IDs);
+               N_vis = SUMA_VisibleSOs (sv, SUMAg_DOv, Vis_IDs, 0);
                if (N_vis) {
                   SO = (SUMA_SurfaceObject *)SUMAg_DOv[Vis_IDs[0]].OP;
                   /* Axial plane */
@@ -5448,7 +5537,7 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
                   /* Any hits for masks? */
                   hit = SUMA_ComputeLineMaskIntersect (sv, SUMAg_DOv, 0, &mado);
                   if (hit < 0) {
-                    SUMA_S_Err("Failed in SUMA_ComputeLineSurfaceIntersect.");
+                    SUMA_S_Err("Failed in SUMA_ComputeLineMaskIntersect.");
                   } else if (hit > 0) {
                      SUMA_LH("Mask was double clicked");
                      if (!MASK_MANIP_MODE(sv)) {
@@ -5553,9 +5642,20 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
                       }
                   }
                   
+                  if (1) {
+                      SUMA_LH("Trying for volume VR intersections");
+                      hit =  SUMA_ComputeLineVOvrIntersect(sv, SUMAg_DOv, 
+                                                               0, NULL);
+                      if (hit < 0) {
+                         fprintf( SUMA_STDERR,
+                            "Error %s: "
+                            "Failed in SUMA_MarkLineVOvrIntersect.\n",
+                                  FuncName);
+                      }
+                  }
                   #if 0
                   if (SUMA_ALTHELL || 
-                      SUMA_VisibleSOs(sv, SUMAg_DOv, NULL) == 0) {
+                      SUMA_VisibleSOs(sv, SUMAg_DOv, NULL, 0) == 0) {
                       SUMA_LH("Trying for cutplanes");
                       hit = SUMA_MarkLineCutplaneIntersect (sv, SUMAg_DOv, 0);
                       if (hit < 0) {
@@ -6160,6 +6260,17 @@ void SUMA_input(Widget w, XtPointer clientData, XtPointer callData)
                       fprintf( SUMA_STDERR,
                          "Error %s: "
                          "Failed in SUMA_MarkLineVOslicesIntersect.\n",
+                               FuncName);
+                   }
+               }
+               if (1) {
+                   SUMA_LH("Trying for volume rendering intersections");
+                   hit =  SUMA_ComputeLineVOvrIntersect(sv, SUMAg_DOv, 
+                                                            0, NULL);
+                   if (hit < 0) {
+                      fprintf( SUMA_STDERR,
+                         "Error %s: "
+                         "Failed in SUMA_MarkLineVOvrIntersect.\n",
                                FuncName);
                    }
                }
@@ -8352,7 +8463,7 @@ int SUMA_ComputeLineSurfaceIntersect (SUMA_SurfaceViewer *sv, SUMA_DO *dov,
    P1f[1] = sv->Pick1[1];
    P1f[2] = sv->Pick1[2];
    
-   N_SOlist = SUMA_VisibleSOs(sv, dov, SOlist);
+   N_SOlist = SUMA_VisibleSOs(sv, dov, SOlist, 0);
    imin = -1;
    dmin = 10000000.0;
    for (ii=0; ii < N_SOlist; ++ii) { /* find the closest intersection */
@@ -8925,6 +9036,7 @@ int SUMA_MarkLineVOslicesIntersect (SUMA_SurfaceViewer *sv, SUMA_DO *dov,
    SUMA_RETURN(ans);
 }
 
+#if 0
 /* BEFORE you start using this MACRO everywhere, including with the, 
    other ThrMode values, make sure you write a function version of it 
    which can be used as a sanity check. For now, this seems OK */
@@ -8932,7 +9044,45 @@ int SUMA_MarkLineVOslicesIntersect (SUMA_SurfaceViewer *sv, SUMA_DO *dov,
       ((ThrMode) == SUMA_LESS_THAN && (val) >= ThreshRange[0])?1: \
      (((ThrMode) == SUMA_ABS_LESS_THAN && ( (val) >=  ThreshRange[0] ||   \
                                             (val) <= -ThreshRange[0]))?1:0) )
+#endif
+byte SUMA_Val_Meets_Thresh(float val, double *ThreshRange, 
+                           SUMA_THRESH_MODE ThrMode)
+{
+   static char FuncName[]={"SUMA_Val_Meets_Thresh"};
+   switch(ThrMode){
+      case SUMA_LESS_THAN:
+         return((val >= ThreshRange[0])); 
+         break;
+      case SUMA_ABS_LESS_THAN:
+         return((val >=  ThreshRange[0]) || (val <=  -ThreshRange[0]));
+         break;
+      case SUMA_THRESH_OUTSIDE_RANGE:
+         return((val <  ThreshRange[0]) || (val > ThreshRange[1]));
+         break;
+      case SUMA_THRESH_INSIDE_RANGE:
+         return((val >=  ThreshRange[0]) && (val <= ThreshRange[1]));
+         break;  
+      case SUMA_NO_THRESH:
+         return(1);
+      default:
+         SUMA_S_Warn("Bad thresh mode %d", ThrMode);
+         return(1);
+         break;
+   } 
+   SUMA_S_Warn("Should not be here %d", ThrMode);
+   return(1);     
+}
 
+/* 
+   This function is almost identical to SUMA_ComputeLineVOvrIntersect()
+   They could be merged quite readily but for some reason this feels 
+   cleaner to me. 
+   Make sure that any change here is mirrored verbatim (to the degree possible)  
+   in SUMA_ComputeLineVOvrIntersect() .
+   
+   Consider merging SUMA_ComputeLineVOvrIntersect() into 
+   SUMA_ComputeLineVOslicesIntersect() in the future if maintenance is a problem 
+*/
 int SUMA_ComputeLineVOslicesIntersect (SUMA_SurfaceViewer *sv, SUMA_DO *dov, 
                                        int IgnoreSameNode, SUMA_ALL_DO **pado)
 {/* determine intersection */
@@ -9023,7 +9173,7 @@ int SUMA_ComputeLineVOslicesIntersect (SUMA_SurfaceViewer *sv, SUMA_DO *dov,
                       
                       /* Do we meet intensity thresholds? */
                       okinten = 0;
-                      if ( SUMA_VAL_MEETS_THRESH(val, 
+                      if ( SUMA_Val_Meets_Thresh(val, 
                                     colplane->OptScl->ThreshRange,
                                     colplane->OptScl->ThrMode ) && 
                            (val != 0.0f || !colplane->OptScl->MaskZero)) {
@@ -9114,6 +9264,202 @@ int SUMA_ComputeLineVOslicesIntersect (SUMA_SurfaceViewer *sv, SUMA_DO *dov,
    GOT_IT:
    SUMA_RETURN(N_Hit);
 }/* determine intersection with slices of VO*/
+
+/* 
+   This function is almost identical to SUMA_ComputeLineVOslicesIntersect()
+   They could be merged quite readily but for some reason this feels 
+   cleaner to me. 
+   Make sure that any change here is mirrored verbatim (to the degree possible)  
+   in SUMA_ComputeLineVOslicesIntersect() .
+   
+   Consider merging SUMA_ComputeLineVOvrIntersect() into 
+   SUMA_ComputeLineVOslicesIntersect() in the future if maintenance is a problem 
+
+
+*/
+int SUMA_ComputeLineVOvrIntersect (SUMA_SurfaceViewer *sv, SUMA_DO *dov, 
+                                   int IgnoreSameNode, SUMA_ALL_DO **pado)
+{/* determine intersection */
+   static char FuncName[]={"SUMA_ComputeLineVOvrIntersect"};
+   float P0f[3], P1f[3], pinter[3], I[3];
+   int NP, N_Hit, okinten=0; 
+   float delta_t_tmp, dmin, val; 
+   struct timeval tt_tmp; 
+   int ip, it, id, ii, imin, I1d, Irw, Hit, ive, icolplane, indef=-1;
+   int *MembDOs=NULL, N_MembDOs, UseAlphaTresh=1;
+   float valpha=0.0;
+   SUMA_DO_Types ttv[12];
+   char sfield[100], sdestination[100], CommString[SUMA_MAX_COMMAND_LENGTH];
+   SUMA_VolumeObject *VO=NULL;
+   SUMA_Boolean NodeIgnored = NOPE;
+   SUMA_RENDERED_SLICE *rslc;
+   SUMA_ALL_DO *ado = NULL;
+   SUMA_DSET *dset = NULL;
+   SUMA_OVERLAYS *colplane=NULL;
+   SUMA_VOL_SAUX *VSaux = NULL;
+   SUMA_PICK_RESULT *PR=NULL;
+   DListElmt *el=NULL;
+   SUMA_Boolean LocalHead = NOPE;
+
+   SUMA_ENTRY;
+
+   P0f[0] = sv->Pick0[0];
+   P0f[1] = sv->Pick0[1];
+   P0f[2] = sv->Pick0[2];
+   P1f[0] = sv->Pick1[0];
+   P1f[1] = sv->Pick1[1];
+   P1f[2] = sv->Pick1[2];
+
+   ttv[0] = VO_type; ttv[1] = NOT_SET_type;
+   MembDOs = SUMA_ViewState_Membs(&(sv->VSv[sv->iState]), ttv, &N_MembDOs);
+   SUMA_LHv("Searching for hit: %f %f %f --> %f %f %f\n", 
+            P0f[0], P0f[1], P0f[2], P1f[0], P1f[1], P1f[2]);   
+   N_Hit = 0;
+   for (ii=0; ii<N_MembDOs; ++ii) {
+      {
+         VO = (SUMA_VolumeObject *)(dov[MembDOs[ii]].OP);
+         ado = (SUMA_ALL_DO *)VO;
+         if (!(VSaux = SUMA_ADO_VSaux(ado))) continue;
+         SUMA_LH("%d VR slices on %s, show=%d", dlist_size(VSaux->vrslcl), 
+                              ADO_LABEL(ado), VSaux->ShowVrSlc);
+         if (!VSaux->ShowVrSlc) continue;
+         if (!dlist_size(VSaux->vrslcl)) continue;
+         /* now compute intersection from the top down */
+         Hit = 0; 
+         el = NULL;
+         do {
+            if (!el) el = dlist_head(VSaux->vrslcl);
+            else el = dlist_next(el);
+            rslc = (SUMA_RENDERED_SLICE *)el->data;
+            /* does line intersect this plane? */
+            SUMA_SEGMENT_PLANE_INTERSECT(P0f, P1f, rslc->Eq, Hit, pinter);
+            if (Hit) {/* is the intersection point in the volume? */
+               Hit = 0; /* demote, real hit decided on below */
+               ive = 0;
+               while (VO->VE && VO->VE[ive]) {
+                  AFF44_MULT_I(I, VO->VE[ive]->X2I, pinter);
+                  SUMA_LH("On %s: Inter at X=[%f %f %f] --> ijk=[%f %f %f]", 
+                           SUMA_VE_Headname(VO->VE, ive),
+                           pinter[0], pinter[1], pinter[2], I[0], I[1], I[2]);
+                  I[0] = (int)I[0]; I[1] = (int)I[1]; I[2] = (int)I[2];
+                  if (I[0] >= 0.0f && I[1] >= 0.0f && I[2] >= 0.0f &&
+                      I[0] < VO->VE[ive]->Ni &&  I[1] < VO->VE[ive]->Nj &&
+                      I[2] < VO->VE[ive]->Nk) {
+                      dset = SUMA_VE_dset(VO->VE, ive);
+                      colplane =  SUMA_Fetch_OverlayPointerByDset(
+                                          (SUMA_ALL_DO *)VO, dset, &icolplane); 
+                      /* here you check on the value at I in the dataset */
+                      I1d = I[2]*VO->VE[ive]->Ni*VO->VE[ive]->Nj + 
+                            I[1]*VO->VE[ive]->Ni+I[0];
+                      Irw = SUMA_GetNodeRow_FromNodeIndex_eng(dset, I1d,-1);
+                      if (!colplane->V) {
+                        SUMA_S_Err("Need SUMA_GetDsetValInCol to get vals");
+                        SUMA_RETURN(NOPE);
+                      } else {
+                        val = colplane->V[Irw];
+                      }
+                      SUMA_LH("Have intersection on ive %d inside VE %s\n"
+                              "IJK [%d %d %d], I1d=%d, Irw=%d, \n"
+                              "val %f, thr [%f %f]\n",
+                              ive, SUMA_VE_Headname(VO->VE, ive), 
+                              (int)I[0], (int)I[1], (int)I[2], 
+                              I1d, Irw, val,
+                              colplane->OptScl->ThreshRange[0], 
+                              colplane->OptScl->ThreshRange[1]);
+                      
+                      /* Do we meet intensity thresholds? */
+                      okinten = 0;
+                      if ( SUMA_Val_Meets_Thresh(val, 
+                                    colplane->OptScl->ThreshRange,
+                                    colplane->OptScl->ThrMode ) && 
+                           (val != 0.0f || !colplane->OptScl->MaskZero)) {
+                        okinten = 1;
+                      }
+                      
+                      indef = -1;
+                      UseAlphaTresh = 1;/* control from interface someday */
+                      valpha = 2.0; /* no masking */
+                      if (UseAlphaTresh && okinten && colplane->ColAlpha) {
+                        /* Also mask if value is below alpha thresh 
+                           This is a slow search... So you may not want
+                           to use it all the time. 
+                           Problem is finding the row of the voxel in
+                           NodeDef, and that's too slow for a big 
+                           volume to be run repeatedly...Would
+                           be easier if I had a function to recompute
+                           a voxel's alpha, rather than search for it
+                           in ColAlpha. Oh, well, someday I guess. For
+                           now we search*/
+                        if ((indef=SUMA_GetSortedNodeOverInd(colplane, I1d))>=0){
+                           valpha = colplane->ColAlpha[indef]/255.0;
+                        }
+                      }
+                      
+                      if ( okinten && (valpha > colplane->AlphaThresh) ) {
+                        SUMA_LH("FOUND IT, on VE %s, IJK [%d %d %d], val %f," 
+                               "thresh[%f %f], UseAlphaTresh = %d, "
+                               "valpha=%f, ColAlphaThresh=%f\n",
+                                   SUMA_VE_Headname(VO->VE, ive), 
+                                   (int)I[0], (int)I[1], (int)I[2], val,
+                                   colplane->OptScl->ThreshRange[0], 
+                                   colplane->OptScl->ThreshRange[1],
+                                   UseAlphaTresh,
+                                   valpha, colplane->AlphaThresh*255);
+                           PR = SUMA_New_Pick_Result(NULL);
+                           PR->ado_idcode_str = SUMA_replace_string(
+                                           PR->ado_idcode_str, ADO_ID(ado));
+                           if (pado) *pado = ado; /* user wants it */
+                           PR->primitive = SUMA_replace_string(
+                                                         PR->primitive,"voxel");
+                           PR->primitive_index = -1;
+                           PR->PickXYZ[0] = pinter[0];
+                           PR->PickXYZ[1] = pinter[1];
+                           PR->PickXYZ[2] = pinter[2];
+                           PR->ignore_same_datum = IgnoreSameNode;
+                           PR->datum_index = I1d;
+                           PR->iAltSel[SUMA_VOL_I] = I[0];
+                           PR->iAltSel[SUMA_VOL_J] = I[1];
+                           PR->iAltSel[SUMA_VOL_K] = I[2];
+                           PR->iAltSel[SUMA_VOL_IJK] = I1d;
+                           PR->iAltSel[SUMA_VOL_SLC_NUM] = rslc->slc_num;
+                           PR->iAltSel[SUMA_VOL_SLC_VARIANT] = 
+                                 (int)SUMA_SlcVariantToCode(rslc->variant);
+                           PR->dAltSel[SUMA_VOL_SLC_EQ0] = rslc->Eq[0];
+                           PR->dAltSel[SUMA_VOL_SLC_EQ1] = rslc->Eq[1];
+                           PR->dAltSel[SUMA_VOL_SLC_EQ2] = rslc->Eq[2];
+                           PR->dAltSel[SUMA_VOL_SLC_EQ3] = rslc->Eq[3];
+                           PR->dset_idcode_str = SUMA_replace_string(
+                                           PR->dset_idcode_str, SDSET_ID(dset));
+                           if (!SUMA_Add_To_PickResult_List(sv, ado, 
+                                                            "voxel", &PR)) {
+                              SUMA_S_Err("Failed to add selected ado");
+                              SUMA_RETURN(0);
+                           }
+                           Hit = 1;
+                           ++N_Hit; 
+                           /* You could leave at the first hit IF:
+                           you only have one direction of slices in the 
+                           entire stack, AND if they are properly
+                           ordered for rendering.
+                           Should speed be an issue you can check for
+                           this condition and bolt with the line below */
+                           /* goto GOT_IT; */
+                      }
+                  }
+                  ++ive;
+               }
+            }
+            SUMA_LH("el now %p,\n"
+                    "tail = %p, N_Hit = %d", 
+                    el, dlist_tail(VSaux->vrslcl), N_Hit);
+         } while(el != dlist_tail(VSaux->vrslcl));
+      }
+   }
+
+
+   GOT_IT:
+   SUMA_RETURN(N_Hit);
+}/* determine intersection with 3D rendering of VO*/
 
 int SUMA_Apply_PR_VO(SUMA_SurfaceViewer *sv, SUMA_VolumeObject *VO, 
                      SUMA_PICK_RESULT **PRi) 

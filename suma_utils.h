@@ -78,6 +78,7 @@ typedef struct {
    char *BrikName;
    char *NameAsParsed;
    char *cwdAsParsed;
+   char *ExistsAs;
 }SUMA_PARSED_NAME;
 
 typedef struct {
@@ -105,6 +106,7 @@ typedef struct {
                       will be a pointer copy so don't free it.*/
    int type; /* 0 -- A container widget, not one to be pressed 
                 1 -- A regular widget */
+   void *w; /* A copy of the widget pointer... Is this wise?*/
 }GUI_WIDGET_HELP;
 
 

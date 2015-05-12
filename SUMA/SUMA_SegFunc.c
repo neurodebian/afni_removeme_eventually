@@ -121,7 +121,7 @@ char *SUMA_hist_fname(char *proot, char *variable, char *conditional,
                proot, variable);
    }  
    if (withext) {
-      strncat(cls[ii],".niml.hist", 255);
+      SUMA_strncat(cls[ii],".niml.hist", 255);
    }            
    return(cls[ii]);
 }
@@ -138,7 +138,7 @@ char *SUMA_corrmat_fname(char *proot, char *conditional, int withext)
    snprintf(cls[ii], 255, "%s/C.%s",
                proot, conditional);
    if (withext) {
-      strncat(cls[ii],".niml.cormat", 255);
+      SUMA_strncat(cls[ii],".niml.cormat", 255);
    }             
    return(cls[ii]);
 }
@@ -1215,6 +1215,40 @@ int is_shorty(THD_3dim_dataset *pset)
 }
 
 /*!
+   Set the floor of mixing fractions in class stat struct
+*/
+SUMA_Boolean SUMA_set_Stat_mix_floor(SUMA_CLASS_STAT *cs, float floor)
+{
+   static char FuncName[]={"SUMA_set_Stat_mix_floor"};
+   int i, N_tot = 0;
+   double d, m;
+   SUMA_Boolean LocalHead = NOPE;
+   
+   SUMA_ENTRY;
+   
+   if (!cs || cs->N_label < 2) SUMA_RETURN(NOPE);
+   
+   if (floor > 1.0/cs->N_label) floor = 1.0/cs->N_label;
+   if (floor == 0.0) SUMA_RETURN(YUP); /* nothing to do */
+   if (floor == -1.0f) floor = 0.000001;
+   
+   d = floor/(1.0-floor*cs->N_label);
+   for (i=0; i<cs->N_label; ++i) {
+      N_tot += SUMA_get_Stat(cs, cs->label[i], "num");
+   }
+   for (i=0; i<cs->N_label; ++i) {
+      m = SUMA_get_Stat(cs, cs->label[i], "mix");
+      m = (m+d)/(1.0+cs->N_label*d); 
+      SUMA_set_Stat(cs, cs->label[i], "mix", m);
+      SUMA_set_Stat(cs, cs->label[i], "num", (int)(m*N_tot));
+   }
+   
+   SUMA_RETURN(YUP);
+   
+}
+   
+
+/*!
    Set the floor of the probabilities in a dataset 
 */
 int set_p_floor(THD_3dim_dataset *pset, float pfl, byte *cmask)
@@ -2068,7 +2102,7 @@ int  group_mean (SEG_OPTS *Opt, THD_3dim_dataset *aset,
          else sprintf(sbuf,"%d -- %f , (%f)  ", 
                            g+1, M_v[g]*bf, M_v[g]);
          
-         strncat(srep, sbuf, 510);
+         SUMA_strncat(srep, sbuf, 510);
       }
       INFO_message("%s group means brick scaled , (unscaled): %s\n", 
                   p ? "p-weighted" : "uniform-weight", 
@@ -5256,10 +5290,10 @@ int SUMA_Class_stats(THD_3dim_dataset *aset,
                      THD_3dim_dataset *pstCgALL,
                      THD_3dim_dataset *priCgALL,
                      THD_3dim_dataset *gold,
-                     SUMA_CLASS_STAT *cs) 
+                     SUMA_CLASS_STAT *cs, float mixfloor) 
 {
    static char FuncName[]={"SUMA_Class_stats"};
-   int i=0, j = 0, sb=0, l;   
+   int i=0, j = 0, sb=0, l, bad=0;   
    short *a=NULL, *c=NULL, *w=NULL;
    float af=1.0, wf=1.0, fpriCgALL;
    double n, Asum2, Asum, Amean, Astd, wsum, ff, *nv=NULL, ww=0.0,
@@ -5276,7 +5310,6 @@ int SUMA_Class_stats(THD_3dim_dataset *aset,
          SUMA_RETURN(0);
       }
    }
-   
    if (!pstCgALL) {
       if (!c) {
          SUMA_S_Err("No classes, and no weighting set");
@@ -5290,22 +5323,54 @@ int SUMA_Class_stats(THD_3dim_dataset *aset,
             if (IN_MASK(cmask,i) && c[i] == cs->keys[j]) {
                Asum2 += a[i]*a[i]; 
                Asum  += a[i];
-               la = log(a[i]*af+0.00001); Asum2L += la*la; AsumL += la;
+               la = log(SUMA_MAX_PAIR(a[i]*af,0.00001)); 
+               Asum2L += la*la; AsumL += la;
                ++n; 
             }   
          }
-         Astd = sqrt((Asum2-Asum*Asum/n)/(n-1))*af;
-         Amean = Asum/n*af;
-         AstdL = sqrt((Asum2L-AsumL*AsumL/n)/(n-1));
-         AmeanL = AsumL/n;
+         if (n>1 && af != 0.0) {
+            Astd = sqrt((Asum2-Asum*Asum/n)/(n-1))*af;
+         } else {
+            Astd = 0.0;
+         }
+         if (n*af != 0.0) Amean = Asum/n*af;
+         else Amean = 0.0;
+         if (n>1) {
+            AstdL = sqrt((Asum2L-AsumL*AsumL/n)/(n-1));
+         } else {
+            AstdL = 0.0;
+         }
+         if (n) AmeanL = AsumL/n;
+         else AmeanL = 0.0;
+         
+         if (isnan(Astd)) Astd = 0;
+         if (isnan(AstdL)) AstdL = 0; 
          SUMA_set_Stat(cs, cs->label[j], "num", n);
          SUMA_set_Stat(cs, cs->label[j], "mean", Amean);
          SUMA_set_Stat(cs, cs->label[j], "stdv", Astd);
          SUMA_set_Stat(cs, cs->label[j], "meanL", AmeanL);
          SUMA_set_Stat(cs, cs->label[j], "stdvL", AstdL);
-         SUMA_set_Stat(cs, cs->label[j], "mix", n/cmask_count);
+         if (cmask_count) SUMA_set_Stat(cs, cs->label[j], "mix", n/cmask_count);
+         else SUMA_set_Stat(cs, cs->label[j], "mix", 0);
       }
+      SUMA_set_Stat_mix_floor(cs, mixfloor);
    } else {
+      /* Check classes at input */
+      bad = 0;
+      for (j=0; j<cs->N_label; ++j) {
+         if (isnan(SUMA_get_Stat(cs, cs->label[j], "meanL")) ||
+             isnan(SUMA_get_Stat(cs, cs->label[j], "stdvL")) ||
+             isnan(SUMA_get_Stat(cs, cs->label[j], "mean")) ||
+             isnan(SUMA_get_Stat(cs, cs->label[j], "stdv")) ) {
+            SUMA_S_Err("Bad parameters for class %s", cs->label[j]);
+            ++bad;
+         }
+      }
+      if (bad) {
+          SUMA_show_Class_Stat(cs, 
+                        "Bad Stats At SUMA_Class_stats() entry:\n", NULL);
+          SUMA_RETURN(0);   
+      }
       if (DSET_NVALS(pstCgALL) != cs->N_label &&
           DSET_NVALS(pstCgALL) != 1) {
          SUMA_S_Errv("Weight set must be 1 or %d sub-bricks. Have %d\n",
@@ -5362,7 +5427,8 @@ int SUMA_Class_stats(THD_3dim_dataset *aset,
             if (IN_MASK(cmask,i)) {
                ww = w[i]*wf;
                Asum  += ww*a[i]; wsum += ww;
-               AsumL += ww*log(a[i]*af+0.00001);
+               la = log(SUMA_MAX_PAIR(a[i]*af,0.00001)); 
+               AsumL += ww*la;
             }   
          }
          Amean = Asum/wsum;
@@ -5374,7 +5440,7 @@ int SUMA_Class_stats(THD_3dim_dataset *aset,
                ff = (a[i]-Amean);
                ww = w[i]*wf;
                Asum2  += ww*(ff*ff);
-               la = log(a[i]*af+0.00001)-AmeanL;
+               la = log(SUMA_MAX_PAIR(a[i]*af,0.00001))-AmeanL;
                Asum2L += ww*(la*la);
                if (c && c[i] == cs->keys[j]) ++n;
             }   
@@ -5382,16 +5448,38 @@ int SUMA_Class_stats(THD_3dim_dataset *aset,
          Astd = sqrt(Asum2/wsum)*af;
          Amean = Amean*af;
          AstdL = sqrt(Asum2L/wsum);
+         if (isnan(Astd)) Astd = 0;
+         if (isnan(AstdL)) AstdL = 0; 
+         
          SUMA_set_Stat(cs, cs->label[j], "num", n);
          SUMA_set_Stat(cs, cs->label[j], "mean", Amean);
          SUMA_set_Stat(cs, cs->label[j], "stdv", Astd);
          SUMA_set_Stat(cs, cs->label[j], "meanL", AmeanL);
          SUMA_set_Stat(cs, cs->label[j], "stdvL", AstdL);
-         SUMA_set_Stat(cs, cs->label[j], "mix", wsum/mixden[j]);
+         if (mixden[j]) SUMA_set_Stat(cs, cs->label[j], "mix", wsum/mixden[j]);
+         else SUMA_set_Stat(cs, cs->label[j], "mix", 0);
       }
       SUMA_ifree(mixden);
    }
    
+   SUMA_set_Stat_mix_floor(cs, mixfloor);
+   
+   /* Check classes at output */
+   bad = 0;
+   for (j=0; j<cs->N_label; ++j) {
+      if (isnan(SUMA_get_Stat(cs, cs->label[j], "meanL")) ||
+          isnan(SUMA_get_Stat(cs, cs->label[j], "stdvL")) ||
+          isnan(SUMA_get_Stat(cs, cs->label[j], "mean")) ||
+          isnan(SUMA_get_Stat(cs, cs->label[j], "stdv")) ) {
+         SUMA_S_Err("Bad parameters for class %s", cs->label[j]);
+         ++bad;
+      }
+   }
+   if (bad) {
+       SUMA_show_Class_Stat(cs, 
+                     "Bad Stats At SUMA_Class_stats() exit:\n", NULL);
+       SUMA_RETURN(0);   
+   }
       
    /* and the dice */
    if (gold && cset) {
@@ -5759,7 +5847,7 @@ double SUMA_mixopt_2_mixfrac(char *mixopt, char *label, int key, int N_clss,
    SUMA_ENTRY;
    
  
-   if (!mixopt || !strncmp(mixopt,"UNI",3)) {
+   if (!mixopt || !strncmp(mixopt,"UNI",3) || !strcmp(mixopt,"IGNORE")) {
       frac = 1.0/(double)N_clss;
    } else if (!strcmp(mixopt,"TOY_DEBUG")) {
            if (!strcmp(label, "CSF"))frac = 0.1;
@@ -6389,7 +6477,7 @@ int SUMA_pst_C_giv_ALL(THD_3dim_dataset *aset,
    static int icall=0, iwarn=0;
    
    SUMA_ENTRY;
-   
+
    if (!pout) {
       NEW_SHORTY(aset,cs->N_label,"SUMA_pst_C_giv_ALL",pout);
       *pcgallp = pout;
@@ -6616,7 +6704,7 @@ int SUMA_SegInitCset(THD_3dim_dataset *aseti,
    }
    /* compute class stats */
    if (!SUMA_Class_stats( aseti, cset, cmask, cmask_count, 
-                           NULL, NULL, Opt->gold, cs)) {
+                           NULL, NULL, Opt->gold, cs, Opt->mix_frac_floor)) {
       SUMA_S_Err("Failed in class stats");
       SUMA_RETURN(0);
    }
@@ -6694,7 +6782,7 @@ int SUMA_SegInitCset(THD_3dim_dataset *aseti,
    
    /* recompute class stats using this posterior */
    if (!SUMA_Class_stats( aseti, cset, cmask, cmask_count, 
-                          pstC, NULL, Opt->gold, cs)) {
+                          pstC, NULL, Opt->gold, cs, Opt->mix_frac_floor)) {
       SUMA_S_Err("Failed in class stats");
       SUMA_RETURN(0);
    }
@@ -8394,11 +8482,13 @@ SUMA_SurfaceObject *SUMA_ExtractHead_Hull(THD_3dim_dataset *iset,
 /*!
    Shrink hull of skull so that the surface lies
    on bright voxels that at least exceed the threshold. 
+   
+   This function can use a lot of cleanup.
 */   
 SUMA_Boolean SUMA_ShrinkSkullHull2Mask(SUMA_SurfaceObject *SO, 
                              THD_3dim_dataset *iset, float thr,
-                             int smooth_final,
-                             SUMA_COMM_STRUCT *cs) 
+                             int smooth_final, float *shish_length_mm,
+                             int zero_attractor, SUMA_COMM_STRUCT *cs) 
 {
    static char FuncName[]={"SUMA_ShrinkSkullHull2Mask"};
    char sbuf[256]={""};
@@ -8406,13 +8496,13 @@ SUMA_Boolean SUMA_ShrinkSkullHull2Mask(SUMA_SurfaceObject *SO,
    int   in=0, vxi_bot[30], vxi_top[30], iter, N_movers, 
          ndbg=SUMA_getBrainWrap_NodeDbg(), nn,N_um,
          itermax1 = 50;
-   float *fvec=NULL, *xyz, *dir, P2[2][3], travstep, shs_bot[30], shs_top[30];
+   float *fvec=NULL, *xyz, *dir, P2[2][3], travstep, shs_bot[60], shs_top[60];
    float rng_bot[2], rng_top[2], rdist_bot[2], rdist_top[2], avg[3], nodeval,
          area=0.0, larea=0.0, ftr=0.0, darea=0.0;
    float  *fnz=NULL, *alt=NULL;
    float maxtop, maxbot;
-   int   nmaxtop, nmaxbot, Max_nn;
-   float dirZ[3], *dots=NULL, U3[3], Un;
+   int   nmaxtop, nmaxbot, Max_nn, nsteps[2];
+   float dirZ[3], *dots=NULL, U3[3], Un, fv2[2];
    THD_3dim_dataset *inset=NULL;
    SUMA_Boolean stop = NOPE;
    SUMA_Boolean LocalHead = NOPE;
@@ -8426,6 +8516,26 @@ SUMA_Boolean SUMA_ShrinkSkullHull2Mask(SUMA_SurfaceObject *SO,
    travstep = SUMA_ABS(DSET_DX(iset));
    if (travstep > SUMA_ABS(DSET_DY(iset))) travstep = SUMA_ABS(DSET_DY(iset));
    if (travstep > SUMA_ABS(DSET_DZ(iset))) travstep = SUMA_ABS(DSET_DZ(iset));
+   
+   if (!shish_length_mm) {
+      shish_length_mm =  (float *)fv2;
+      shish_length_mm[0] = 11*travstep;
+      shish_length_mm[1] = 2*travstep;
+   } else {
+      if (shish_length_mm[0]/travstep > 59) {
+         SUMA_S_Err("Undershish distance (%f) exceeds static allocation limit.\n"
+                    "Complain to author.", shish_length_mm[0]);
+         SUMA_RETURN(NOPE);
+      }
+      if (shish_length_mm[1]/travstep > 59) {
+         SUMA_S_Err("Overshish distance (%f) exceeds static allocation limit.\n"
+                    "Complain to author.", shish_length_mm[1]);
+         SUMA_RETURN(NOPE);
+      }
+   }
+   nsteps[0] = (int)(shish_length_mm[0]/travstep);
+   nsteps[1] = (int)(shish_length_mm[1]/travstep);
+   
    if (!(mask = (byte *)SUMA_malloc(sizeof(byte)*SO->N_Node))) {
       SUMA_S_Crit("Failed to allocate");
       SUMA_RETURN(NOPE);
@@ -8441,7 +8551,13 @@ SUMA_Boolean SUMA_ShrinkSkullHull2Mask(SUMA_SurfaceObject *SO,
       if (!(SUMA_DotNormals(SO, dirZ, &dots))) {
          SUMA_S_Err("Failed to get dots");
       } else {
-         if (LocalHead) SUMA_WRITE_ARRAY_1D(dots, SO->N_Node, 1, "DOTS.1D.dset");
+         if (LocalHead) {
+            SUMA_WRITE_ARRAY_1D(dots, SO->N_Node, 1, "DOTS.1D.dset");
+            THD_force_ok_overwrite(1) ;
+            sprintf(sbuf,"shrink.init");
+            SUMA_Save_Surface_Object_Wrap(sbuf, NULL, SO, 
+                                 SUMA_GIFTI, SUMA_ASCII, NULL);
+         }
       }
    
    
@@ -8470,7 +8586,8 @@ SUMA_Boolean SUMA_ShrinkSkullHull2Mask(SUMA_SurfaceObject *SO,
          xyz = SO->NodeList+3*in;
          dir = SO->NodeNormList+3*in;
          SUMA_Find_IminImax_2(xyz, dir,
-                            iset, &fvec, travstep, 11*travstep, 11*travstep,
+                            iset, &fvec, travstep, 
+                            shish_length_mm[0], shish_length_mm[1],
                             0.5*thr, in==ndbg?1:0, 
                             rng_bot, rdist_bot,
                             rng_top, rdist_top,
@@ -8478,7 +8595,8 @@ SUMA_Boolean SUMA_ShrinkSkullHull2Mask(SUMA_SurfaceObject *SO,
                             shs_bot, shs_top,
                             vxi_bot, vxi_top);
          nodeval = shs_bot[0];
-         if (in==ndbg || LocalHead) SUMA_S_Note("Node %d, %f\n", in, nodeval);
+         if (in==ndbg || LocalHead) SUMA_S_Note("Node %d, %f, thr %f\n", 
+                                                in, nodeval, thr);
          if (nodeval >= thr) { /* we're OK, minor adjustment */ 
             mask[in] = 0; /* anchor node, outside smoothing mask*/
             if (nodeval <= rng_top[1]) { /* higher val above, move up one step */
@@ -8489,21 +8607,17 @@ SUMA_Boolean SUMA_ShrinkSkullHull2Mask(SUMA_SurfaceObject *SO,
             }
          } else {
             {
-               maxtop = shs_top[0]; nmaxtop =0;
-               for (nn=1; nn<10 && vxi_top[nn]>=0; ++nn) {
-                  if (shs_top[nn] > maxtop) {
-                     nmaxtop = nn;
-                     maxtop = shs_top[nn];
-                  }
-               }
+               if (in == ndbg || LocalHead) { 
+                        SUMA_S_Note(
+                           "Must look down for %d\n", in); }
                maxbot = shs_bot[0]; nmaxbot = 0;
-               for (nn=1; nn<10 && vxi_bot[nn]>=0; ++nn) {
+               for (nn=1; nn<nsteps[0] && vxi_bot[nn]>=0; ++nn) {
                   if (shs_bot[nn] > maxbot) {
                      nmaxbot = nn; maxbot = shs_bot[nn];
                   }
                }
                /* look down for better option */
-               if (nodeval <= maxbot) { 
+               if (nodeval < maxbot || nodeval == 0) { 
                   { /* Go down to the 1st voxel meeting threshold 
                               and a good edge */
                      if (in == ndbg || LocalHead) { 
@@ -8511,8 +8625,8 @@ SUMA_Boolean SUMA_ShrinkSkullHull2Mask(SUMA_SurfaceObject *SO,
                            "Looking down nodeval %f\n",
                            nodeval ); }
                      nn = 0;
-                     while (nn<10 && (shs_bot[nn]<thr && 
-                                      vxi_bot[nn]>=0 )) {
+                     while (nn<nsteps[0] && (shs_bot[nn]<thr && 
+                                             vxi_bot[nn]>=0 )) {
                         ++nn; 
                      }
                      if (shs_bot[nn] >= thr) {
@@ -8524,35 +8638,43 @@ SUMA_Boolean SUMA_ShrinkSkullHull2Mask(SUMA_SurfaceObject *SO,
                         xyz[0] -= ftr*dir[0];
                         xyz[1] -= ftr*dir[1];
                         xyz[2] -= ftr*dir[2]; 
-                        if (shs_bot[nn]> thr)
+                        if (shs_bot[nn]>= thr)
                            mask[in]=0;                  
                      } else { /* keep going if sitting on no value */
                         if (nodeval < 0.1*thr) {
                            if (maxbot > nodeval || nodeval == 0) {
+                              if (in == ndbg){ 
+                                 SUMA_S_Note("Still want to go down");
+                              }
                               nn = nmaxbot; 
-                              if (!nn) nn = 1; /* If too far in space and nothing
+                              if (!nn && zero_attractor) {
+                                 nn = 1; /* If too far in space and nothing
                                                   is found nmaxbot can be 0, so 
                                                   keep going */
                                                /* slowly, avoid folding*/
+                              }
                               nn = SUMA_MIN_PAIR(nn,Max_nn);
-                              ftr = travstep*nn;
-                              if (in == ndbg){ 
-                                 SUMA_S_Note("Going down max from %f %f %f to\n"
-                                             "                    %f %f %f\n",
-                                             xyz[0], xyz[1], xyz[2],
-                                             xyz[0] -ftr*dir[0],
-                                             xyz[1] -ftr*dir[1], 
-                                             xyz[2] -ftr*dir[2]        );}
-                              xyz[0] -= ftr*dir[0];
-                              xyz[1] -= ftr*dir[1];
-                              xyz[2] -= ftr*dir[2];
-                           } 
-                        }
+                              if (nn) {
+                                 ftr = travstep*nn;
+                                 if (in == ndbg){ 
+                                    SUMA_S_Note(
+                                       "Going down max from %f %f %f to\n"
+                                       "                    %f %f %f\n",
+                                       xyz[0], xyz[1], xyz[2],
+                                       xyz[0] -ftr*dir[0],
+                                       xyz[1] -ftr*dir[1], 
+                                       xyz[2] -ftr*dir[2]        );}
+                                 xyz[0] -= ftr*dir[0];
+                                 xyz[1] -= ftr*dir[1];
+                                 xyz[2] -= ftr*dir[2];
+                              }
+                           }
+                           ++N_movers;
+                       }
                      } 
                   }
                }
             }
-               ++N_movers;
          }
       }
       
@@ -8583,15 +8705,19 @@ SUMA_Boolean SUMA_ShrinkSkullHull2Mask(SUMA_SurfaceObject *SO,
       
       /* write it out for debugging */
       if (LocalHead) {
-         SUMA_LHv("Iteration %d, N_movers = %d, area = %f (Darea=%f)\n",
+         SUMA_LHv("Iteration %d, N_movers = %d, area = %f (Darea=%f%%)\n",
                iter, N_movers, area, darea);
          THD_force_ok_overwrite(1) ;
-         sprintf(sbuf,"shrink.02%d",iter);
+         sprintf(sbuf,"shrink.%03d",iter);
          SUMA_Save_Surface_Object_Wrap(sbuf, NULL, SO, 
                                  SUMA_GIFTI, SUMA_ASCII, NULL);
+      } else if (ndbg >= 0) {
+        SUMA_S_Note("Iteration %d, N_movers = %d (%f), area = %f (Darea=%f%%)\n",
+               iter, N_movers, (float)N_movers/SO->N_Node, area, darea);
       }
       ++iter;
-      if (iter > itermax1 || SUMA_ABS(darea) < 0.005) stop = YUP;
+      if (iter > itermax1 || ( SUMA_ABS(darea) < 0.005 && 
+                               (float)N_movers/SO->N_Node < 0.01 ) ) stop = YUP;
       if (!stop && SUMA_ABS(darea) < 0.01) {
          /* A quick smoothing with anchors in place */
          SUMA_NN_GeomSmooth_SO(SO, mask, 0, 10);
@@ -10194,9 +10320,11 @@ SUMA_SurfaceObject *SUMA_Mask_Skin(THD_3dim_dataset *iset, int ld,
    }
 
    if (shrink_mode) {
+      float uo_dist[2]={11, 2};
       /* Shrink */
       SUMA_LH("hull shrinkage");
-      SUMA_ShrinkSkullHull2Mask(SOi, iset, 0.0, smooth_final, cs);
+      SUMA_ShrinkSkullHull2Mask(SOi, iset, 0.0, smooth_final, 
+                                uo_dist, shrink_mode > 1 ? 1:0 ,cs);
       if (LocalHead) {
          THD_force_ok_overwrite(1);
          SUMA_Save_Surface_Object_Wrap("icoshead", NULL, SOi, 
@@ -10231,7 +10359,8 @@ static int N_labels_slow = 3;
 /*!
    A convenience function to call SUMA_FindVoxelsInSurface* functions
    meth == 1: SUMA_FindVoxelsInSurface_SLOW 
-           2: SUMA_FindVoxelsInSurface
+           0: SUMA_FindVoxelsInSurface
+           2: SUMA_FindVoxelsInSurface, voxels touching surface only
    maskonly == 1: 0/1 output
                2: output reflecting relative position of voxel to surface
    You can use only one of iset, or (vp and vpname)
@@ -10269,6 +10398,9 @@ THD_3dim_dataset *SUMA_Dset_FindVoxelsInSurface(SUMA_SurfaceObject *SO,
          SUMA_RETURN(NULL);
       case 0:
          isin = SUMA_FindVoxelsInSurface (SO, vp, &N_in, 1, NULL);
+         break;
+      case 2:
+         isin = SUMA_FindVoxelsInSurface (SO, vp, &N_in, -1, NULL);
          break;
       case 1:
          isin = SUMA_FindVoxelsInSurface_SLOW (SO, vp, &N_in, 0);

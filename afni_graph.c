@@ -4,6 +4,16 @@
    License, Version 2.  See the file README.Copyright for details.
 ******************************************************************************/
 
+/*------------------------------------------------------------------------*/
+/* Please note that this file is not "integrated" into AFNI. By this I
+   mean that it doesn't know about AFNI controllers, datasets, and so on.
+   It is a graphing server, and the caller needs to provide a callback
+   function to get data to be graphed, and also provide some other info.
+
+   The exceptions to the "not integrated into AFNI" ukase are the parts
+   of the code inside #ifdef BE_AFNI_AWARE ,,, #endif sections.
+*//*----------------------------------------------------------------------*/
+
 /*----------------------------------------------------------------------
  * history:
  *
@@ -21,6 +31,15 @@ static int show_grapher_pixmap = 1 ;
 static void fd_line( MCW_grapher *, int,int,int,int ) ;
 static byte PLOT_FORCE_AUTOSCALE = 0;
 static Widget wtemp ;
+
+#ifdef BE_AFNI_AWARE
+static AFNI_dataset_choose_stuff cdds = { 0, NULL, NULL, NULL } ;
+static void GRA_finalize_xaxis_dset_CB( Widget w, XtPointer cd, MCW_choose_cbs *cbs ) ;
+extern void AFNI_choose_dataset_CB    ( Widget , XtPointer , XtPointer ) ;
+extern FD_brick * THD_3dim_dataset_to_brick( THD_3dim_dataset *dset ,
+                                      int ax_1, int ax_2, int ax_3 ) ;
+extern MRI_IMAGE * FD_brick_to_series( int , FD_brick * br ) ;
+#endif
 
 static int fade_color = 19 ;
 
@@ -912,11 +931,17 @@ ENTRY("new_MCW_grapher") ;
 
    OPT_MENU_PULLRIGHT( opt_xaxis_menu , opt_xaxis_cbut    , "X-axis" , "Alter x-axis" ) ;
    OPT_MENU_PULL_BUT(  opt_xaxis_menu , opt_xaxis_pick_pb ,
-                       "Pick x-axis" , "Set timeseries for x-axis" ) ;
+                       "X-axis=1D file" , "Set timeseries for x-axis" ) ;
+#ifdef BE_AFNI_AWARE
+   OPT_MENU_PULL_BUT(  opt_xaxis_menu , opt_xaxis_dset_pb ,
+                       "X-axis=dataset" , "Set timeseries for x-axis" ) ;
+#else
+   opt_xaxis_dset_pb = NULL ;
+#endif
    OPT_MENU_PULL_BUT(  opt_xaxis_menu , opt_xaxis_center_pb ,
                        "X-axis=center" , "X-axis = center voxel" ) ;
    OPT_MENU_PULL_BUT(  opt_xaxis_menu , opt_xaxis_clear_pb ,
-                       "Clear x-axis" , "Clear x-axis timeseries" ) ;
+                       "Clear X-axis" , "Clear X-axis timeseries" ) ;
 
    /*------ last button on this menu ------*/
 
@@ -966,11 +991,14 @@ if(PRINT_TRACING)
    grapher->nncen       =  0 ;
    grapher->cen_tsim    =  NULL ;
    grapher->xax_tsim    =  NULL ;  /* 09 Jan 1998 */
+   grapher->xax_dset    =  NULL ;  /* 09 Feb 2015 */
+   grapher->xax_fdbr    =  NULL ;
    grapher->ave_tsim    =  NULL ;  /* 27 Jan 2004 */
+   grapher->xax_cen     =  NULL ;  /* 12 Feb 2015 */
 
    grapher->xx_text_1    =
     grapher->xx_text_2   =
-     grapher->xx_text_2p = grapher->xx_text_3 = 1 ;
+     grapher->xx_text_2p = grapher->xx_text_3 = grapher->xx_text_igf = 1 ;
 
    grapher->ref_ts = NULL ;
    grapher->ort_ts = NULL ;
@@ -1080,6 +1108,54 @@ MRI_IMAGE * GRA_getseries( MCW_grapher *grapher , int index )
    return tsim ;
 }
 
+#ifdef BE_AFNI_AWARE
+/*--------------------------------------------------------------------------*/
+/* Get the float-valued time series for x-axis graphing.  [10 Feb 2015]
+*//*------------------------------------------------------------------------*/
+
+MRI_IMAGE * GRA_getseries_xax( MCW_grapher *grapher , int index )
+{
+   MRI_IMAGE *tsim ; int tf ;
+
+ENTRY("GRA_getseries_xax") ;
+
+   if( grapher->xax_fdbr == NULL ) RETURN(NULL) ;  /* bad call */
+
+   tsim = FD_brick_to_series( index , grapher->xax_fdbr ) ;
+
+   if( tsim == NULL ) RETURN(NULL) ;
+
+   if( tsim->nx < 1 ){ mri_free(tsim); RETURN(NULL); }
+
+   if( tsim->kind == MRI_complex ){
+     MRI_IMAGE *qim ;
+     char *eee = my_getenv("AFNI_GRAPH_CX2R") ;
+     if( eee == NULL ) eee = "A" ;
+     switch( *eee ){
+       default:
+       case 'A':
+       case 'a':  qim = mri_complex_abs(tsim)  ; break ;
+
+       case 'P':
+       case 'p':  qim = mri_complex_phase(tsim); break ;
+
+       case 'r':
+       case 'R':  qim = mri_complex_real(tsim) ; break ;
+
+       case 'i':
+       case 'I':  qim = mri_complex_imag(tsim) ; break ;
+     }
+     qim->flags = tsim->flags ; mri_free(tsim) ; tsim = qim ;
+
+   } else if( tsim->kind != MRI_float ){
+     MRI_IMAGE *qim = mri_to_float(tsim) ;
+     qim->flags = tsim->flags ; mri_free(tsim) ; tsim = qim ;
+   }
+
+   RETURN(tsim) ;
+}
+#endif
+
 /*----------------------------------
     Exit button action
 ------------------------------------*/
@@ -1146,6 +1222,9 @@ STATUS("freeing cen_tsim") ;
    mri_free( grapher->cen_tsim ) ;
    mri_free( grapher->xax_tsim ) ;  /* 09 Jan 1998 */
    mri_free( grapher->ave_tsim ) ;  /* 27 Jan 2004 */
+   mri_free( grapher->xax_cen  ) ;  /* 12 Feb 2015 */
+   grapher->xax_dset = NULL ;       /* 09 Feb 2015 */
+   DESTROY_FD_BRICK(((FD_brick*)grapher->xax_fdbr)) ; grapher->xax_fdbr = NULL ;
 
 STATUS("freeing tuser") ;
    GRA_CLEAR_tuser( grapher ) ;  /* 22 Apr 1997 */
@@ -1384,8 +1463,10 @@ static char *long_index_name  = "indx=" ;
 static char *short_index_name = "#"     ;
 static char *long_value_name  = " val=" ;
 static char *short_value_name = "="     ;
-static char *long_time_name   = " at "  ;
+static char *long_time_name   = " @t="  ;
 static char *short_time_name  = "@"     ;
+static char *long_xax_name    = " @x="  ;
+static char *short_xax_name   = "@"     ;
 
 void GRA_redraw_overlay( MCW_grapher *grapher )
 {
@@ -1444,7 +1525,7 @@ ENTRY("GRA_redraw_overlay") ;
    /* draw text showing value at currently displayed time_index */
 
    if( ii >= 0 && grapher->cen_tsim != NULL && ii < grapher->cen_tsim->nx ){
-      char *ilab=NULL ;
+      char *ilab=NULL ; MRI_IMAGE *xxim_cen=NULL ;
 
       val = MRI_FLOAT_PTR(grapher->cen_tsim)[ii] ;
       AV_fval_to_char( val , buf ) ;
@@ -1462,20 +1543,32 @@ ENTRY("GRA_redraw_overlay") ;
       else
         sprintf( strp , "%s%d [%.31s]%s%s",iname,ii,ilab , vname,vbuf ) ;
 
-      if( grapher->cen_tsim->dx != 0.0 ){
+      xxim_cen = (grapher->xax_cen != NULL) ? grapher->xax_cen : grapher->xax_tsim ;
+      if( xxim_cen == NULL && grapher->cen_tsim->dx != 0.0 ){
         val = grapher->cen_tsim->xo + ii * grapher->cen_tsim->dx ;
         AV_fval_to_char( val , buf ) ;
         vbuf = (buf[0]==' ') ? buf+1 : buf ;
         sprintf( strp+strlen(strp) , "%s%s" ,
                  (grapher->fWIDE < SHORT_NAME_WIDTH) ? short_time_name
                                                      : long_time_name, vbuf ) ;
+      } else if( xxim_cen != NULL ){
+        if( ii >= 0 && ii < xxim_cen->nx ){
+          val = MRI_FLOAT_PTR(xxim_cen)[ii] ;
+          AV_fval_to_char( val , buf ) ;
+          vbuf = (buf[0]==' ') ? buf+1 : buf ;
+          sprintf( strp+strlen(strp) , "%s%s" ,
+                   (grapher->fWIDE < SHORT_NAME_WIDTH) ? short_xax_name
+                                                       : long_xax_name, vbuf ) ;
+        }
       }
 
       xxx = MAX( grapher->xx_text_2 ,
                  grapher->xorigin[grapher->xc][grapher->yc]-39 ) ;
 
-      if( grapher->init_ignore > 0 || grapher->thresh_fade )
+      if( grapher->init_ignore > 0 || grapher->thresh_fade ){
         xxx = MAX( xxx , grapher->xx_text_2p ) ;
+        xxx = MAX( xxx , grapher->xx_text_igf ) ; /* this allows for Fading + Ignore together */
+      }
 
       DC_fg_color( grapher->dc , IDEAL_COLOR(grapher) ) ;
       overlay_txt( grapher, xxx , GB_DLY-15 , strp ) ;
@@ -1593,10 +1686,10 @@ ENTRY("redraw_graph") ;
    if( grapher->init_ignore > 0 ){                    /* 23 May 2005 */
      sprintf(strp,"Ignore%4d",grapher->init_ignore) ;
      if( grapher->thresh_fade ) sprintf(strp+strlen(strp)," Fading") ;
-     fd_txt( grapher , xxx , 35, strp) ;
+     fd_txt( grapher , xxx , 35, strp) ; grapher->xx_text_igf = 1+xxx+DC_text_width(grapher->dc,strp) ;
    } else if( grapher->thresh_fade ){
      sprintf(strp,"Fading") ;
-     fd_txt( grapher , xxx , 35, strp) ;
+     fd_txt( grapher , xxx , 35, strp) ; grapher->xx_text_igf = 1+xxx+DC_text_width(grapher->dc,strp) ;
    }
 
    sprintf(strp,"Grid:%5d", grapher->grid_spacing ) ;
@@ -1963,6 +2056,10 @@ void plot_graphs( MCW_grapher *grapher , int code )
    static XPoint *a_line = NULL ;
    static int      nplot = 0 ;
 
+   MRI_IMAGE *xxim=NULL, *xxim_cen=NULL , *xax_tsim=NULL ; /* 10 Feb 2015 */
+   MRI_IMARR *xximar=NULL ;
+   int do_xxim=0 ;
+
    MRI_IMARR *dplot_imar = NULL ;  /* 08 Nov 1996 */
    int        dplot = 0 ;
 
@@ -1975,6 +2072,8 @@ void plot_graphs( MCW_grapher *grapher , int code )
 
    MRI_IMAGE *dsim ; /* 07 Aug 2001: for double plot */
    float     *dsar ;
+
+   double_pair xax_minmax ; float xax_tsim_bot=0.0f , xax_tsim_top=0.0f ;
 
 #define OVI_MAX 19
    int tt, use_ovi, ovi[OVI_MAX] ;  /* 29 Mar 2002: for multi-plots */
@@ -1992,7 +2091,16 @@ ENTRY("plot_graphs") ;
      EXRETURN ;
    }
 
-   GRA_fixup_xaxis( grapher ) ;   /* 09 Jan 1998 */
+   if( grapher->xax_tsim != NULL ){
+     xax_tsim = mri_copy(grapher->xax_tsim) ;  /* scaled local copy */
+     GRA_fixup_xaxis( grapher , xax_tsim ) ;   /* 09 Jan 1998 */
+
+     xax_minmax   = mri_minmax( grapher->xax_tsim ) ;
+     xax_tsim_bot = xax_minmax.a ;
+     xax_tsim_top = xax_minmax.b ;
+   }
+
+   mri_free(grapher->xax_cen) ; grapher->xax_cen = NULL ; /* 12 Feb 2015 */
 
    /* set colors and line widths */
 
@@ -2038,6 +2146,9 @@ ENTRY("plot_graphs") ;
    /** loop over matrix of graphs and get all the time series for later **/
 
    INIT_IMARR(tsimar) ;
+
+   do_xxim = (grapher->xax_fdbr != NULL) && !DATA_BOXED(grapher) ;
+   if( do_xxim ) INIT_IMARR(xximar) ;
 
    /** 08 Nov 1996: initialize second array for double plotting **/
    /** 07 Aug 2001: modify to allow for multiple dplot cases    **/
@@ -2089,7 +2200,23 @@ ENTRY("plot_graphs") ;
 
          tsim = GRA_getseries( grapher , index ) ;
 
-         /* 08 Nov 1996: allow for return of NULL timeseries */
+         if( do_xxim ){                                  /* 10 Feb 2015 */
+           xxim = GRA_getseries_xax( grapher , index ) ;
+           if( ix == grapher->xc && iy == grapher->yc ){
+             xxim_cen = xxim ;
+             mri_free(grapher->xax_cen) ; grapher->xax_cen = mri_copy(xxim) ;
+           }
+           xax_minmax = mri_minmax( xxim ) ;
+           grapher->xax_bot[ix][iy] = xax_minmax.a ;
+           grapher->xax_top[ix][iy] = xax_minmax.b ;
+           GRA_fixup_xaxis( grapher , xxim ) ;
+           ADDTO_IMARR(xximar,xxim) ;
+         } else if( xax_tsim != NULL ){
+           grapher->xax_bot[ix][iy] = xax_tsim_bot ;
+           grapher->xax_top[ix][iy] = xax_tsim_top ;
+         }
+
+         /* 08 Nov 1996: allow for return of NULL data timeseries */
 
          if( tsim == NULL ){
            ADDTO_IMARR(tsimar,NULL) ;
@@ -2404,6 +2531,9 @@ STATUS("starting time series graph loop") ;
          qnum = itop - pbot ;          /* number of points to plot here */
          if( qnum < 2 ) continue ;     /* skip to next iy */
 
+         if( do_xxim ) xxim = IMARR_SUBIMAGE(xximar,its) ;  /* 10 Feb 2015 */
+         else          xxim = xax_tsim ;                    /* might be NULL */
+
          /** find bottom value for this graph, if needed **/
 
          if( grapher->common_base == BASELINE_INDIVIDUAL ){
@@ -2472,9 +2602,9 @@ STATUS("starting time series graph loop") ;
           /* 09 Jan 1998: allow x-axis to be chosen by a
                          timeseries that ranges between 0 and 1 */
 
-#define XPIX(ii)                                                        \
-   ( (grapher->xax_tsim != NULL && (ii) < grapher->xax_tsim->nx)        \
-     ? (MRI_FLOAT_PTR(grapher->xax_tsim)[MAX((ii),ibot)] * grapher->gx) \
+#define XPIX(ii)                                            \
+   ( (xxim != NULL && (ii) < xxim->nx)                      \
+     ? (MRI_FLOAT_PTR(xxim)[MAX((ii),ibot)] * grapher->gx)  \
      : (((ii)-pbot) * ftemp) )
 
           for( i=0 ; i < qnum ; i++ ){         /* generate X11 plot lines */
@@ -2716,6 +2846,9 @@ STATUS("starting time series graph loop") ;
 
       eximar = (iex==0) ? grapher->ref_ts : grapher->ort_ts ;
 
+      if( do_xxim ) xxim = xxim_cen ;             /* 10 Feb 2015 */
+      else          xxim = xax_tsim ;             /* might be NULL */
+
       if( eximar != NULL && IMARR_COUNT(eximar) > 0 ){
          float yscal , val , xscal , exfrac , extop ;
          int   nover , nvec , nx , ivec ;
@@ -2827,7 +2960,8 @@ STATUS("plotting extra graphs") ;
 
    /*---- 09 Jan 1998: plot graph showing x-axis as well ----*/
 
-   if( grapher->xax_tsim != NULL ){
+   xxim = (do_xxim) ? xxim_cen : xax_tsim ;
+   if( xxim != NULL ){  /* show the x-axis vertically at the left */
      float yscal , ftemp , xscal , yoff ;
      int   npt ;
 
@@ -2836,7 +2970,7 @@ STATUS("plotting extra graphs") ;
      yoff  = grapher->fHIGH - grapher->yorigin[grapher->xc][grapher->yc] ;
      ftemp = 1.0 ;
      npt   = ttop ;
-     if( npt > grapher->xax_tsim->nx ) npt = grapher->xax_tsim->nx ;
+     if( npt > xxim->nx ) npt = xxim->nx ;
      if( npt > pbot+1 ){
        for( i=pbot ; i < npt ; i++ ){
          a_line[i-pbot].x = XPIX(i) * xscal ;
@@ -2850,6 +2984,9 @@ STATUS("plotting extra graphs") ;
    }
 
    /***** Done!!! *****/
+
+   if( do_xxim ) DESTROY_IMARR(xximar) ;  /* 10 Feb 2015 */
+   mri_free(xax_tsim) ;
 
    EXRETURN ;
 }
@@ -3389,9 +3526,9 @@ STATUS("button press") ;
                AV_fval_to_char( grapher->tbmv[ix][iy]  , bbmv ) ; /* 16 Oct 2009 */
 
                if( grapher->tuser[ix][iy] == NULL )
-                 qstr = AFMALL(char, 912) ;
+                 qstr = AFMALL(char, 2048) ;
                else
-                 qstr = AFMALL(char, 912+strlen(grapher->tuser[ix][iy])) ;
+                 qstr = AFMALL(char, 2048+strlen(grapher->tuser[ix][iy])) ;
 
                /* 19 Mar 2004: mangle FD_brick indexes to AFNI indexes */
 
@@ -3417,6 +3554,18 @@ STATUS("button press") ;
                         grapher->sbot[ix][iy], grapher->stop[ix][iy], /* 19 Mar 2004 */
                         xd , yd , zd ,
                         bmin,bmax,bmean,bmed,bstd,bmad,bbmv ) ;
+
+                /** 12 Feb 2015: incorporate x-axis range info for this voxel **/
+
+                if( grapher->xax_cen != NULL || grapher->xax_tsim != NULL ){
+                  AV_fval_to_char( grapher->xax_bot[ix][iy]  , bmin ) ;
+                  AV_fval_to_char( grapher->xax_top[ix][iy]  , bmax ) ;
+                  sprintf( qstr+strlen(qstr) ,
+                              "\n"
+                              "X-ax min=%s\n"
+                              "X-ax top=%s"  ,
+                           bmin , bmax ) ;
+                }
 
                 /** 22 Apr 1997: incorporate user string for this voxel **/
 
@@ -4032,8 +4181,10 @@ STATUS("User pressed Done button: starting timeout") ;
    /*** 09 Jan 1998: x-axis stuff ***/
 
    if( w == grapher->opt_xaxis_clear_pb ){
-     mri_free( grapher->xax_tsim ) ;
-     grapher->xax_tsim = NULL ;
+     mri_free( grapher->xax_tsim ) ; grapher->xax_tsim = NULL ;
+     mri_free( grapher->xax_cen  ) ; grapher->xax_cen  = NULL ; /* 12 Feb 2015 */
+     grapher->xax_dset = NULL ;  /* 10 Feb 2015 */
+     DESTROY_FD_BRICK(((FD_brick *)grapher->xax_fdbr)) ; grapher->xax_fdbr = NULL ;
      GRA_timer_stop(grapher) ;   /* 04 Dec 2003 */
      redraw_graph( grapher , 0 ) ;
      EXRETURN ;
@@ -4042,6 +4193,7 @@ STATUS("User pressed Done button: starting timeout") ;
    if( w == grapher->opt_xaxis_pick_pb ){
      GRA_timer_stop(grapher) ;   /* 04 Dec 2003 */
      if( IMARR_COUNT(GLOBAL_library.timeseries) > 0 ){
+       POPDOWN_strlist_chooser ;
        MCW_choose_timeseries( grapher->fdw_graph , "Graph x-axis" ,
                               GLOBAL_library.timeseries , -1 ,
                               GRA_pick_xaxis_CB , (XtPointer) grapher ) ;
@@ -4054,12 +4206,55 @@ STATUS("User pressed Done button: starting timeout") ;
      EXRETURN ;
    }
 
+#ifdef BE_AFNI_AWARE
+   if( w == grapher->opt_xaxis_dset_pb ){  /* 09 Feb 2015 */
+     FD_brick *br = (FD_brick *)grapher->getaux ;
+     Three_D_View *im3d = (Three_D_View *)br->parent ;
+     int vv , ii ; THD_3dim_dataset *dset ;
+
+     if( !IM3D_OPEN(im3d) ){
+       ERROR_message("can't access AFNI controller for grapher?!?") ;
+       EXRETURN ;
+     }
+
+     cdds.ndset = 0 ;
+     cdds.dset = (THD_3dim_dataset **)realloc(cdds.dset,
+                                              sizeof(THD_3dim_dataset *)
+                                             *im3d->ss_now->num_dsset  ) ;
+     cdds.cb = GRA_finalize_xaxis_dset_CB ;
+     cdds.parent = grapher ;
+     vv = im3d->vinfo->view_type ;
+     for( ii=0 ; ii < im3d->ss_now->num_dsset ; ii++ ){
+       dset = GET_SESSION_DSET(im3d->ss_now, ii, vv) ;
+       if( ISVALID_DSET(dset)                             &&  /* qualifications */
+           EQUIV_GRIDS(dset,im3d->anat_now)               &&
+           DSET_NVALS(dset) >= DSET_NVALS(im3d->anat_now) &&
+           DSET_INMEMORY(dset)                              )
+         cdds.dset[cdds.ndset++] = dset ;
+     }
+     if( cdds.ndset > 0 ){
+       POPDOWN_timeseries_chooser ;
+       AFNI_choose_dataset_CB( grapher->fdw_graph , im3d , &cdds ) ;
+     } else {
+       MCW_popup_message( grapher->fdw_graph ,
+                            " \n"
+                            "**  No usable datasets  **\n"
+                            "** available for X-axis **\n " ,
+                          MCW_USER_KILL | MCW_TIMER_KILL ) ;
+     }
+     EXRETURN ;
+   }
+#endif
+
    if( w == grapher->opt_xaxis_center_pb ){
      EXRONE(grapher) ;           /* 22 Sep 2000 */
      GRA_timer_stop(grapher) ;   /* 04 Dec 2003 */
      if( grapher->cen_tsim != NULL ){
        mri_free( grapher->xax_tsim ) ;
        grapher->xax_tsim = mri_to_float( grapher->cen_tsim ) ;
+       grapher->xax_dset = NULL ;  /* 10 Feb 2015 */
+       DESTROY_FD_BRICK(((FD_brick *)grapher->xax_fdbr)) ; grapher->xax_fdbr = NULL ;
+       mri_free(grapher->xax_cen) ; grapher->xax_cen = NULL ; /* 12 Feb 2015 */
        redraw_graph(grapher,0) ;
      } else {
        BEEPIT ; WARNING_message("graph center time series not defined!?") ;
@@ -4084,7 +4279,7 @@ STATUS("User pressed Done button: starting timeout") ;
 
 /*----------------------------------------------------------------------*/
 
-void GRA_fixup_xaxis( MCW_grapher * grapher )  /* 09 Jan 1998 */
+void GRA_fixup_xaxis( MCW_grapher *grapher , MRI_IMAGE *tsim )  /* 09 Jan 1998 */
 {
    int ii , npt , nx , ibot , nover=0 , pbot,ptop ;
    float top,bot , fac ;
@@ -4092,11 +4287,11 @@ void GRA_fixup_xaxis( MCW_grapher * grapher )  /* 09 Jan 1998 */
 
 ENTRY("GRA_fixup_xaxis") ;
 
-   if( !GRA_VALID(grapher) || grapher->xax_tsim == NULL ) EXRETURN ;
+   if( !GRA_VALID(grapher) || tsim == NULL ) EXRETURN ;
 
    ptop = TTOP(grapher) ; pbot = TBOT(grapher) ;
-   npt = ptop ; nx = grapher->xax_tsim->nx ; npt = MIN(npt,nx) ;
-   xxx = MRI_FLOAT_PTR(grapher->xax_tsim) ;
+   npt = ptop ; nx = tsim->nx ; npt = MIN(npt,nx) ;
+   xxx = MRI_FLOAT_PTR(tsim) ; if( xxx == NULL ) EXRETURN ;
 
    ibot = grapher->init_ignore ;
    if( ibot >= npt-1 ) ibot = 0 ;
@@ -4112,9 +4307,11 @@ ENTRY("GRA_fixup_xaxis") ;
        nover++ ;
      }
    }
-   if( bot >= top ){
-     mri_free(grapher->xax_tsim) ;
-     grapher->xax_tsim = NULL ;
+   if( bot >= top ){         /* no range to data? replace with ramp */
+     fac = 1.0f/(nx-1.0f) ;
+     for( ii=0 ; ii < nx ; ii++ ){
+       if( xxx[ii] < WAY_BIG ) xxx[ii] = ii*fac ;
+     }
      EXRETURN ;
    }
 
@@ -4146,12 +4343,63 @@ ENTRY("GRA_pick_xaxis_CB") ;
    if( its >= 0 && its < IMARR_COUNT(GLOBAL_library.timeseries) ){
      tsim = IMARR_SUBIMAGE(GLOBAL_library.timeseries,its) ;
      mri_free( grapher->xax_tsim ) ;
-     grapher->xax_tsim = mri_to_float(tsim) ;
-     redraw_graph( grapher , 0 ) ;
+     grapher->xax_tsim = mri_to_float(tsim) ;  /* a copy */
+     grapher->xax_dset = NULL ;  /* 10 Feb 2015 */
+     DESTROY_FD_BRICK(((FD_brick *)grapher->xax_fdbr)) ; grapher->xax_fdbr = NULL ;
+     mri_free(grapher->xax_cen) ; grapher->xax_cen = NULL ; /* 12 Feb 2015 */
+   } else {
+     mri_free( grapher->xax_tsim ) ; grapher->xax_tsim = NULL ;
    }
 
+   redraw_graph( grapher , 0 ) ;
    EXRETURN ;
 }
+
+#ifdef BE_AFNI_AWARE
+/*----------------------------------------------------------------------*/
+/* Stuff for dataset as X-axis [09 Feb 2015] */
+
+static void GRA_finalize_xaxis_dset_CB( Widget w, XtPointer cd, MCW_choose_cbs *cbs )
+{
+   Three_D_View *im3d    = (Three_D_View *)cd ;
+   MCW_grapher  *grapher = (MCW_grapher *)cdds.parent ;
+   FD_brick      *br     = (FD_brick *)grapher->getaux ;
+   THD_3dim_dataset *dset ;
+   int ival ;
+
+ENTRY("GRA_finalize_xaxis_dset_CB") ;
+
+   if( !GRA_REALZ(grapher) || cbs == NULL ){ POPDOWN_strlist_chooser; EXRETURN; }
+   if( br == NULL )                        { POPDOWN_strlist_chooser; EXRETURN; }
+   if( !IM3D_OPEN(im3d) )                  { POPDOWN_strlist_chooser; EXRETURN; }
+
+   ival = cbs->ival ;
+   if( ival < 0 || ival >= cdds.ndset )    { POPDOWN_strlist_chooser; EXRETURN; }
+
+   dset = cdds.dset[ival] ;
+   if( DSET_NVALS(dset) >= DSET_NVALS(im3d->anat_now) &&
+       EQUIV_GRIDS(dset,im3d->anat_now)                  ){
+     grapher->xax_dset = (void *)dset ;
+   } else {
+     grapher->xax_dset = NULL ;
+   }
+
+   /* make FD_brick corresponding to the one being viewed in this grapher */
+
+   DESTROY_FD_BRICK(((FD_brick *)grapher->xax_fdbr)) ; grapher->xax_fdbr = NULL ;
+   if( grapher->xax_dset != NULL ){
+     FD_brick *br = (FD_brick *)grapher->getaux ;
+     grapher->xax_fdbr = THD_3dim_dataset_to_brick( dset , br->a123.ijk[0] ,
+                                                           br->a123.ijk[1] ,
+                                                           br->a123.ijk[2]  ) ;
+   }
+
+   mri_free( grapher->xax_tsim ) ; grapher->xax_tsim = NULL ;
+
+   redraw_graph(grapher,0) ;
+   EXRETURN ;
+}
+#endif
 
 /*----------------------------------------------------------------------
    Callbacks from popup choosers

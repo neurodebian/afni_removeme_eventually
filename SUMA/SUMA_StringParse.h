@@ -66,6 +66,7 @@
    }\
 }
 
+
 #define SUMA_NICEATE_FILENAME(name,repl) {  \
    if (name)   {  \
       int m_i, m_r=0; \

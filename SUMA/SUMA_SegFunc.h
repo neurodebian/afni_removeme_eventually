@@ -468,6 +468,7 @@ int p_cv_GIV_A (SEG_OPTS *Opt, char *cls, double *dr);
 int normalize_p(SEG_OPTS *Opt, THD_3dim_dataset *pout);
 int is_shorty(THD_3dim_dataset *pset);
 int set_p_floor(THD_3dim_dataset *pset, float pfl, byte *cmask);
+SUMA_Boolean SUMA_set_Stat_mix_floor(SUMA_CLASS_STAT *cs, float floor);
 THD_3dim_dataset *p_C_GIV_A (SEG_OPTS *Opt);
 THD_3dim_dataset *p_C_GIV_A_omp (SEG_OPTS *Opt);
 int SUMA_LabelToGroupedIndex(char *cls_str, char **group_clss_lbls, int N_lbls);
@@ -544,7 +545,7 @@ int SUMA_Class_stats(THD_3dim_dataset *aset,
                      THD_3dim_dataset *wset,
                      THD_3dim_dataset *pC, 
                      THD_3dim_dataset *gold,
-                     SUMA_CLASS_STAT *cs);
+                     SUMA_CLASS_STAT *cs, float mix_frac_floor);
 double SUMA_mixopt_2_mixfrac(char *mixopt, char *label, int key, int N_clss,
                              byte *cmask, THD_3dim_dataset *cset);
 double pdfnorm(double x, double mean, double stdv);
@@ -679,7 +680,8 @@ SUMA_SurfaceObject *SUMA_ExtractHead_RS(THD_3dim_dataset *iset,
                                THD_3dim_dataset **urset, SUMA_COMM_STRUCT *cs);
 SUMA_Boolean SUMA_ShrinkSkullHull2Mask(SUMA_SurfaceObject *SO, 
                              THD_3dim_dataset *iset, float thr,
-                             int smooth_final,
+                             int smooth_final, float *under_over_mm,
+                             int zero_attractor, 
                              SUMA_COMM_STRUCT *cs);
 SUMA_Boolean SUMA_ShrinkSkullHull(SUMA_SurfaceObject *SO, 
                              THD_3dim_dataset *iset, float thr,

@@ -49,6 +49,45 @@
 
 
 afni_history_struct dglen_history[] = {
+{ 30, APR, 2015 , DRG , "Selenium webdriver for afni help page too" , 
+    MICRO , TYPE_GENERAL, 
+    "Opens page for all afni help page using python selenium webdriver"
+},
+{ 28, APR, 2015 , DRG , "to3d - do not write BRIK" , 
+    MICRO , TYPE_NEW_OPT, 
+    "Do not write binary data with -nowritebrik",
+    "May be useful for faster realtime acquisition with symlinks"
+} ,
+{ 27, MAR, 2015 , DRG , "Selenium webdriver to open webpages" , 
+    MAJOR , TYPE_GENERAL, 
+    "Opens webpages without multiple tabs using python selenium webdriver"
+} ,
+{ 3, MAR, 2015 , DRG , "align_epi_anat.py align_centers on/off/yes/no" , 
+    MICRO , TYPE_MODIFY, 
+    "align_centers can be on or yes, off or no"
+} ,
+{ 26, FEB, 2015 , DRG , "align_epi_anat.py align_centers bug" , 
+    MINOR , TYPE_BUG_FIX, 
+    "align_centers always called by mistake"
+} ,
+{ 19 , FEB, 2015 , DRG , "@Align_Centers child bug" , 
+    MINOR , TYPE_BUG_FIX, 
+    "child datasets not created properly",
+    "If creating new shift datasets (the default), the\n"
+    "datasets would not be properly updated to reflect\n"
+    "the new origin shift."
+} ,
+{ 17 , FEB, 2015 , DRG , "align_epi_anat.py center alignment" , 
+    MINOR , TYPE_NEW_OPT, 
+    "-ginormous_move and -align_centers added",
+    "Added call to @Align_Centers for initial center alignment\n"
+    "The -align_centers option can be used by itself with the \n"
+    "transformation matrix included in the combination transformation.\n"
+    "Adding the center alignment on to giant_move, given the nom\n"
+    "of ginormous_move. Note these options ignore any obliquity\n" 
+    "in the original datasets."
+} ,
+
 { 23 , JAN, 2015 , DRG , "whereami GUI" , 
     MINOR , TYPE_NEW_ENV, 
     "Web-based links in Whereami GUI on by default",

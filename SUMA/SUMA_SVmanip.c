@@ -4071,7 +4071,7 @@ SUMA_CommonFields * SUMA_Create_CommonFields ()
    cf->MemTrace = NOPE;
    cf->dcom = NULL;
    cf->N_dcom = 0;
-   
+   cf->DocumentedWidgets = NULL;
    /* verify pointer size. I use INT_MAX and LONG_MAX
    to guess whether or not we have 64 bit pointers.
    I need to guess with #if to do proper type casting and
@@ -4139,11 +4139,6 @@ SUMA_CommonFields * SUMA_Create_CommonFields ()
    cf->X->AllMaskCont = NULL;
    cf->X->MaskStateID = 0;
    cf->X->DPY_controller1 = NULL;
-   memset(&(cf->X->App), 0, sizeof(XtAppContext)); /* a futile effort 
-                  to get rid of Conditional jump or move messages from
-                  valgrind... Problem may be in XtOpenApplication which
-                  returns App, perhaps poorly initialized*/
-   
    cf->X->Cr = (SUMA_GLCONTEXT_RECORD *)calloc(1, sizeof(SUMA_GLCONTEXT_RECORD));
    cf->X->Cr->last_context_DPY = NULL;
    cf->X->Cr->last_context_WDW = -1;
@@ -4437,6 +4432,21 @@ SUMA_CommonFields * SUMA_Create_CommonFields ()
          }   
       } else {
          cf->CmapRotaFrac = 0.05;
+      }
+   }
+   {
+      char *eee = getenv("SUMA_Transparency_Step");
+      if (eee) {
+         cf->TransModeStep = atof(eee); 
+         if (cf->TransModeStep < 1 || cf->TransModeStep > 8) {
+            SUMA_S_Warn( 
+               "Values for environment variable SUMA_Transparency_Step\n"
+               "are outside valid range of [1 .. 8]. \n"
+               "Setting value to default of 4.");
+            cf->TransModeStep = 4;
+         }   
+      } else {
+         cf->TransModeStep = 4;
       }
    }
    
@@ -4981,6 +4991,7 @@ SUMA_Boolean SUMA_Free_CommonFields (SUMA_CommonFields *cf)
    SUMA_ifree(cf->X->Cr);
    for (i=0; i<cf->N_dcom; ++i) { SUMA_ifree(cf->dcom[i]); } 
    SUMA_ifree(cf->dcom);
+   SUMA_ifree(cf->DocumentedWidgets);
    
    if (cf->X->SumaCont) 
       SUMA_FreeSumaContStruct (cf->X->SumaCont); 
@@ -5252,7 +5263,9 @@ char * SUMA_CommonFieldsInfo (SUMA_CommonFields *cf, int detail)
                   
    SS = SUMA_StringAppend_va(SS, "SaveList: %d elements\n",
                   cf->SaveList ? dlist_size(cf->SaveList):0);
-                  
+   
+   SS = SUMA_StringAppend_va(SS, "Documented Widgets:\n%s",
+                     cf->DocumentedWidgets?cf->DocumentedWidgets:NULL);               
    /* clean up */
    SS = SUMA_StringAppend_va(SS, NULL);
    s = SS->s; SUMA_free(SS); SS= NULL;

@@ -10,7 +10,6 @@
 #include "../afni.h"
 
 /* CODE */
-
 #ifdef SUMA_DISASTER
 /*!
    a function to test debugging 
@@ -363,7 +362,7 @@ SUMA_SurfaceObject **SUMA_GimmeSomeSOs(int *N_SOv)
          Opt->obj_type_res = 64;
          Opt->debug =0;
          Opt->in_vol =0;
-         Opt->mcdatav= NULL;
+         Opt->mcfv= NULL;
          if ((SO = SUMA_MarchingCubesSurface(Opt))) {
             ++*N_SOv; 
             SOv = (SUMA_SurfaceObject **) 

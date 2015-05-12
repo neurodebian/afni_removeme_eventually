@@ -6103,8 +6103,8 @@ SUMA_Boolean SUMA_isVoxelIntersect_Triangle
 }
 
 /*
-\brief This function is a stripped down version of SUMA_MT_intersect_triangle. It is meant to
-work faster when few triangles are to be tested. 
+\brief This function is a stripped down version of SUMA_MT_intersect_triangle. 
+       It is meant to work faster when few triangles are to be tested. 
 
 ans = SUMA_MT_isIntersect_Triangle (P0, P1, vert0, vert1, vert2, iP, d, closest_vert);
 
@@ -6228,7 +6228,8 @@ SUMA_MT_INTERSECT_TRIANGLE *
 SUMA_MT_intersect_triangle(float *P0, float *P1, 
                            float *NodeList, int N_Node, 
                            int *FaceSetList, int N_FaceSet, 
-                           SUMA_MT_INTERSECT_TRIANGLE *prevMTI)
+                           SUMA_MT_INTERSECT_TRIANGLE *prevMTI,
+                           int posonly)
 
 \param   P0 (float *) 3x1 containing XYZ of point 0
 \param   P1 (float *) 3x1 containing XYZ of point 1
@@ -6251,7 +6252,9 @@ SUMA_MT_intersect_triangle(float *P0, float *P1,
                it to NULL and then send it to SUMA_MT_intersect_triangle.
 \param   posonly if 1 then search only in the positive direction. P0 --> P1
                  if 0 then abs min
-                 if -1 then only in neg direction
+                 if -1 then only in neg direction 
+                 Note that MTI->N_poshits is only properly set with 
+                 posonly == 0 or posonly == 1
 \ret   MTI (SUMA_MT_INTERSECT_TRIANGLE *) pointer to structure containing 
                isHit (SUMA_Boolean *) N_FaceSet x 1 vector. 
                isHit[i] = YUP --> FaceSet i is pierced by ray P0-->P1
@@ -6409,9 +6412,13 @@ SUMA_MT_intersect_triangle(float *P0, float *P1,
                MTI->isHit[iface] = YUP;
                ++MTI->N_hits; 
                /* store shortest distance triangle info */
-               if (MTI->t[iface] < 0) disttest = -MTI->t[iface];
-                  else { disttest = MTI->t[iface]; ++MTI->N_poshits;}
-                   
+               if (MTI->t[iface] < 0) {
+                  if (posonly>0) continue; 
+                  disttest = -MTI->t[iface];
+               }   else  { 
+                  if (posonly<0) continue; 
+                  disttest = MTI->t[iface]; ++MTI->N_poshits;
+               }    
                if (disttest < tmin) {
                   tmin = disttest;
                   MTI->ifacemin = iface;
@@ -6780,15 +6787,18 @@ SUMA_Boolean SUMA_MT_count_intersect_triangle(void *v0, void *v1,
 Show contents of SUMA_MT_INTERSECT_TRIANGLE structure
 */
 SUMA_Boolean SUMA_Show_MT_intersect_triangle(
-               SUMA_MT_INTERSECT_TRIANGLE *MTI, FILE *Out)
+               SUMA_MT_INTERSECT_TRIANGLE *MTI, FILE *Out, char *preamble)
 {
    static char FuncName[]={"SUMA_Show_MT_intersect_triangle"};
-   int MaxShow = 5, i,j;
+   int MaxShow = 5, i,j, mxs;
    
    SUMA_ENTRY;
 
    if (Out == NULL) Out = stdout;
-      
+   
+   if (preamble) {
+      fprintf (Out, "%s", preamble);
+   }   
    if (MTI == NULL) {
       fprintf (Out, "NULL Surface Object Pointer\n");
       SUMA_RETURN(NOPE);
@@ -6806,40 +6816,43 @@ SUMA_Boolean SUMA_Show_MT_intersect_triangle(
       SUMA_RETURN (NOPE);
    }
    else {
-      if (MaxShow > MTI->N_el) MaxShow = MTI->N_el; 
+      if (MaxShow > MTI->N_el) mxs = MTI->N_el;
+      else mxs = MaxShow; 
       fprintf (Out, 
-         "Intersection results (showing first %d out of %d elements):\n", 
-               MaxShow, MTI->N_el);
-      for (i=0; i < MaxShow; ++i)   {
-         fprintf (Out, "\tisHit: %d t %f u %f v %f", 
+         "   Intersection results (showing max of %d out of %d elements):\n", 
+               mxs, MTI->N_el);
+      for (i=0; i < mxs; ++i)   {
+         fprintf (Out, "      isHit: %d t %f u %f v %f\n", 
             MTI->isHit[i], MTI->t[i], MTI->u[i],MTI->v[i]);
       }
          fprintf (Out, "\n");
       
       if (MTI->N_hits) {
-         fprintf (Out, "\n%d hits, (%d hists with positive distance).\n", 
+         if (MaxShow > MTI->N_hits) mxs = MTI->N_hits;
+         else mxs = MaxShow; 
+         fprintf (Out, "\n%d hits, (%d hits with positive distance).\n", 
                   MTI->N_hits, MTI->N_poshits);
-         fprintf (Out, "Minimum Distance: %d t %f u %f v %f\n",
+         fprintf (Out, "Minimum Distance on triangle %d of t=%f u %f v %f\n",
                   MTI->ifacemin, MTI->t[MTI->ifacemin], 
                   MTI->u[MTI->ifacemin],MTI->v[MTI->ifacemin]);
-         fprintf (Out, "Intersection point P at Minimum Distance FaceSet:\n"
-                       "%f, %f, %f\n",
+         fprintf (Out, "   Intersection point P on Minimum Distance FaceSet:\n"
+                       "      %f, %f, %f\n",
                   MTI->P[0], MTI->P[1], MTI->P[2]);
-         fprintf (Out, "Closest node is number %d in Minimum Distance Faceset "
+         fprintf (Out,"   Closest node is number %d in Minimum Distance Faceset "
                        "(%d in NodeList) at %f distance.\n",
                   MTI->inodeminlocal, MTI->inodemin, MTI->d);                           
-         fprintf (Out, "Maximum Distance: %d t %f u %f v %f\n\n", 
+         fprintf (Out, "Maximum Distance on triangle %d of t=%f u %f v %f\n\n", 
                   MTI->ifacemax, MTI->t[MTI->ifacemax], 
                   MTI->u[MTI->ifacemax],MTI->v[MTI->ifacemax]);
-         fprintf (Out, "Intersection of ray with surface "
-                       "(showing first %d out of %d elements):\n", 
-                  MaxShow, MTI->N_el);
+         fprintf (Out, "   Intersection of ray with surface "
+                       "(showing at most %d out of %d elements):\n", 
+                  mxs, MTI->N_el);
          i = 0;
          j = 0;
-         while (i< MTI->N_el && j < MTI->N_hits) {
+         while (i< MTI->N_el && j < mxs) {
             if (MTI->isHit[i]) {
                ++j;
-               fprintf (Out, "\tisHit: %d t %f u %f v %f\n", 
+               fprintf (Out, "   isHit: %d t %f u %f v %f\n", 
                         MTI->isHit[i], MTI->t[i], MTI->u[i],MTI->v[i]);
             }
             ++i;
@@ -8227,25 +8240,31 @@ SUMA_FACESET_FIRST_EDGE_NEIGHB *SUMA_FaceSet_Edge_Neighb (int **EL, int **ELps, 
    
    ans = SUMA_MakeConsistent (FaceSetList, N_FaceSet, SEL, detail, trouble) 
    
-   \param FaceSetList (int *) N_FaceSet x 3 vector (was matrix prior to SUMA 1.2) containing triangle definition
+   \param FaceSetList (int *) N_FaceSet x 3 vector (was matrix prior to SUMA 1.2)                               containing triangle definition
    \param N_FaceSet int
-   \param SEL (SUMA_EDGE_LIST *) pointer Edgelist structure as output by SUMA_Make_Edge_List
+   \param SEL (SUMA_EDGE_LIST *) pointer Edgelist structure as output 
+                                 by SUMA_Make_Edge_List
    \param detail (int)  0: quiet, except for errors and warnings
                         1: report at end
                         2: LocalHead gets turned on
-   \param trouble (int *): a flag that is set to 1 if the surface had inconsistent mesh 
+   \param trouble (int *): a flag that is set to 1 if the surface 
+                           had inconsistent mesh 
                            or if the surface could not be fully traversed.
-                           0 if all went well and the mesh looks good (for the purposes of this function)
+                           0 if all went well and the mesh looks good 
+                           (for the purposes of this function)
    \ret ans (SUMA_Boolean) YUP, NOPE 
    
    \sa SUMA_Make_Edge_List
      
 */
-SUMA_Boolean SUMA_MakeConsistent (int *FL, int N_FL, SUMA_EDGE_LIST *SEL, int detail, int *trouble) 
+SUMA_Boolean SUMA_MakeConsistent (int *FL, int N_FL, SUMA_EDGE_LIST *SEL, 
+                                  int detail, int *trouble) 
 {
    static char FuncName[]={"SUMA_MakeConsistent"};
    /* see for more documentation labbook NIH-2 test mesh  p61 */
-   int i, it, NP, ip, N_flip=0, *isflip, *ischecked, ht0, ht1, NotConsistent, miss, miss_cur, N_iter, EdgeSeed, TriSeed, N_checked;
+   int i, it, NP, ip, N_flip=0, *isflip, *ischecked, ht0, ht1, 
+       NotConsistent, miss, miss_cur, N_iter, EdgeSeed, TriSeed, N_checked,
+       N_bad=0;
    SUMA_FACESET_FIRST_EDGE_NEIGHB *SFFN;
    SUMA_Boolean LocalHead = NOPE;
    
@@ -8263,7 +8282,7 @@ SUMA_Boolean SUMA_MakeConsistent (int *FL, int N_FL, SUMA_EDGE_LIST *SEL, int de
    ischecked = (int *)SUMA_calloc(SEL->N_EL/3, sizeof(int));
    
    if (isflip == NULL || ischecked == NULL ) {
-      fprintf(SUMA_STDERR, "Error %s: Failed to allocate for isflip\n", FuncName);
+      SUMA_S_Err("Failed to allocate for isflip");
       SUMA_RETURN (NOPE);
    }
    
@@ -8296,7 +8315,17 @@ SUMA_Boolean SUMA_MakeConsistent (int *FL, int N_FL, SUMA_EDGE_LIST *SEL, int de
          /* make sure edge is not part of three triangles, if it is, skip it */
          if (SEL->ELps[i][2] > 2) {
             ++i;
-            fprintf(SUMA_STDERR, "%s: Bad edge (#%d: %d--%d), part of more than 2 triangles, skip it\n", FuncName, i, SEL->EL[i][0], SEL->EL[i][1]); 
+            ++N_bad;
+            if (N_bad < 50) {
+               fprintf(SUMA_STDERR, 
+    "%s: Bad edge (#%d: %d--%d), part of more than 2 triangles, skipping it\n", 
+               FuncName, i, SEL->EL[i][0], SEL->EL[i][1]);
+               if (N_bad == 49) {
+                  fprintf(SUMA_STDERR, 
+                     "No more Bad edge warnings will be output to stderr. \n"
+                     "See BadEdgeNodes file if it is a part of the output.\n");
+               }
+            }
             continue;
          }
          if (SEL->ELps[i][2] == 2) {
@@ -8363,8 +8392,9 @@ SUMA_Boolean SUMA_MakeConsistent (int *FL, int N_FL, SUMA_EDGE_LIST *SEL, int de
                ++i; 
                continue;
             } 
-            if (!ischecked[ht0] && !ischecked [ht1]) { /* a good lead that was missed on this pass */
-               if (LocalHead) fprintf(SUMA_STDERR,"%s: Miss = %d, MissCur = %d\n", FuncName, miss, miss_cur); 
+            if (!ischecked[ht0] && !ischecked [ht1]) { 
+                        /* a good lead that was missed on this pass */
+               SUMA_LH("Miss = %d, MissCur = %d\n", miss, miss_cur); 
                ++miss;
             }
          }
@@ -8389,6 +8419,10 @@ SUMA_Boolean SUMA_MakeConsistent (int *FL, int N_FL, SUMA_EDGE_LIST *SEL, int de
       *trouble = 1;
    }
    
+   if (N_bad) {
+      if (detail) fprintf(SUMA_STDERR,"%s: A total of %d segments were part of more than 2 triangles.\n", FuncName, N_bad);
+      *trouble = 1;
+   }
    #if 0
       /* now show the fixed mesh list */
       fprintf (SUMA_STDERR,"%s: %d triangles were flipped \n", FuncName, N_flip);

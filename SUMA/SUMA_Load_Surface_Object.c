@@ -372,6 +372,14 @@ SUMA_Boolean SUMA_Save_Surface_Object (void * F_name, SUMA_SurfaceObject *SO,
             SUMA_RETURN (NOPE);
          }
          break;
+      case SUMA_STL:
+         if (!SUMA_STL_Write ((char *)F_name, SO)) {
+            fprintf (SUMA_STDERR, 
+                     "Error %s: Failed to write STL surface.\n"
+                     , FuncName);
+            SUMA_RETURN (NOPE);
+         }
+         break;
       case SUMA_MNI_OBJ:
          if (!SUMA_MNI_OBJ_Write ((char *)F_name, SO)) {
             fprintf (SUMA_STDERR, 
@@ -869,6 +877,8 @@ SUMA_SurfaceObject * SUMA_Load_Surface_Object_eng (
       case SUMA_FREE_SURFER:
       case SUMA_FREE_SURFER_PATCH:
          break;
+      case SUMA_STL:
+         break;
       case SUMA_PLY:
          break;
       case SUMA_OBJ_MESH:
@@ -911,6 +921,35 @@ SUMA_SurfaceObject * SUMA_Load_Surface_Object_eng (
                   FuncName);
          SUMA_RETURN(NULL);
       
+      case SUMA_STL:
+         if (!SUMA_STL_Read ((char *)SO_FileName_vp, SO)) {
+            fprintf (SUMA_STDERR,
+                     "Error %s: Failed in SUMA_STL_Read.\n", FuncName);
+            SUMA_RETURN(NULL);
+         }
+         SUMA_NEW_ID(SO->idcode_str,(char *)SO_FileName_vp); 
+         
+         /* change coordinates to align them with volparent data set, 
+            if possible */
+         if (VolParName != NULL) {
+            SO->VolPar = SUMA_VolPar_Attr (VolParName);
+            if (SO->VolPar == NULL) {
+               fprintf( SUMA_STDERR,
+                        "Error %s: Failed to load parent volume attributes.\n", 
+                        FuncName);
+            } else {
+
+            if (!SUMA_Align_to_VolPar (SO, NULL)) SO->SUMA_VolPar_Aligned = NOPE;
+               else {
+                  SO->SUMA_VolPar_Aligned = YUP;
+                  /*SUMA_Show_VolPar(SO->VolPar, NULL);*/
+               }
+            }
+         } else { 
+            SO->SUMA_VolPar_Aligned = NOPE;
+         }
+         SO->normdir = 0;  /* not set */
+         break;
       case SUMA_PLY:
          if (!SUMA_Ply_Read ((char *)SO_FileName_vp, SO)) {
             fprintf (SUMA_STDERR,
@@ -1201,7 +1240,7 @@ SUMA_SurfaceObject * SUMA_Load_Surface_Object_eng (
          SO->Name = SUMA_StripPath(SO_FileName);
          /* check for file existence  */
          if (!SUMA_filexists(SO_FileName)) {
-            sprintf(stmp,"File %s not found!", SO_FileName);
+            snprintf(stmp,998,"File %s not found!", SO_FileName);
             SUMA_error_message(FuncName, stmp, 0);
             SUMA_RETURN (NULL);
          }
@@ -1507,10 +1546,64 @@ SUMA_SurfaceObject * SUMA_Load_Surface_Object_eng (
       SUMA_SL_Err("Failed to set surface's properties");
       SUMA_RETURN (NULL);
    }
+   
       
    SUMA_RETURN (SO);
    
 }/*SUMA_Load_Surface_Object_eng*/
+
+/*!< Look for datasets names exactly like the surface but with
+a dataset extension and load them if found*/
+SUMA_Boolean SUMA_AutoLoad_SO_Dsets(SUMA_SurfaceObject *SO)   
+{
+   static char FuncName[]={"SUMA_AutoLoad_SO_Dsets"};
+   char *ddd=NULL, *ddde=NULL, *soname=NULL;
+   SUMA_Boolean LocalHead = NOPE;
+
+   SUMA_ENTRY;
+   
+   soname = SUMA_SurfaceFileName(SO, 1);
+   if (!soname) soname = SUMA_copy_string("No_SO_name.gii");
+   ddd = SUMA_RemoveSurfNameExtension (soname, SO->FileType);
+   SUMA_LH("Checking for %s dsets on root %s", soname, ddd);
+   if (SUMA_filexists((ddde = SUMA_append_string(ddd,".niml.dset")))) {
+      SUMA_S_Note("Auto Loading %s onto %s", ddde, soname);
+      SUMA_LoadDsetOntoSO(ddde, (void *)SO);
+      SUMA_ifree(ddde);
+   }
+   if (ddde) {/* try again */
+      SUMA_ifree(ddde);
+      if (SUMA_filexists((ddde = SUMA_append_string(ddd,".1D.dset")))) {
+         SUMA_S_Note("Auto Loading %s onto %s", ddde, soname);
+         SUMA_LoadDsetOntoSO(ddde, (void *)SO);
+         SUMA_ifree(ddde);
+      }
+   }
+   if (ddde) {/* try again */
+      SUMA_ifree(ddde);
+      if (SUMA_filexists((ddde = SUMA_append_string(ddd,".gii.dset")))) {
+         SUMA_S_Note("Auto Loading %s onto %s", ddde, soname);
+         SUMA_LoadDsetOntoSO(ddde, (void *)SO);
+         SUMA_ifree(ddde);
+      }
+   }
+   if (ddde) {/* try again */
+      SUMA_ifree(ddde);
+      if ( SO->FileType != SUMA_GIFTI &&
+           SUMA_filexists((ddde = SUMA_append_string(ddd,".gii")))) {
+         SUMA_S_Note("Auto Loading %s onto %s", ddde, soname);
+         SUMA_LoadDsetOntoSO(ddde, (void *)SO);
+         SUMA_ifree(ddde);
+      }
+   }
+   SUMA_ifree(ddd);
+   SUMA_ifree(soname);
+   if (!ddde) SUMA_RETURN(YUP); /* got one */
+
+   SUMA_ifree(ddde);
+   SUMA_RETURN(NOPE);
+}
+   
 
  
 /*!
@@ -3338,6 +3431,19 @@ SUMA_SurfaceObject * SUMA_Load_Spec_Surf(
       brk = YUP;
    } /* load Ply format surface */
 
+   if (!brk && SUMA_iswordin(Spec->SurfaceType[i], "STL") == 1) {
+      /* load STL format surface */
+      SO = SUMA_Load_Surface_Object_eng ( (void *)Spec->SurfaceFile[i], SUMA_STL,                                           SUMA_FF_NOT_SPECIFIED, tmpVolParName, 
+                                          debug);
+
+      if (SO == NULL)   {
+         fprintf(SUMA_STDERR,"Error %s: could not load SO\n", FuncName);
+         SUMA_RETURN(NULL);
+      }
+      SurfIn = YUP;
+      brk = YUP;
+   } /* load STL format surface */
+
    if (!brk && SUMA_iswordin(Spec->SurfaceType[i], "MNI") == 1) {
       /* load MNI_OBJ format surface */
 
@@ -3480,11 +3586,13 @@ SUMA_SurfaceObject * SUMA_Load_Spec_Surf(
    SO->Group = (char *)SUMA_calloc(strlen(Spec->Group[i])+1, sizeof(char));
    SO->State = (char *)SUMA_calloc(strlen(Spec->State[i])+1, sizeof(char));
    if (Spec->SurfaceLabel[i][0] == '\0') {
-      SO->Label = SUMA_SurfaceFileName (SO, NOPE);
+      if (!(SO->Label = SUMA_SurfaceFileName (SO, NOPE))) {
+         SO->Label = SUMA_copy_string("Who_Am_I");
+      }
    } else {
       SO->Label = SUMA_copy_string(Spec->SurfaceLabel[i]);
    }
-
+   
    if (SO->isSphere == SUMA_GEOM_NOT_SET) { 
       SUMA_SetSphereParams(SO, -0.1);   /* sets the spheriosity parameters */
    }
@@ -3544,8 +3652,7 @@ SUMA_SurfaceObject * SUMA_Load_Spec_Surf_with_Metrics(
    
    if (!(SO = SUMA_Load_Spec_Surf(Spec, i, tmpVolParName, debug))) {
       SUMA_S_Errv("Failed to find surface %s %s.\n",
-           Spec->CoordFile[i] ? Spec->CoordFile[i]:"NULL??",
-           Spec->TopoFile[i] ? Spec->TopoFile[i]:"");
+           SPEC_NAME_DBG(Spec,i), SPEC_TOPO_DBG(Spec,i));
       SUMA_RETURN(SO);
    }
    
@@ -3553,7 +3660,9 @@ SUMA_SurfaceObject * SUMA_Load_Spec_Surf_with_Metrics(
                                           SUMAg_CF->DsetList);
    if (!SO->MF) SUMA_SurfaceMetrics_eng(SO, "MemberFace", NULL, debug,  
                                           SUMAg_CF->DsetList);
-   if (!SO->Label) SUMA_SurfaceFileName(SO, NOPE);
+   if (!SO->Label && !(SO->Label = SUMA_SurfaceFileName(SO, NOPE))) {
+      SO->Label = SUMA_copy_string("A_Horse_With_No_Name");
+   }
    
    SUMA_RETURN(SO);
 }
@@ -3840,12 +3949,36 @@ SUMA_Boolean SUMA_LoadSpec_eng (
          /* check if surface read was unique 
          it's inefficient to check after the surface is read, 
          but idcode is generated in the read routine 
-         and users should not be making this mistake too often */
+         and users should not be making this mistake too often 
+         Search for similar comment elsewhere in the code once
+         a better remedy is found*/
          if (SUMA_existSO (SO->idcode_str, dov, *N_dov)) {
-            fprintf( SUMA_STDERR,
-                     "Note %s: \n"
-                     "Surface is specifed more than once, \n"
-                     "multiple copies ignored.\n", FuncName);
+            /* Check the filename match, to get around ID collision 
+               This modification is no guarantee that collisions
+               won't occur but it is a start until I figure out
+               the problem with hashcode */
+            char *name=NULL, *mname=NULL;
+            SUMA_SurfaceObject *SOm = NULL;
+            SOm = SUMA_findSOp_inDOv(SO->idcode_str, dov, *N_dov);
+            mname = SUMA_SurfaceFileName(SOm, 1);
+            name = SUMA_SurfaceFileName(SO, 1);
+            if (mname && name && strcmp(mname, name)) {
+               char *stmp;
+               /* give SO a new ID */
+               stmp = SUMA_append_replace_string(name, SO->idcode_str,"_",0);
+               SUMA_ifree(SO->idcode_str);
+               SUMA_NEW_ID(SO->idcode_str, stmp);
+               SUMA_ifree(stmp);
+            }
+            SUMA_ifree(name); SUMA_ifree(mname);
+         }
+         if (SUMA_existSO (SO->idcode_str, dov, *N_dov)) {
+            SUMA_SurfaceObject *SOm = NULL;
+            SOm = SUMA_findSOp_inDOv(SO->idcode_str, dov, *N_dov);
+            SUMA_S_Errv("Surface %s %s (id %s) is in dov already as %s!\n",
+                        SPEC_NAME_DBG(Spec,i), SPEC_TOPO_DBG(Spec,i),
+                        SO->idcode_str, SOm->Label);
+               
             /* free SO */
             if (!SUMA_Free_Surface_Object (SO)) {
                fprintf(SUMA_STDERR,"Error %s: Error freeing SO.\n", FuncName);
@@ -3904,6 +4037,9 @@ SUMA_Boolean SUMA_LoadSpec_eng (
             }
             SUMA_LHv("NodeMarker %s loaded\n", Spec->NodeMarker[i]);
          }
+         /* Any dsets identically named? If so, load them */
+         if (SUMA_isEnv("SUMA_AutoLoad_Matching_Dset","YES"))
+                                          SUMA_AutoLoad_SO_Dsets(SO);
       }/* Mappable surfaces */
    }/* first loop across mappable surfaces */
 
@@ -4118,6 +4254,9 @@ SUMA_Boolean SUMA_LoadSpec_eng (
             SUMA_S_Notev("Will need to load NodeMarker %s for non mappable %s\n",
                          Spec->NodeMarker[i], SO->Label);
          }
+         if (SUMA_isEnv("SUMA_AutoLoad_Matching_Dset","YES"))
+                                        SUMA_AutoLoad_SO_Dsets(SO);
+
       }/* Non Mappable surfaces */
 
    }/*locate and load all NON Mappable surfaces */
@@ -4213,7 +4352,8 @@ SUMA_Boolean SUMA_SurfaceMetrics_eng (
 {
    static char FuncName[]={"SUMA_SurfaceMetrics_eng"};
    float *Cx=NULL, *SOCx = NULL;
-   SUMA_Boolean DoConv, DoArea, DoCurv, DoEL, DoMF, DoWind, LocalHead = NOPE;
+   SUMA_Boolean DoConv, DoArea, DoCurv, DoEL, DoMF, DoWind, DoDW, 
+                LocalHead = NOPE;
    int i = 0;
    
    SUMA_ENTRY;
@@ -4228,6 +4368,7 @@ SUMA_Boolean SUMA_SurfaceMetrics_eng (
       SUMA_RETURN(NOPE);
    }
    DoConv = DoArea = DoCurv = DoEL = DoMF = DoWind = NOPE;
+   DoDW = YUP; /* No need to skimp on this one, costs nothing */
    
    if (SUMA_iswordin (Metrics, "Convexity")) DoConv = YUP;
    if (SUMA_iswordin (Metrics, "PolyArea")) DoArea = YUP;
@@ -4237,14 +4378,13 @@ SUMA_Boolean SUMA_SurfaceMetrics_eng (
    if (SUMA_iswordin (Metrics, "CheckWind")) DoWind = YUP;
    
    /* check for input inconsistencies and warn */
-   if (!DoConv && !DoArea && !DoCurv && !DoEL  && !DoMF && !DoWind) {
+   if (!DoConv && !DoArea && !DoCurv && !DoEL  && !DoMF && !DoWind && !DoDW) {
       if (debug) fprintf ( SUMA_STDERR,
                            "Warning %s: Nothing to do.\n", FuncName);
       SUMA_RETURN (YUP);
    }
    
-   SOCx = (float *)SUMA_GetCx (SO->idcode_str, DsetList, 0); 
-   if (DoConv && SOCx) {
+   if (DoConv && (SOCx = (float *)SUMA_GetCx (SO->idcode_str, DsetList, 0))) {
       if (debug) fprintf ( SUMA_STDERR,
                            "Warning %s: SOCx != NULL \n"
                            "and thus appears to have been precomputed.\n",
@@ -4506,10 +4646,17 @@ SUMA_Boolean SUMA_SurfaceMetrics_eng (
       if (DsetList){ /* put the convexity as a DataSet */
          SUMA_DSET *dset = NULL;
          char *name_tmp=NULL;
-         if (SO->Label) {
+         if ((name_tmp = SUMA_SurfaceFileName(SO, 1))) {
+            /* Go with this baby, maybe someday modify
+               fuction above to return full path, making it
+               more robust */
+            name_tmp = SUMA_append_replace_string("Convexity_",name_tmp,"",2);
+         } else if (SO->Label) {
             name_tmp = SUMA_append_string("Convexity_",SO->Label);
-         } else {
+         } else if (SO->idcode_str) {
             name_tmp = SUMA_append_string("Convexity_",SO->idcode_str);
+         } else {
+            name_tmp = SUMA_append_string("Convexity_","Give_Peace_A_Chance");
          }
          dset = SUMA_CreateDsetPointer(name_tmp, /*   no file name, but specify a
                                                       name anyway _COD is 
@@ -4587,6 +4734,22 @@ SUMA_Boolean SUMA_SurfaceMetrics_eng (
       }
    }
 
+   /* Initialize drawing masks */
+   if (DoDW) {
+      if (!SOinh) {
+         SO->DW = (SUMA_DRAW_MASKS *)SUMA_calloc(1,sizeof(SUMA_DRAW_MASKS));
+         SO->DW->do_type = not_DO_type;
+         SO->DW->LinkedPtrType = SUMA_LINKED_DRAW_MASKS_TYPE;
+         SO->DW->N_links = 0;
+         if (SO->idcode_str) sprintf(SO->DW->owner_id, "%s", SO->idcode_str);
+         else SO->DW->owner_id[0] = '\0';
+         SUMA_EmptyDrawMasks(SO->DW);
+      } else {
+         if (LocalHead) 
+               fprintf(SUMA_STDOUT, "%s: Linking Drawing Masks ...\n", FuncName);
+         SO->DW = (SUMA_DRAW_MASKS *)SUMA_LinkToPointer((void*)SOinh->DW);
+      }
+   }
    SUMA_RETURN (YUP);
 }
 
@@ -4616,11 +4779,12 @@ char * SUMA_SurfaceFileName (SUMA_SurfaceObject * SO, SUMA_Boolean MitPath)
 
    /* check if recognizable type */
    switch (SO->FileType) {
-      case SUMA_FT_NOT_SPECIFIED:
-         SUMA_error_message(FuncName, "SO_FileType not specified", 0);
-         SUMA_RETURN (NULL);
-         break;
       case SUMA_VEC:
+      case SUMA_SUREFIT:
+         if (!SO->Name_coord.Path  || !SO->Name_coord.FileName ||
+             !SO->Name_topo.Path   || !SO->Name_topo.FileName) {
+            SUMA_RETURN(NULL);
+         }
          if (MitPath) nalloc = 
             strlen(SO->Name_coord.Path) + 
             strlen(SO->Name_coord.FileName) +
@@ -4629,15 +4793,7 @@ char * SUMA_SurfaceFileName (SUMA_SurfaceObject * SO, SUMA_Boolean MitPath)
          else nalloc =  strlen(SO->Name_coord.FileName) +
                         strlen(SO->Name_topo.FileName) + 5;
          break;
-      case SUMA_SUREFIT:
-         if (MitPath) nalloc = 
-               strlen(SO->Name_coord.Path) + 
-               strlen(SO->Name_coord.FileName) +
-               strlen(SO->Name_topo.Path) + 
-               strlen(SO->Name_topo.FileName) + 5;
-         else nalloc =  strlen(SO->Name_coord.FileName) +
-                        strlen(SO->Name_topo.FileName) + 5;
-         break;
+      case SUMA_FT_NOT_SPECIFIED:
       case SUMA_INVENTOR_GENERIC:
       case SUMA_FREE_SURFER:
       case SUMA_FREE_SURFER_PATCH:
@@ -4648,7 +4804,11 @@ char * SUMA_SurfaceFileName (SUMA_SurfaceObject * SO, SUMA_Boolean MitPath)
       case SUMA_GIFTI:
       case SUMA_PREDEFINED:
       case SUMA_MNI_OBJ:
+      case SUMA_STL:
       case SUMA_PLY:
+         if (!SO->Name.Path || !SO->Name.FileName ) {
+            SUMA_RETURN(NULL);
+         }
          if (MitPath) 
             nalloc = strlen(SO->Name.Path) + strlen(SO->Name.FileName) + 5;
          else nalloc = strlen(SO->Name.FileName) + 5;
@@ -4666,9 +4826,11 @@ char * SUMA_SurfaceFileName (SUMA_SurfaceObject * SO, SUMA_Boolean MitPath)
    }
    
    switch (SO->FileType) {
+      case SUMA_FT_NOT_SPECIFIED:
       case SUMA_INVENTOR_GENERIC:
       case SUMA_FREE_SURFER:
       case SUMA_FREE_SURFER_PATCH:
+      case SUMA_STL:
       case SUMA_PLY:
       case SUMA_OPENDX_MESH:
       case SUMA_OBJ_MESH:
@@ -4694,7 +4856,6 @@ char * SUMA_SurfaceFileName (SUMA_SurfaceObject * SO, SUMA_Boolean MitPath)
          else sprintf(Name,"%s__%s", 
             SO->Name_coord.FileName, SO->Name_topo.FileName);
          break;
-      case SUMA_FT_NOT_SPECIFIED:
       case SUMA_N_SO_FILE_TYPE:
       case SUMA_CMAP_SO:
       case SUMA_FT_ERROR:
@@ -4719,6 +4880,7 @@ char SUMA_GuessAnatCorrect(SUMA_SurfaceObject *SO)
       case SUMA_FREE_SURFER_PATCH:
       case SUMA_OPENDX_MESH:
       case SUMA_OBJ_MESH:
+      case SUMA_STL:
       case SUMA_PLY:
       case SUMA_BYU:
       case SUMA_MNI_OBJ:
@@ -4851,6 +5013,7 @@ SUMA_SO_SIDE SUMA_GuessSide(SUMA_SurfaceObject *SO)
       case SUMA_BYU:
       case SUMA_MNI_OBJ:
       case SUMA_PREDEFINED:
+      case SUMA_STL:
       case SUMA_PLY:
          if (SUMA_iswordin (SO->Name.FileName, "lh") == 1 ||
              SUMA_iswordin (SO->Name.FileName, "left") == 1) {
@@ -4954,6 +5117,7 @@ int SUMA_SetSphereParams(SUMA_SurfaceObject *SO, float tol)
          case SUMA_OPENDX_MESH:
          case SUMA_OBJ_MESH:
          case SUMA_MNI_OBJ:
+         case SUMA_STL:
          case SUMA_PLY:
             break;
          case SUMA_PREDEFINED:

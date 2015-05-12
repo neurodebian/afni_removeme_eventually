@@ -8,7 +8,7 @@
 #define _MCW_MRILIB_HEADER_
 
 #define MRILIB_7D
-#define _GNU_SOURCE             /* 23 Jun 2011 */
+#define _GNU_SOURCE 1           /* 23 Jun 2011 */
 
 #define COXEMAIL "rwcox@nih.gov"        /* or /dev/null, if you prefer */
 
@@ -1475,7 +1475,8 @@ typedef struct {
 } SYM_irange ;
 
 extern floatvecvec * SYM_expand_ranges( int, int, SYM_irange *, char * );
-extern int SYM_expand_errcount(void) ; /* 03 May 2007 */
+extern int SYM_expand_errcount(void) ;                          /* 03 May 2007 */
+extern char * SYM_test_gltsym( char *varlist , char *gltsym ) ; /* 01 May 2015 */
 
 /*-----------------  30 Oct 1996: incorporation of cdflib ----------------*/
 /*-----------------  09 May 2007: get them from nifticdf  ----------------*/
@@ -1571,6 +1572,10 @@ extern MRI_IMAGE * mri_clusterize( float,float, MRI_IMAGE * ,
 extern char * mri_clusterize_report(void) ;
 extern MCW_cluster_array * mri_clusterize_array(int clear) ;
 extern mri_cluster_detail mri_clusterize_detailize( MCW_cluster *cl ) ;
+
+extern MRI_IMAGE * mri_bi_clusterize( float rmm , float vmul , MRI_IMAGE *bim ,
+                                      float thb , float tht  , MRI_IMAGE *tim ,
+                                      byte *mask ) ;  /* 29 Jan 2015 */
 
 extern void mri_fdr_setmask( byte *mmm ) ;                /* 27 Mar 2009 */
 extern int mri_fdrize( MRI_IMAGE *, int, float *, int ) ; /* 17 Jan 2008 */

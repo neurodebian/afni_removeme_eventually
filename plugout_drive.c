@@ -212,7 +212,7 @@ int afni_io(void)
             * PONAME means 'use this string for informative messages';
             * IOCHAN means 'use this I/O channel from now on'. **/
 
-      if( afni_name[0] == '\0' ) strcpy(afni_name,"ManOfLaMancha") ;
+      if( afni_name[0] == '\0' ) strcpy(afni_name,"plugout_drive") ;
 
       sprintf( afni_buf , "PONAME %s\n"
                           "IOCHAN %s" ,
@@ -338,6 +338,8 @@ int afni_io(void)
 
    return 0 ;
 }
+
+extern char *SUMA_Offset_SLines(char *, int);
 
 void usage_plugout_drive(int detail)
 {
